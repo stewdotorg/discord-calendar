@@ -10,6 +10,7 @@ from discord import app_commands
 from src.calendar.auth import CredentialsError, load_credentials
 from src.calendar.service import CalendarService
 from src.commands.create import create
+from src.commands.delete import delete  # noqa: F401  # side-effect: registers on cal group
 from src.commands.list_events import cal
 from src.commands.ping import ping
 

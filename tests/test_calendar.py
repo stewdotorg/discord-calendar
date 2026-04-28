@@ -186,3 +186,72 @@ def test_list_events_raises_on_api_error():
                 time_min=datetime.datetime(2026, 4, 28, 4, 0, 0, tzinfo=datetime.timezone.utc),
                 time_max=datetime.datetime(2026, 4, 29, 4, 0, 0, tzinfo=datetime.timezone.utc),
             )
+
+
+# ── CalendarService.delete_event ────────────────────────────────────────────
+
+
+def test_delete_event_calls_events_delete_with_correct_id():
+    """delete_event calls events().delete with the correct calendarId and eventId
+    and returns event metadata for confirmation."""
+    with patch("src.calendar.service.build") as mock_build:
+        mock_service = MagicMock()
+        mock_build.return_value = mock_service
+
+        mock_events = MagicMock()
+        mock_service.events.return_value = mock_events
+
+        # Mock get (to fetch event metadata before delete)
+        mock_get = MagicMock()
+        mock_events.get.return_value = mock_get
+        mock_get.execute.return_value = {
+            "summary": "Team Standup",
+            "start": {"dateTime": "2026-05-01T14:00:00+00:00"},
+        }
+
+        # Mock delete
+        mock_delete = MagicMock()
+        mock_events.delete.return_value = mock_delete
+        mock_delete.execute.return_value = None
+
+        svc = CalendarService(MagicMock(), "test-cal@group.calendar.google.com")
+        result = svc.delete_event("abc123")
+
+        assert result == {
+            "summary": "Team Standup",
+            "start": "2026-05-01T14:00:00+00:00",
+        }
+
+        mock_events.get.assert_called_once_with(
+            calendarId="test-cal@group.calendar.google.com", eventId="abc123"
+        )
+        mock_events.delete.assert_called_once_with(
+            calendarId="test-cal@group.calendar.google.com", eventId="abc123"
+        )
+
+
+def test_delete_event_raises_on_http_error():
+    """delete_event raises HttpError when the API call fails."""
+    from googleapiclient.errors import HttpError
+
+    with patch("src.calendar.service.build") as mock_build:
+        mock_service = MagicMock()
+        mock_build.return_value = mock_service
+
+        mock_events = MagicMock()
+        mock_service.events.return_value = mock_events
+
+        mock_delete = MagicMock()
+        mock_events.delete.return_value = mock_delete
+
+        http_resp = MagicMock()
+        http_resp.status = 404
+        http_resp.reason = "Not Found"
+        mock_delete.execute.side_effect = HttpError(
+            http_resp, b'{"error": "not found"}'
+        )
+
+        svc = CalendarService(MagicMock(), "primary")
+
+        with pytest.raises(HttpError):
+            svc.delete_event("nonexistent_id")

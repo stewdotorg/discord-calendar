@@ -147,3 +147,40 @@ class CalendarService:
             raise RuntimeError(msg) from exc
 
         return result.get("items", [])
+
+    def delete_event(self, event_id: str) -> dict:
+        """Delete a Google Calendar event.
+
+        Fetches event metadata before deleting so the caller can
+        confirm the deletion with event title and date.
+
+        Deleting an event from Google Calendar automatically sends
+        cancellation emails to any attendees.
+
+        Args:
+            event_id: The Google Calendar event ID to delete.
+
+        Returns:
+            A dict with 'summary' and 'start' (dateTime string) for
+            use in the confirmation message.
+
+        Raises:
+            HttpError: If the Calendar API call fails.
+        """
+        service = self._build_service()
+
+        # Fetch event metadata before deleting
+        event = (
+            service.events()
+            .get(calendarId=self._calendar_id, eventId=event_id)
+            .execute()
+        )
+
+        service.events().delete(
+            calendarId=self._calendar_id, eventId=event_id
+        ).execute()
+
+        return {
+            "summary": event.get("summary", "Untitled Event"),
+            "start": event.get("start", {}).get("dateTime", ""),
+        }

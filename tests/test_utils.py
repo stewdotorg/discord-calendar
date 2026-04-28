@@ -1,8 +1,61 @@
 """Tests for utility functions — embed formatting and timezone conversion."""
 
 import datetime
+from unittest.mock import MagicMock
 
 from src.utils import format_events_embed, get_today_eastern_range
+
+
+class TestFormatDeleteError:
+    """Tests for format_delete_error."""
+
+    def test_403_maps_to_permission_denied(self):
+        """format_delete_error returns permission denied message for 403."""
+        from googleapiclient.errors import HttpError
+        from src.utils import format_delete_error
+
+        http_resp = MagicMock()
+        http_resp.status = 403
+        exc = HttpError(http_resp, b'{"error": "Forbidden"}')
+
+        result = format_delete_error(exc)
+        assert "permission" in result.lower()
+
+    def test_404_maps_to_event_not_found(self):
+        """format_delete_error returns event not found message for 404."""
+        from googleapiclient.errors import HttpError
+        from src.utils import format_delete_error
+
+        http_resp = MagicMock()
+        http_resp.status = 404
+        exc = HttpError(http_resp, b'{"error": "Not Found"}')
+
+        result = format_delete_error(exc)
+        assert "event" in result.lower()
+
+    def test_429_maps_to_rate_limit(self):
+        """format_delete_error returns rate limit message for 429."""
+        from googleapiclient.errors import HttpError
+        from src.utils import format_delete_error
+
+        http_resp = MagicMock()
+        http_resp.status = 429
+        exc = HttpError(http_resp, b'{"error": "Rate Limit"}')
+
+        result = format_delete_error(exc)
+        assert "rate" in result.lower()
+
+    def test_other_status_returns_generic_error(self):
+        """format_delete_error returns generic error for unexpected status."""
+        from googleapiclient.errors import HttpError
+        from src.utils import format_delete_error
+
+        http_resp = MagicMock()
+        http_resp.status = 500
+        exc = HttpError(http_resp, b'{"error": "Server Error"}')
+
+        result = format_delete_error(exc)
+        assert "failed" in result.lower()
 
 
 class TestGetTodayEasternRange:

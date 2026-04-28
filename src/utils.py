@@ -35,6 +35,31 @@ def format_create_error(exc: HttpError) -> str:
     return messages.get(status, f"❌ Failed to create event. ({status})")
 
 
+def format_delete_error(exc: HttpError) -> str:
+    """Return a user-friendly error message for a Google Calendar delete error.
+
+    Maps specific HTTP status codes to actionable messages.
+    """
+    status = exc.resp.status if exc.resp else 0
+
+    messages = {
+        403: (
+            "❌ Permission denied — the bot does not have permission to "
+            "delete events from this calendar."
+        ),
+        404: (
+            "❌ Event not found — the event may have already been deleted "
+            "or the event ID is incorrect."
+        ),
+        429: (
+            "⏳ Rate limited — too many requests. Please wait a moment "
+            "and try again."
+        ),
+    }
+
+    return messages.get(status, f"❌ Failed to delete event. ({status})")
+
+
 def get_today_eastern_range() -> tuple[datetime.datetime, datetime.datetime]:
     """Return (start_of_today_utc, end_of_today_utc) covering today in US Eastern.
 
