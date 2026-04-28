@@ -9,6 +9,7 @@ from discord import app_commands
 
 from src.calendar.auth import CredentialsError, load_credentials
 from src.calendar.service import CalendarService
+from src.commands.create import create
 from src.commands.ping import ping
 
 logger = logging.getLogger(__name__)
@@ -29,6 +30,7 @@ class DiscalClient(discord.Client):
     async def setup_hook(self) -> None:
         """Register commands, verify calendar access, and sync with Discord on startup."""
         self.tree.add_command(ping)
+        self.tree.add_command(create)
         await self.tree.sync()
 
         self.calendar = self._init_calendar()

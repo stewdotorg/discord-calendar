@@ -27,8 +27,8 @@ def test_bot_has_no_message_content_intent():
 
 
 @pytest.mark.asyncio
-async def test_setup_hook_registers_ping_and_syncs():
-    """setup_hook registers the ping command, syncs the command tree,
+async def test_setup_hook_registers_commands_and_syncs():
+    """setup_hook registers the ping and create commands, syncs the command tree,
     and initialises the calendar."""
     client = DiscalClient()
 
@@ -38,7 +38,11 @@ async def test_setup_hook_registers_ping_and_syncs():
 
     await client.setup_hook()
 
-    client.tree.add_command.assert_called_once_with(ping)
+    assert client.tree.add_command.call_count == 2
+    client.tree.add_command.assert_any_call(ping)
+    from src.commands.create import create
+
+    client.tree.add_command.assert_any_call(create)
     client.tree.sync.assert_called_once()
     client._init_calendar.assert_called_once()
 

@@ -1,5 +1,6 @@
 """Google Calendar service — thin wrapper around the Calendar API."""
 
+import datetime
 import logging
 
 from google.oauth2.service_account import Credentials
@@ -50,3 +51,58 @@ class CalendarService:
         summary = result.get("summary", "Unnamed Calendar")
         logger.info("Calendar connected: %s", summary)
         return summary
+
+    def create_event(
+        self,
+        title: str,
+        start: datetime.datetime,
+        duration_minutes: int = 60,
+        description: str | None = None,
+        creator_discord_id: str | None = None,
+    ) -> dict:
+        """Create a Google Calendar event.
+
+        Args:
+            title: Event title (summary).
+            start: Event start time as a timezone-aware datetime.
+            duration_minutes: Duration in minutes (default 60).
+            description: Optional event description.
+            creator_discord_id: Optional Discord user ID stored in
+                extendedProperties.private.createdBy.
+
+        Returns:
+            A dict with 'id' (Google Calendar event ID) and 'htmlLink'.
+
+        Raises:
+            HttpError: If the Calendar API call fails.
+        """
+        end = start + datetime.timedelta(minutes=duration_minutes)
+
+        body = {
+            "summary": title,
+            "start": {
+                "dateTime": start.isoformat(),
+                "timeZone": "UTC",
+            },
+            "end": {
+                "dateTime": end.isoformat(),
+                "timeZone": "UTC",
+            },
+        }
+
+        if description is not None:
+            body["description"] = description
+
+        if creator_discord_id is not None:
+            body["extendedProperties"] = {
+                "private": {"createdBy": creator_discord_id}
+            }
+
+        service = self._build_service()
+        result = (
+            service.events()
+            .insert(calendarId=self._calendar_id, body=body)
+            .execute()
+        )
+
+        return {"id": result["id"], "htmlLink": result["htmlLink"]}
