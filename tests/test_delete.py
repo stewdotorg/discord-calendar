@@ -1,10 +1,8 @@
 """Tests for the /cal delete command and its autocomplete callback."""
 
-import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from discord import app_commands
 from googleapiclient.errors import HttpError
 
 from src.commands.delete import delete_event_autocomplete, delete

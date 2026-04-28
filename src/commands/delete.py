@@ -99,7 +99,7 @@ async def delete(interaction: discord.Interaction, event_id: str) -> None:
             dt_eastern = dt.astimezone(EASTERN)
             date_display = f" on {dt_eastern.strftime('%B %d, %Y at %I:%M %p').lstrip('0')} ET"
         except (ValueError, OverflowError):
-            pass
+            pass  # Malformed date string — omit date from confirmation
 
     await interaction.response.send_message(
         f"🗑️ **{summary}** deleted{date_display}.",

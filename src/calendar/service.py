@@ -169,7 +169,6 @@ class CalendarService:
         """
         service = self._build_service()
 
-        # Fetch event metadata before deleting
         event = (
             service.events()
             .get(calendarId=self._calendar_id, eventId=event_id)
