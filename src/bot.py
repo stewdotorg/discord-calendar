@@ -2,10 +2,13 @@
 
 import logging
 import os
+import sys
 
 import discord
 from discord import app_commands
 
+from src.calendar.auth import CredentialsError, load_credentials
+from src.calendar.service import CalendarService
 from src.commands.ping import ping
 
 logger = logging.getLogger(__name__)
@@ -24,9 +27,41 @@ class DiscalClient(discord.Client):
         self.tree = app_commands.CommandTree(self)
 
     async def setup_hook(self) -> None:
-        """Register commands and sync with Discord on startup."""
+        """Register commands, verify calendar access, and sync with Discord on startup."""
         self.tree.add_command(ping)
         await self.tree.sync()
+
+        self.calendar = self._init_calendar()
+
+    def _init_calendar(self) -> CalendarService | None:
+        """Load service account credentials and verify calendar access.
+
+        Returns a CalendarService on success, or exits the process on failure.
+        """
+        key_path = os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE", "")
+        calendar_id = os.environ.get("GOOGLE_CALENDAR_ID", "")
+
+        if not key_path or not calendar_id:
+            logger.warning(
+                "Calendar not configured: GOOGLE_SERVICE_ACCOUNT_FILE "
+                "or GOOGLE_CALENDAR_ID is empty."
+            )
+            return None
+
+        try:
+            credentials = load_credentials(key_path)
+        except CredentialsError as exc:
+            logger.critical("Calendar auth failed: %s", exc)
+            sys.exit(1)
+
+        service = CalendarService(credentials, calendar_id)
+        try:
+            service.verify_access()
+        except RuntimeError as exc:
+            logger.critical("%s", exc)
+            sys.exit(1)
+
+        return service
 
     async def on_ready(self) -> None:
         """Log when the bot has connected to Discord."""
