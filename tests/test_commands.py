@@ -1,6 +1,7 @@
 """Tests for slash command handlers."""
 
-from unittest.mock import AsyncMock, MagicMock
+import datetime
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -34,8 +35,6 @@ async def test_ping_command_has_correct_metadata():
 @pytest.mark.asyncio
 async def test_today_command_lists_events():
     """The /cal today command responds with an embed listing today's events."""
-    from unittest.mock import patch
-
     from src.commands.list_events import today
 
     interaction = MagicMock()
@@ -55,8 +54,6 @@ async def test_today_command_lists_events():
     interaction.client.calendar = mock_calendar
 
     with patch("src.commands.list_events.get_today_eastern_range") as mock_range:
-        import datetime
-
         tmin = datetime.datetime(2026, 4, 28, 4, 0, 0, tzinfo=datetime.timezone.utc)
         tmax = datetime.datetime(2026, 4, 29, 4, 0, 0, tzinfo=datetime.timezone.utc)
         mock_range.return_value = (tmin, tmax)

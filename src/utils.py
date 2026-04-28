@@ -34,7 +34,7 @@ def _format_time_eastern(date_time_str: str) -> str:
     """
     dt = datetime.datetime.fromisoformat(date_time_str)
     dt_eastern = dt.astimezone(EASTERN)
-    return dt_eastern.strftime("%-I:%M %p")
+    return dt_eastern.strftime("%I:%M %p").lstrip("0")
 
 
 def _format_duration(start_str: str, end_str: str) -> str:
@@ -59,21 +59,18 @@ def _format_duration(start_str: str, end_str: str) -> str:
 
 
 def format_events_embed(
-    events: list[dict], date_title: str | None = None
+    events: list[dict], date_title: str = "Today"
 ) -> discord.Embed:
     """Build a Discord embed that lists calendar events.
 
     Args:
         events: List of Google Calendar event dicts.
         date_title: Human-readable date for the embed title
-                    (e.g. 'April 28, 2026'). If None, uses 'Today'.
+                    (e.g. 'April 28, 2026'). Defaults to 'Today'.
 
     Returns:
         A discord.Embed with events formatted as fields.
     """
-    if date_title is None:
-        date_title = "Today"
-
     embed = discord.Embed(
         title=f"Events for {date_title}",
         color=discord.Color.blue(),
