@@ -1,4 +1,4 @@
-"""Tests for /cal create command and CalendarService.create_event()."""
+"""Tests for create command and CalendarService.create_event()."""
 
 import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -223,7 +223,7 @@ async def test_create_command_parses_args_and_calls_service():
 
 @pytest.mark.asyncio
 async def test_create_command_defaults_duration_to_60():
-    """The create command passes duration=60 when not specified."""
+    """The create command defaults duration to 60 when the argument is omitted."""
     interaction = MagicMock()
     interaction.response = MagicMock()
     interaction.response.send_message = AsyncMock()
@@ -240,8 +240,6 @@ async def test_create_command_defaults_duration_to_60():
         title="Quick Sync",
         date="2026-05-02",
         time="09:00",
-        duration=60,
-        description=None,
     )
 
     kwargs = mock_calendar.create_event.call_args.kwargs

@@ -1,4 +1,4 @@
-"""Shared utilities — error formatting, timezone handling, Discord embeds."""
+"""Shared utilities — error formatting for Google Calendar API responses."""
 
 from googleapiclient.errors import HttpError
 

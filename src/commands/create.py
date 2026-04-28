@@ -1,4 +1,4 @@
-"""/cal create — create a Google Calendar event from a Discord slash command."""
+"""create — create a Google Calendar event from a Discord slash command."""
 
 import datetime
 import logging
@@ -28,8 +28,8 @@ async def create(
     duration: int = 60,
     description: str | None = None,
 ) -> None:
-    """Handle /cal create — parse arguments, call CalendarService, respond."""
-    calendar = interaction.client.calendar  # type: ignore[attr-defined]
+    """Handle create — parse arguments, call CalendarService, respond."""
+    calendar = interaction.client.calendar  # type: ignore[attr-defined]  # set in DiscalClient.setup_hook
 
     if calendar is None:
         await interaction.response.send_message(
@@ -39,7 +39,6 @@ async def create(
         )
         return
 
-    # Parse date and time into a UTC datetime
     try:
         start = datetime.datetime.strptime(
             f"{date} {time}", "%Y-%m-%d %H:%M"
@@ -68,7 +67,6 @@ async def create(
         await interaction.response.send_message(error_msg, ephemeral=True)
         return
 
-    # Build confirmation message
     end = start + datetime.timedelta(minutes=duration)
     response = (
         f"✅ **Event created!**\n"
