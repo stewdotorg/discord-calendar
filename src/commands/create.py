@@ -7,12 +7,13 @@ import discord
 from discord import app_commands
 from googleapiclient.errors import HttpError
 
+from src.commands.list_events import cal
 from src.utils import format_create_error
 
 logger = logging.getLogger(__name__)
 
 
-@app_commands.command(name="create", description="Create a Google Calendar event")
+@cal.command(name="create", description="Create a Google Calendar event")
 @app_commands.describe(
     title="Event title",
     date="Date (YYYY-MM-DD)",

@@ -29,8 +29,7 @@ def test_bot_has_no_message_content_intent():
 
 @pytest.mark.asyncio
 async def test_setup_hook_registers_commands_and_syncs():
-    """setup_hook registers ping, create, and cal commands, syncs the command tree,
-    and initialises the calendar."""
+    """setup_hook registers the cal command group, syncs, and initialises the calendar."""
     client = DiscalClient()
 
     client.tree.add_command = MagicMock()
@@ -39,11 +38,7 @@ async def test_setup_hook_registers_commands_and_syncs():
 
     await client.setup_hook()
 
-    assert client.tree.add_command.call_count == 3
-    client.tree.add_command.assert_any_call(ping)
-    from src.commands.create import create
-
-    client.tree.add_command.assert_any_call(create)
+    assert client.tree.add_command.call_count == 1
     client.tree.add_command.assert_any_call(cal)
     client.tree.sync.assert_called_once()
     client._init_calendar.assert_called_once()
