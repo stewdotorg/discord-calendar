@@ -7,6 +7,7 @@ import discord
 import pytest
 
 from src.bot import DiscalClient
+from src.commands.ping import ping
 
 
 def test_bot_has_command_tree():
@@ -35,7 +36,7 @@ async def test_setup_hook_registers_ping_and_syncs():
 
     await client.setup_hook()
 
-    client.tree.add_command.assert_called_once()
+    client.tree.add_command.assert_called_once_with(ping)
     client.tree.sync.assert_called_once()
 
 
@@ -52,5 +53,5 @@ async def test_on_ready_logs_ready():
             await client.on_ready()
             mock_log.assert_called_once()
             fmt_string, name = mock_log.call_args[0]
-            assert "Ready" in fmt_string
+            assert fmt_string == "Ready: %s"
             assert name == "DiscalBot"
