@@ -1,0 +1,4 @@
+# Replace your.domain with your actual domain
+your.domain {
+    reverse_proxy bot:8000
+}
