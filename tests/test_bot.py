@@ -7,8 +7,9 @@ import discord
 import pytest
 
 from src.bot import DiscalClient
+from src.commands.list_events import cal
 from src.commands.ping import ping
-from tests.test_calendar import VALID_KEY_JSON
+from tests import VALID_KEY_JSON
 
 
 def test_bot_has_command_tree():
@@ -28,7 +29,7 @@ def test_bot_has_no_message_content_intent():
 
 @pytest.mark.asyncio
 async def test_setup_hook_registers_commands_and_syncs():
-    """setup_hook registers the ping and create commands, syncs the command tree,
+    """setup_hook registers ping, create, and cal commands, syncs the command tree,
     and initialises the calendar."""
     client = DiscalClient()
 
@@ -38,11 +39,12 @@ async def test_setup_hook_registers_commands_and_syncs():
 
     await client.setup_hook()
 
-    assert client.tree.add_command.call_count == 2
+    assert client.tree.add_command.call_count == 3
     client.tree.add_command.assert_any_call(ping)
     from src.commands.create import create
 
     client.tree.add_command.assert_any_call(create)
+    client.tree.add_command.assert_any_call(cal)
     client.tree.sync.assert_called_once()
     client._init_calendar.assert_called_once()
 
