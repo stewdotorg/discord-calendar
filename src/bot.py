@@ -36,7 +36,8 @@ class DiscalClient(discord.Client):
     def _init_calendar(self) -> CalendarService | None:
         """Load service account credentials and verify calendar access.
 
-        Returns a CalendarService on success, or exits the process on failure.
+        Returns a CalendarService on success, None when calendar env vars
+        are not set, or exits the process on failure.
         """
         key_path = os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE", "")
         calendar_id = os.environ.get("GOOGLE_CALENDAR_ID", "")
