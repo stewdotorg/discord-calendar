@@ -123,3 +123,103 @@ def test_calendar_service_stores_credentials_and_calendar_id():
 
     assert svc._credentials is mock_creds
     assert svc._calendar_id == "my-calendar@group.calendar.google.com"
+
+
+# ── CalendarService.list_events ─────────────────────────────────────────────
+
+
+def test_list_events_returns_events_for_time_range():
+    """list_events calls events().list with correct timeMin/timeMax and returns results."""
+    with patch("src.calendar.service.build") as mock_build:
+        mock_service = MagicMock()
+        mock_build.return_value = mock_service
+
+        mock_events = MagicMock()
+        mock_service.events.return_value = mock_events
+
+        mock_list = MagicMock()
+        mock_events.list.return_value = mock_list
+
+        mock_list.execute.return_value = {
+            "items": [
+                {
+                    "id": "evt1",
+                    "summary": "Team Sync",
+                    "start": {"dateTime": "2026-04-28T10:00:00-04:00"},
+                    "end": {"dateTime": "2026-04-28T11:00:00-04:00"},
+                    "htmlLink": "https://calendar.google.com/event?eid=evt1",
+                }
+            ]
+        }
+
+        from datetime import datetime, timezone
+
+        tmin = datetime(2026, 4, 28, 4, 0, 0, tzinfo=timezone.utc)
+        tmax = datetime(2026, 4, 29, 4, 0, 0, tzinfo=timezone.utc)
+
+        svc = CalendarService(MagicMock(), "primary")
+        results = svc.list_events(time_min=tmin, time_max=tmax)
+
+        assert len(results) == 1
+        assert results[0]["summary"] == "Team Sync"
+
+        mock_events.list.assert_called_once()
+        call_kwargs = mock_events.list.call_args.kwargs
+        assert call_kwargs["calendarId"] == "primary"
+        assert call_kwargs["singleEvents"] is True
+        assert call_kwargs["orderBy"] == "startTime"
+
+
+def test_list_events_returns_empty_list_when_no_events():
+    """list_events returns an empty list when there are no events in the range."""
+    with patch("src.calendar.service.build") as mock_build:
+        mock_service = MagicMock()
+        mock_build.return_value = mock_service
+
+        mock_events = MagicMock()
+        mock_service.events.return_value = mock_events
+
+        mock_list = MagicMock()
+        mock_events.list.return_value = mock_list
+
+        mock_list.execute.return_value = {}
+
+        from datetime import datetime, timezone
+
+        svc = CalendarService(MagicMock(), "primary")
+        results = svc.list_events(
+            time_min=datetime(2026, 4, 28, 4, 0, 0, tzinfo=timezone.utc),
+            time_max=datetime(2026, 4, 29, 4, 0, 0, tzinfo=timezone.utc),
+        )
+
+        assert results == []
+
+
+def test_list_events_raises_on_api_error():
+    """list_events raises RuntimeError when the API call fails."""
+    from googleapiclient.errors import HttpError
+
+    with patch("src.calendar.service.build") as mock_build:
+        mock_service = MagicMock()
+        mock_build.return_value = mock_service
+
+        mock_events = MagicMock()
+        mock_service.events.return_value = mock_events
+
+        mock_list = MagicMock()
+        mock_events.list.return_value = mock_list
+
+        http_resp = MagicMock()
+        http_resp.status = 500
+        http_resp.reason = "Internal Server Error"
+        mock_list.execute.side_effect = HttpError(http_resp, b'{"error": "server error"}')
+
+        from datetime import datetime, timezone
+
+        svc = CalendarService(MagicMock(), "primary")
+
+        with pytest.raises(RuntimeError, match="Failed to list events"):
+            svc.list_events(
+                time_min=datetime(2026, 4, 28, 4, 0, 0, tzinfo=timezone.utc),
+                time_max=datetime(2026, 4, 29, 4, 0, 0, tzinfo=timezone.utc),
+            )

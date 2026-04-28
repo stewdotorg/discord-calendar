@@ -1,5 +1,6 @@
 """Google Calendar service — thin wrapper around the Calendar API."""
 
+import datetime
 import logging
 
 from google.oauth2.service_account import Credentials
@@ -50,3 +51,44 @@ class CalendarService:
         summary = result.get("summary", "Unnamed Calendar")
         logger.info("Calendar connected: %s", summary)
         return summary
+
+    def list_events(
+        self,
+        time_min: datetime.datetime,
+        time_max: datetime.datetime,
+        max_results: int = 250,
+    ) -> list[dict]:
+        """List events in a time range.
+
+        Args:
+            time_min: Start of the time range (timezone-aware datetime).
+            time_max: End of the time range (timezone-aware datetime).
+            max_results: Maximum number of events to return.
+
+        Returns:
+            List of event dicts as returned by the Google Calendar API,
+            ordered by start time.
+
+        Raises:
+            RuntimeError: If the API call fails.
+        """
+        service = self._build_service()
+        try:
+            result = (
+                service.events()
+                .list(
+                    calendarId=self._calendar_id,
+                    timeMin=time_min.isoformat(),
+                    timeMax=time_max.isoformat(),
+                    singleEvents=True,
+                    orderBy="startTime",
+                    maxResults=max_results,
+                )
+                .execute()
+            )
+        except HttpError as exc:
+            msg = f"Failed to list events ({self._calendar_id}): {exc}"
+            logger.error(msg)
+            raise RuntimeError(msg) from exc
+
+        return result.get("items", [])
