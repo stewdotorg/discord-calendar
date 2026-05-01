@@ -8,6 +8,24 @@ import dateparser
 import discord
 from googleapiclient.errors import HttpError
 
+_INVALID_EMAIL_MSG = (
+    "❌ Invalid email: {reason}. "
+    "Please provide a valid email address, e.g. me@example.com."
+)
+
+
+def validate_email(email: str) -> str | None:
+    """Validate basic email format.
+
+    Returns an error message string if invalid, or None if valid.
+    """
+    if "@" not in email:
+        return _INVALID_EMAIL_MSG.format(reason="missing '@'")
+    _, domain = email.rsplit("@", 1)
+    if "." not in domain:
+        return _INVALID_EMAIL_MSG.format(reason="domain missing '.'")
+    return None
+
 EASTERN = ZoneInfo("America/New_York")
 
 def format_datetime_eastern(dt: datetime.datetime) -> str:
@@ -372,6 +390,31 @@ def format_edit_error(exc: HttpError) -> str:
     }
 
     return messages.get(status, f"❌ Failed to edit event. ({status})")
+
+
+def format_rsvp_error(exc: HttpError) -> str:
+    """Return a user-friendly error message for an RSVP/invite API error.
+
+    Maps specific HTTP status codes to actionable messages.
+    """
+    status = exc.resp.status if exc.resp else 0
+
+    messages = {
+        403: (
+            "❌ Permission denied — the bot does not have permission to "
+            "modify attendees on this event."
+        ),
+        404: (
+            "❌ Event not found — the event may have been deleted "
+            "or the event ID is incorrect."
+        ),
+        429: (
+            "⏳ Rate limited — too many requests. Please wait a moment "
+            "and try again."
+        ),
+    }
+
+    return messages.get(status, f"❌ Failed to add attendees. ({status})")
 
 
 def format_delete_error(exc: HttpError) -> str:
