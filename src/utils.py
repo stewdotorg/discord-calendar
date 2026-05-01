@@ -76,7 +76,7 @@ def parse_when(when: str) -> datetime.datetime:
     Raises:
         ValueError: If the string cannot be parsed.
     """
-    when_stripped = when.strip()
+    when_stripped = when.strip().strip('"\'')
     if not when_stripped:
         raise ValueError(
             "Expected date and time, e.g. 'May 1 3pm' or '2026-05-01 14:00'."
