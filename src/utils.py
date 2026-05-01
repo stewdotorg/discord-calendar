@@ -117,19 +117,22 @@ def parse_when(when: str) -> datetime.datetime:
         return parsed.astimezone(datetime.timezone.utc)
 
     # ── Try stripping "in X hours/minutes" and reparsing ──────────────────
+    # Relative-offset extraction also exists at the top of _parse_when_manual
+    # (needed for the "today"/"tomorrow" short-circuit path above).  Both
+    # sites feed into the same manual parser, just from different entry points.
     remainder, offset = _extract_relative_offset(processed)
     if offset is not None:
         if not remainder:
-            now_utc = _dateparser_now()
-            return now_utc + offset
-        # Try dateparser on the remainder
+            # Standalone relative: "in 2 hours" → now + offset
+            return _dateparser_now() + offset
+
+        # Try dateparser on the remainder, then manual parser
         parsed = dateparser.parse(remainder, settings=dateparser_settings)
         if parsed is not None:
             return (parsed + offset).astimezone(datetime.timezone.utc)
-        # Try manual parser on remainder
+
         try:
-            base = _parse_when_manual(remainder)
-            return base + offset
+            return _parse_when_manual(remainder) + offset
         except ValueError:
             pass
 
@@ -173,17 +176,17 @@ def _parse_when_manual(when_stripped: str) -> datetime.datetime:
       - "<date> in X hours/minutes" (relative time offset)
       - "in X hours/minutes" (standalone relative from now)
     """
+    now_eastern = datetime.datetime.now(EASTERN)
+
     # ── Extract relative time offset ("in X hours/minutes") ──────────────
     remainder, offset = _extract_relative_offset(when_stripped.lower())
     if offset is not None:
         if not remainder:
             # Standalone relative: "in 2 hours" → now + offset
-            now_eastern = datetime.datetime.now(EASTERN)
             dt_eastern = now_eastern + offset
             return dt_eastern.astimezone(datetime.timezone.utc)
         # Combined: "today in 5 hours" → parse "today", add offset
-        base_dt = _parse_when_manual(remainder)
-        return base_dt + offset
+        return _parse_when_manual(remainder) + offset
 
     # Try ISO-like: YYYY-MM-DD HH:MM
     iso_match = re.match(
@@ -198,9 +201,9 @@ def _parse_when_manual(when_stripped: str) -> datetime.datetime:
 
     parts = when_stripped.split()
     if len(parts) < 2:
-        # Handle bare date keywords (used by recursive relative-time calls).
-        joined = " ".join(parts).strip().lower()
-        now_eastern = datetime.datetime.now(EASTERN)
+        # Bare date keywords — reached by recursive calls after stripping a
+        # relative offset (e.g. "today in 5 hours" → _parse_when_manual("today")).
+        joined = when_stripped.strip().lower()
         if joined == "today":
             dt_eastern = now_eastern.replace(hour=0, minute=0, second=0, microsecond=0)
             return dt_eastern.astimezone(datetime.timezone.utc)
@@ -227,7 +230,6 @@ def _parse_when_manual(when_stripped: str) -> datetime.datetime:
             )
 
     # Parse the date part (skip filler words like "at", "on")
-    now_eastern = datetime.datetime.now(EASTERN)
     day_date_parts = [p for p in day_date_parts if p.lower() not in ("at", "on")]
     year, month, day = _parse_date_part(day_date_parts, now_eastern)
 
