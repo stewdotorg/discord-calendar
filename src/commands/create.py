@@ -38,12 +38,15 @@ async def create(
         )
         return
 
+    # Defer response — dateparser and Google Calendar API calls may exceed
+    # Discord's 3-second interaction timeout.
+    await interaction.response.defer()
+
     try:
         start = parse_when(when)
     except ValueError as exc:
-        await interaction.response.send_message(
-            f"❌ Cannot parse '{when}': {exc}",
-            ephemeral=True,
+        await interaction.edit_original_response(
+            content=f"❌ Cannot parse '{when}': {exc}"
         )
         return
 
@@ -60,7 +63,7 @@ async def create(
     except HttpError as exc:
         logger.error("Failed to create event: %s", exc)
         error_msg = format_create_error(exc)
-        await interaction.response.send_message(error_msg, ephemeral=True)
+        await interaction.edit_original_response(content=error_msg)
         return
 
     # Display confirmation in US Eastern
@@ -76,4 +79,4 @@ async def create(
     if description:
         response += f"\n📝 {description}"
 
-    await interaction.response.send_message(response, ephemeral=False)
+    await interaction.edit_original_response(content=response)

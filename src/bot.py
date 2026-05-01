@@ -34,6 +34,13 @@ class DiscalClient(discord.Client):
         self.tree.add_command(cal)
         await self.tree.sync()
 
+        # Pre-warm dateparser (slow first import loads language data)
+        try:
+            from src.utils import parse_when
+            parse_when("May 1")
+        except ValueError:
+            pass
+
         self.calendar = self._init_calendar()
 
     def _init_calendar(self) -> CalendarService | None:
