@@ -263,7 +263,8 @@ async def test_create_command_parses_when_and_calls_service():
     and calls CalendarService.create_event with correct UTC values."""
     interaction = MagicMock()
     interaction.response = MagicMock()
-    interaction.response.send_message = AsyncMock()
+    interaction.response.defer = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
 
     # Mock the calendar service on the interaction client
     mock_calendar = MagicMock()
@@ -300,8 +301,8 @@ async def test_create_command_parses_when_and_calls_service():
     # Verify creator_discord_id is passed
     assert call_kwargs["creator_discord_id"] == str(interaction.user.id)
 
-    interaction.response.send_message.assert_called_once()
-    response_text = interaction.response.send_message.call_args.args[0]
+    interaction.edit_original_response.assert_called_once()
+    response_text = interaction.edit_original_response.call_args.kwargs["content"]
     assert "Team Sync" in response_text
     assert "May 1, 2026 at 2:00 PM ET" in response_text
     assert "https://calendar.google.com/event?eid=evt_001" in response_text
@@ -312,7 +313,8 @@ async def test_create_command_defaults_duration_to_60():
     """The create command defaults duration to 60 when the argument is omitted."""
     interaction = MagicMock()
     interaction.response = MagicMock()
-    interaction.response.send_message = AsyncMock()
+    interaction.response.defer = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
 
     mock_calendar = MagicMock()
     mock_calendar.create_event.return_value = {
@@ -357,7 +359,8 @@ async def test_create_command_handles_invalid_when():
     """The create command responds with a parse error for invalid when strings."""
     interaction = MagicMock()
     interaction.response = MagicMock()
-    interaction.response.send_message = AsyncMock()
+    interaction.response.defer = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
     interaction.client.calendar = MagicMock()
 
     await create.callback(
@@ -368,8 +371,8 @@ async def test_create_command_handles_invalid_when():
         description=None,
     )
 
-    interaction.response.send_message.assert_called_once()
-    msg = interaction.response.send_message.call_args.args[0]
+    interaction.edit_original_response.assert_called_once()
+    msg = interaction.edit_original_response.call_args.kwargs["content"]
     assert "Cannot parse" in msg
 
 
@@ -380,7 +383,8 @@ async def test_create_command_formats_unauthorized_error():
 
     interaction = MagicMock()
     interaction.response = MagicMock()
-    interaction.response.send_message = AsyncMock()
+    interaction.response.defer = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
 
     mock_calendar = MagicMock()
     http_resp = MagicMock()
@@ -398,7 +402,7 @@ async def test_create_command_formats_unauthorized_error():
         description=None,
     )
 
-    response_text = interaction.response.send_message.call_args.args[0]
+    response_text = interaction.edit_original_response.call_args.kwargs["content"]
     assert "permission" in response_text.lower()
 
 
@@ -409,7 +413,8 @@ async def test_create_command_formats_not_found_error():
 
     interaction = MagicMock()
     interaction.response = MagicMock()
-    interaction.response.send_message = AsyncMock()
+    interaction.response.defer = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
 
     mock_calendar = MagicMock()
     http_resp = MagicMock()
@@ -427,7 +432,7 @@ async def test_create_command_formats_not_found_error():
         description=None,
     )
 
-    response_text = interaction.response.send_message.call_args.args[0]
+    response_text = interaction.edit_original_response.call_args.kwargs["content"]
     assert "not found" in response_text.lower()
 
 
@@ -438,7 +443,8 @@ async def test_create_command_formats_rate_limit_error():
 
     interaction = MagicMock()
     interaction.response = MagicMock()
-    interaction.response.send_message = AsyncMock()
+    interaction.response.defer = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
 
     mock_calendar = MagicMock()
     http_resp = MagicMock()
@@ -456,7 +462,7 @@ async def test_create_command_formats_rate_limit_error():
         description=None,
     )
 
-    response_text = interaction.response.send_message.call_args.args[0]
+    response_text = interaction.edit_original_response.call_args.kwargs["content"]
     assert "rate" in response_text.lower()
 
 
@@ -467,7 +473,8 @@ async def test_create_command_formats_generic_error():
 
     interaction = MagicMock()
     interaction.response = MagicMock()
-    interaction.response.send_message = AsyncMock()
+    interaction.response.defer = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
 
     mock_calendar = MagicMock()
     http_resp = MagicMock()
@@ -485,5 +492,5 @@ async def test_create_command_formats_generic_error():
         description=None,
     )
 
-    response_text = interaction.response.send_message.call_args.args[0]
+    response_text = interaction.edit_original_response.call_args.kwargs["content"]
     assert "failed" in response_text.lower() or "unexpected" in response_text.lower()

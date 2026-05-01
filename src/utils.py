@@ -84,13 +84,22 @@ def parse_when(when: str) -> datetime.datetime:
             "Expected date and time, e.g. 'May 1 3pm' or '2026-05-01 14:00'."
         )
 
-    # ── Try NLP dateparser first ────────────────────────────────────────────
-    # Strip filler words and expand time-of-day words.
+    # ── Strip filler words and expand time-of-day words ─────────────────────
     tokens = when_stripped.lower().split()
     filtered = [t for t in tokens if t not in _DATEWORDS_TO_STRIP]
     expanded = [_TIME_OF_DAY_MAP.get(t, t) for t in filtered]
     processed = " ".join(expanded)
 
+    # ── Short-circuit: "today" / "tomorrow" go to manual parser ────────────
+    # dateparser can misinterpret the hour when RELATIVE_BASE is tz-aware
+    # UTC and the time expression has no explicit zone (e.g. "today 9:00").
+    # The manual parser always treats times as US Eastern, so route these
+    # unambiguous patterns there directly (after time-of-day expansion).
+    first_word = processed.split()[0] if processed.split() else ""
+    if first_word in ("today", "tomorrow"):
+        return _parse_when_manual(processed)
+
+    # ── Try NLP dateparser ──────────────────────────────────────────────────
     dateparser_settings = {
         "PREFER_DATES_FROM": "future",
         "TIMEZONE": "US/Eastern",
