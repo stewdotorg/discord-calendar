@@ -1,4 +1,4 @@
-"""Tests for /cal reminders and /cal settings reminders commands."""
+"""Tests for /cal reminders and /cal reminders-defaults commands."""
 
 from unittest.mock import AsyncMock, MagicMock
 
@@ -6,55 +6,55 @@ import pytest
 from googleapiclient.errors import HttpError
 
 
-# ── _parse_minutes ───────────────────────────────────────────────────────────
+# ── parse_minutes ────────────────────────────────────────────────────────────
 
 
 def test_parse_minutes_single_value():
-    """_parse_minutes returns a list with a single integer."""
-    from src.commands.reminders import _parse_minutes
+    """parse_minutes returns a list with a single integer."""
+    from src.utils import parse_minutes
 
-    result = _parse_minutes("10")
+    result = parse_minutes("10")
     assert result == [10]
 
 
 def test_parse_minutes_multiple_values():
-    """_parse_minutes handles comma-separated values."""
-    from src.commands.reminders import _parse_minutes
+    """parse_minutes handles comma-separated values."""
+    from src.utils import parse_minutes
 
-    result = _parse_minutes("10,30")
+    result = parse_minutes("10,30")
     assert result == [10, 30]
 
 
 def test_parse_minutes_with_spaces():
-    """_parse_minutes trims whitespace around values."""
-    from src.commands.reminders import _parse_minutes
+    """parse_minutes trims whitespace around values."""
+    from src.utils import parse_minutes
 
-    result = _parse_minutes("10, 30")
+    result = parse_minutes("10, 30")
     assert result == [10, 30]
 
 
 def test_parse_minutes_empty_raises():
-    """_parse_minutes raises ValueError for empty strings."""
-    from src.commands.reminders import _parse_minutes
+    """parse_minutes raises ValueError for empty strings."""
+    from src.utils import parse_minutes
 
     with pytest.raises(ValueError):
-        _parse_minutes("")
+        parse_minutes("")
 
 
 def test_parse_minutes_non_numeric_raises():
-    """_parse_minutes raises ValueError for non-integer values."""
-    from src.commands.reminders import _parse_minutes
+    """parse_minutes raises ValueError for non-integer values."""
+    from src.utils import parse_minutes
 
     with pytest.raises(ValueError):
-        _parse_minutes("abc")
+        parse_minutes("abc")
 
 
 def test_parse_minutes_negative_raises():
-    """_parse_minutes raises ValueError for negative values."""
-    from src.commands.reminders import _parse_minutes
+    """parse_minutes raises ValueError for negative values."""
+    from src.utils import parse_minutes
 
     with pytest.raises(ValueError):
-        _parse_minutes("-5")
+        parse_minutes("-5")
 
 
 # ── _format_reminders_list ──────────────────────────────────────────────────
@@ -77,7 +77,7 @@ def test_format_reminders_multiple():
 
 
 def test_format_reminders_empty():
-    """_format_reminders_list returns 'None' for an empty list."""
+    """_format_reminders_list returns an empty string for an empty list."""
     from src.commands.reminders import _format_reminders_list
 
     result = _format_reminders_list([])
@@ -322,13 +322,13 @@ async def test_reminders_show_api_error():
     assert "not found" in msg.lower()
 
 
-# ── /cal settings reminders set ─────────────────────────────────────────────
+# ── /cal reminders-defaults set ──────────────────────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_settings_reminders_set_stores_and_confirms():
-    """The /cal settings reminders set command stores default and confirms."""
-    from src.commands.reminders import reminders_settings_set
+async def test_reminders_defaults_set_stores_and_confirms():
+    """The /cal reminders-defaults set command stores default and confirms."""
+    from src.commands.reminders import reminders_defaults_set
 
     interaction = MagicMock()
     interaction.response = MagicMock()
@@ -338,7 +338,7 @@ async def test_settings_reminders_set_stores_and_confirms():
     mock_settings = MagicMock()
     interaction.client.settings = mock_settings
 
-    await reminders_settings_set.callback(interaction, minutes="10,30")
+    await reminders_defaults_set.callback(interaction, minutes="10,30")
 
     mock_settings.set.assert_called_once_with("12345", "default_reminders", "10,30")
     interaction.response.send_message.assert_called_once()
@@ -349,9 +349,9 @@ async def test_settings_reminders_set_stores_and_confirms():
 
 
 @pytest.mark.asyncio
-async def test_settings_reminders_set_invalid_minutes():
-    """The /cal settings reminders set command rejects invalid minutes."""
-    from src.commands.reminders import reminders_settings_set
+async def test_reminders_defaults_set_invalid_minutes():
+    """The /cal reminders-defaults set command rejects invalid minutes."""
+    from src.commands.reminders import reminders_defaults_set
 
     interaction = MagicMock()
     interaction.response = MagicMock()
@@ -361,7 +361,7 @@ async def test_settings_reminders_set_invalid_minutes():
     mock_settings = MagicMock()
     interaction.client.settings = mock_settings
 
-    await reminders_settings_set.callback(interaction, minutes="abc")
+    await reminders_defaults_set.callback(interaction, minutes="abc")
 
     mock_settings.set.assert_not_called()
     msg = interaction.response.send_message.call_args.args[0]
@@ -370,9 +370,9 @@ async def test_settings_reminders_set_invalid_minutes():
 
 
 @pytest.mark.asyncio
-async def test_settings_reminders_set_single_value():
-    """The /cal settings reminders set command stores a single value."""
-    from src.commands.reminders import reminders_settings_set
+async def test_reminders_defaults_set_single_value():
+    """The /cal reminders-defaults set command stores a single value."""
+    from src.commands.reminders import reminders_defaults_set
 
     interaction = MagicMock()
     interaction.response = MagicMock()
@@ -382,7 +382,7 @@ async def test_settings_reminders_set_single_value():
     mock_settings = MagicMock()
     interaction.client.settings = mock_settings
 
-    await reminders_settings_set.callback(interaction, minutes="5")
+    await reminders_defaults_set.callback(interaction, minutes="5")
 
     mock_settings.set.assert_called_once_with("12345", "default_reminders", "5")
     msg = interaction.response.send_message.call_args.args[0]
@@ -390,13 +390,13 @@ async def test_settings_reminders_set_single_value():
     assert "5 min before" in msg
 
 
-# ── /cal settings reminders show ────────────────────────────────────────────
+# ── /cal reminders-defaults show ────────────────────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_settings_reminders_show_displays_stored():
-    """The /cal settings reminders show command displays stored defaults."""
-    from src.commands.reminders import reminders_settings_show
+async def test_reminders_defaults_show_displays_stored():
+    """The /cal reminders-defaults show command displays stored defaults."""
+    from src.commands.reminders import reminders_defaults_show
 
     interaction = MagicMock()
     interaction.response = MagicMock()
@@ -407,7 +407,7 @@ async def test_settings_reminders_show_displays_stored():
     mock_settings.get.return_value = "10,30"
     interaction.client.settings = mock_settings
 
-    await reminders_settings_show.callback(interaction)
+    await reminders_defaults_show.callback(interaction)
 
     mock_settings.get.assert_called_once_with("12345", "default_reminders")
     interaction.response.send_message.assert_called_once()
@@ -418,9 +418,9 @@ async def test_settings_reminders_show_displays_stored():
 
 
 @pytest.mark.asyncio
-async def test_settings_reminders_show_no_default():
-    """The /cal settings reminders show command shows message when no default."""
-    from src.commands.reminders import reminders_settings_show
+async def test_reminders_defaults_show_no_default():
+    """The /cal reminders-defaults show command shows message when no default."""
+    from src.commands.reminders import reminders_defaults_show
 
     interaction = MagicMock()
     interaction.response = MagicMock()
@@ -431,7 +431,7 @@ async def test_settings_reminders_show_no_default():
     mock_settings.get.return_value = None
     interaction.client.settings = mock_settings
 
-    await reminders_settings_show.callback(interaction)
+    await reminders_defaults_show.callback(interaction)
 
     interaction.response.send_message.assert_called_once()
     msg = interaction.response.send_message.call_args.args[0]
@@ -591,17 +591,17 @@ async def test_reminders_defaults_group_has_correct_name():
 
 
 @pytest.mark.asyncio
-async def test_settings_reminders_set_has_correct_metadata():
-    """The settings reminders set command has correct metadata."""
-    from src.commands.reminders import reminders_settings_set
+async def test_reminders_defaults_set_has_correct_metadata():
+    """The reminders-defaults set command has correct metadata."""
+    from src.commands.reminders import reminders_defaults_set
 
-    assert reminders_settings_set.name == "set"
-    assert "reminder" in reminders_settings_set.description.lower()
+    assert reminders_defaults_set.name == "set"
+    assert "reminder" in reminders_defaults_set.description.lower()
 
 
 @pytest.mark.asyncio
-async def test_settings_reminders_show_has_correct_metadata():
-    """The settings reminders show command has correct metadata."""
-    from src.commands.reminders import reminders_settings_show
+async def test_reminders_defaults_show_has_correct_metadata():
+    """The reminders-defaults show command has correct metadata."""
+    from src.commands.reminders import reminders_defaults_show
 
-    assert reminders_settings_show.name == "show"
+    assert reminders_defaults_show.name == "show"

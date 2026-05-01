@@ -327,6 +327,46 @@ def format_delete_error(exc: HttpError) -> str:
     return messages.get(status, f"❌ Failed to delete event. ({status})")
 
 
+def parse_minutes(minutes_str: str) -> list[int]:
+    """Parse a comma-separated string of minutes into a list of ints.
+
+    Args:
+        minutes_str: Comma-separated integers, e.g. "10,30".
+
+    Returns:
+        A list of integer minutes values.
+
+    Raises:
+        ValueError: If any value is not a positive integer.
+    """
+    minutes_str = minutes_str.strip()
+    if not minutes_str:
+        raise ValueError("Minutes cannot be empty.")
+
+    raw = [part.strip() for part in minutes_str.split(",")]
+    result = []
+    for part in raw:
+        if not part:
+            raise ValueError(
+                f"Empty value in minutes: '{minutes_str}'. "
+                "Use comma-separated integers, e.g. '10,30'."
+            )
+        try:
+            val = int(part)
+        except ValueError:
+            raise ValueError(
+                f"Invalid minutes value '{part}'. "
+                "Use comma-separated integers, e.g. '10,30'."
+            ) from None
+        if val <= 0:
+            raise ValueError(
+                f"Minutes must be positive: {val}. "
+                "Use values like 5, 10, 30, etc."
+            )
+        result.append(val)
+    return result
+
+
 def parse_date_eastern(date_str: str) -> datetime.datetime:
     """Parse a YYYY-MM-DD date string in US Eastern as a UTC datetime.
 

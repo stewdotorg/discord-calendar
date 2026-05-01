@@ -8,52 +8,12 @@ from googleapiclient.errors import HttpError
 
 from src.commands.delete import delete_event_autocomplete
 from src.commands.list_events import cal
-from src.utils import format_edit_error
+from src.utils import format_edit_error, parse_minutes
 
 logger = logging.getLogger(__name__)
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
-
-
-def _parse_minutes(minutes_str: str) -> list[int]:
-    """Parse a comma-separated string of minutes into a list of ints.
-
-    Args:
-        minutes_str: Comma-separated integers, e.g. "10,30".
-
-    Returns:
-        A list of integer minutes values.
-
-    Raises:
-        ValueError: If any value is not a positive integer.
-    """
-    minutes_str = minutes_str.strip()
-    if not minutes_str:
-        raise ValueError("Minutes cannot be empty.")
-
-    raw = [part.strip() for part in minutes_str.split(",")]
-    result = []
-    for part in raw:
-        if not part:
-            raise ValueError(
-                f"Empty value in minutes: '{minutes_str}'. "
-                "Use comma-separated integers, e.g. '10,30'."
-            )
-        try:
-            val = int(part)
-        except ValueError:
-            raise ValueError(
-                f"Invalid minutes value '{part}'. "
-                "Use comma-separated integers, e.g. '10,30'."
-            ) from None
-        if val <= 0:
-            raise ValueError(
-                f"Minutes must be positive: {val}. "
-                "Use values like 5, 10, 30, etc."
-            )
-        result.append(val)
-    return result
 
 
 def _format_reminders_list(minutes: list[int]) -> str:
@@ -109,7 +69,7 @@ async def reminders_set(
         return
 
     try:
-        parsed = _parse_minutes(minutes)
+        parsed = parse_minutes(minutes)
     except ValueError as exc:
         await interaction.response.send_message(
             f"❌ {exc}", ephemeral=True
@@ -195,13 +155,13 @@ reminders_defaults_group = app_commands.Group(
 @app_commands.describe(
     minutes='Comma-separated minutes before start, e.g. "10,30"'
 )
-async def reminders_settings_set(
+async def reminders_defaults_set(
     interaction: discord.Interaction,
     minutes: str,
 ) -> None:
     """Store the user's default reminder configuration."""
     try:
-        parsed = _parse_minutes(minutes)
+        parsed = parse_minutes(minutes)
     except ValueError as exc:
         await interaction.response.send_message(
             f"❌ {exc}", ephemeral=True
@@ -220,7 +180,7 @@ async def reminders_settings_set(
 @reminders_defaults_group.command(
     name="show", description="Show your default reminder configuration"
 )
-async def reminders_settings_show(
+async def reminders_defaults_show(
     interaction: discord.Interaction,
 ) -> None:
     """Display the user's stored default reminders, or a message if none."""
@@ -229,7 +189,7 @@ async def reminders_settings_show(
 
     if default:
         try:
-            parsed = _parse_minutes(default)
+            parsed = parse_minutes(default)
             display = _format_reminders_list(parsed)
             await interaction.response.send_message(
                 f"📋 Default reminders: {display}", ephemeral=True

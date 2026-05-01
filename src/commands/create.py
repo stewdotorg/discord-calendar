@@ -7,7 +7,7 @@ from discord import app_commands
 from googleapiclient.errors import HttpError
 
 from src.commands.list_events import cal
-from src.utils import format_create_error, format_datetime_eastern, parse_when
+from src.utils import format_create_error, format_datetime_eastern, parse_minutes, parse_when
 
 logger = logging.getLogger(__name__)
 
@@ -72,8 +72,7 @@ async def create(
     )
     if default_reminders:
         try:
-            from src.commands.reminders import _parse_minutes
-            minutes_list = _parse_minutes(default_reminders)
+            minutes_list = parse_minutes(default_reminders)
             calendar.add_reminders(result["id"], minutes_list)
         except (ValueError, HttpError) as exc:
             logger.warning(
