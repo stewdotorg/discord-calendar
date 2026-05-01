@@ -1,6 +1,5 @@
 """create — create a Google Calendar event from a Discord slash command."""
 
-import datetime
 import logging
 
 import discord
@@ -8,7 +7,7 @@ from discord import app_commands
 from googleapiclient.errors import HttpError
 
 from src.commands.list_events import cal
-from src.utils import format_create_error
+from src.utils import EASTERN, format_create_error, parse_when
 
 logger = logging.getLogger(__name__)
 
@@ -16,16 +15,15 @@ logger = logging.getLogger(__name__)
 @cal.command(name="create", description="Create a Google Calendar event")
 @app_commands.describe(
     title="Event title",
-    date="Date (YYYY-MM-DD)",
-    time="Start time (HH:MM, 24-hour format, UTC)",
+    when='Start time in US Eastern, e.g. "May 1 3pm", "5/1 15:00", '
+         '"tomorrow 2pm", "2026-05-01 14:00"',
     duration="Duration in minutes (default: 60)",
     description="Optional event description",
 )
 async def create(
     interaction: discord.Interaction,
     title: str,
-    date: str,
-    time: str,
+    when: str,
     duration: int = 60,
     description: str | None = None,
 ) -> None:
@@ -41,13 +39,10 @@ async def create(
         return
 
     try:
-        start = datetime.datetime.strptime(
-            f"{date} {time}", "%Y-%m-%d %H:%M"
-        ).replace(tzinfo=datetime.timezone.utc)
-    except ValueError:
+        start = parse_when(when)
+    except ValueError as exc:
         await interaction.response.send_message(
-            "❌ Invalid date or time format. Use `YYYY-MM-DD` for date "
-            "and `HH:MM` for time (24-hour, UTC).",
+            f"❌ Cannot parse '{when}': {exc}",
             ephemeral=True,
         )
         return
@@ -68,12 +63,18 @@ async def create(
         await interaction.response.send_message(error_msg, ephemeral=True)
         return
 
-    end = start + datetime.timedelta(minutes=duration)
+    # Display confirmation in US Eastern
+    start_eastern = start.astimezone(EASTERN)
+    month = start_eastern.strftime("%B")
+    day = start_eastern.strftime("%d").lstrip("0")
+    year = start_eastern.strftime("%Y")
+    time_str = start_eastern.strftime("%I:%M %p").lstrip("0")
+    start_fmt = f"{month} {day}, {year} at {time_str}"
+
     response = (
         f"✅ **Event created!**\n"
         f"**{title}**\n"
-        f"📅 {start.strftime('%Y-%m-%d')}  "
-        f"⏰ {start.strftime('%H:%M')}–{end.strftime('%H:%M')} UTC  "
+        f"📅 {start_fmt} ET  "
         f"({duration} min)\n"
         f"[Open in Google Calendar]({result['htmlLink']})"
     )

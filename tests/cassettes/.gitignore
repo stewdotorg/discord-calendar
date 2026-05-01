@@ -1,0 +1,3 @@
+# Cassettes are committed — this file ensures the directory is tracked.
+# VCR cassettes (*.yaml) are committed to the repo so CI can replay them.
+# Use 'pytest --record' to re-record cassettes against the live API.

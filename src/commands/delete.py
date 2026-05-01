@@ -97,7 +97,11 @@ async def delete(interaction: discord.Interaction, event_id: str) -> None:
         try:
             dt = datetime.datetime.fromisoformat(start_str)
             dt_eastern = dt.astimezone(EASTERN)
-            date_display = f" on {dt_eastern.strftime('%B %d, %Y at %I:%M %p').lstrip('0')} ET"
+            month = dt_eastern.strftime("%B")
+            day = dt_eastern.strftime("%d").lstrip("0")
+            year = dt_eastern.strftime("%Y")
+            time_str = dt_eastern.strftime("%I:%M %p").lstrip("0")
+            date_display = f" on {month} {day}, {year} at {time_str} ET"
         except (ValueError, OverflowError):
             pass  # Malformed date string — omit date from confirmation
 

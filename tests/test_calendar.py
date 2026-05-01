@@ -42,15 +42,15 @@ def test_load_credentials_raises_on_invalid_json(tmp_path):
 
 
 def test_verify_access_returns_summary_on_success():
-    """verify_access calls calendarList.get and returns the calendar summary."""
+    """verify_access calls calendars().get and returns the calendar summary."""
     with patch("src.calendar.service.build") as mock_build:
         mock_service = MagicMock()
         mock_build.return_value = mock_service
 
-        mock_calendar_list = MagicMock()
-        mock_service.calendarList.return_value = mock_calendar_list
+        mock_calendars = MagicMock()
+        mock_service.calendars.return_value = mock_calendars
         mock_get = MagicMock()
-        mock_calendar_list.get.return_value = mock_get
+        mock_calendars.get.return_value = mock_get
 
         mock_get.execute.return_value = {"summary": "Team Calendar"}
 
@@ -58,7 +58,7 @@ def test_verify_access_returns_summary_on_success():
         result = svc.verify_access()
 
         assert result == "Team Calendar"
-        mock_calendar_list.get.assert_called_once_with(calendarId="primary")
+        mock_calendars.get.assert_called_once_with(calendarId="primary")
 
 
 def test_verify_access_raises_on_api_error():
@@ -69,10 +69,10 @@ def test_verify_access_raises_on_api_error():
         mock_service = MagicMock()
         mock_build.return_value = mock_service
 
-        mock_calendar_list = MagicMock()
-        mock_service.calendarList.return_value = mock_calendar_list
+        mock_calendars = MagicMock()
+        mock_service.calendars.return_value = mock_calendars
         mock_get = MagicMock()
-        mock_calendar_list.get.return_value = mock_get
+        mock_calendars.get.return_value = mock_get
 
         http_resp = MagicMock()
         http_resp.status = 403

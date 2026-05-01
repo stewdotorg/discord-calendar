@@ -1,7 +1,6 @@
 """Ping command — tracer bullet for Discord connectivity."""
 
 import discord
-from discord import app_commands
 
 from src.commands.list_events import cal
 

@@ -1,12 +1,175 @@
 """Utility functions — embed formatting, timezone conversion, error formatting."""
 
 import datetime
+import re
 from zoneinfo import ZoneInfo
 
 import discord
 from googleapiclient.errors import HttpError
 
 EASTERN = ZoneInfo("America/New_York")
+
+# ── when-param parsing ──────────────────────────────────────────────────────
+
+_MONTH_NAMES = {
+    "january": 1, "february": 2, "march": 3, "april": 4,
+    "may": 5, "june": 6, "july": 7, "august": 8,
+    "september": 9, "october": 10, "november": 11, "december": 12,
+    "jan": 1, "feb": 2, "mar": 3, "apr": 4,
+    "jun": 6, "jul": 7, "aug": 8,
+    "sep": 9, "sept": 9, "oct": 10, "nov": 11, "dec": 12,
+}
+
+
+def parse_when(when: str) -> datetime.datetime:
+    """Parse a `when` string into a timezone-aware UTC datetime.
+
+    Supported patterns (all times in US Eastern):
+      - "YYYY-MM-DD HH:MM"        (24-hour time)
+      - "MM/DD HH:MM[am|pm]"      (US date, 12-hour optional suffix)
+      - "Month DD HH:MM[am|pm]"   (e.g. "May 1 3pm" or "May 1 15:00")
+      - "today HH:MM[am|pm]"
+      - "tomorrow HH:MM[am|pm]"
+
+    Defaults year to the current year when not specified.
+
+    Returns:
+        A timezone-aware UTC datetime.
+
+    Raises:
+        ValueError: If the string cannot be parsed.
+    """
+    when_stripped = when.strip()
+
+    # Try ISO-like: YYYY-MM-DD HH:MM
+    iso_match = re.match(
+        r"^(\d{4})-(\d{2})-(\d{2})\s+(\d{1,2}):(\d{2})",
+        when_stripped,
+    )
+    if iso_match:
+        year, month, day, hour, minute = [int(g) for g in iso_match.groups()]
+        dt_eastern = datetime.datetime(year, month, day, hour, minute,
+                                       tzinfo=EASTERN)
+        return dt_eastern.astimezone(datetime.timezone.utc)
+
+    # Split into date part and time part from the right
+    # Time part is the last 1-2 words (e.g. "3pm", "15:00", "3:00pm")
+    parts = when_stripped.split()
+    if len(parts) < 2:
+        raise ValueError(
+            "Expected date and time, e.g. 'May 1 3pm' or '2026-05-01 14:00'."
+        )
+
+    # The time part could be "HH:MM" or "HH:MMam/pm" or "HHam/pm"
+    time_part = " ".join(parts[-2:])
+    day_date_parts = parts[:-2] if len(parts) > 2 else []
+
+    # Check if time is in last 2 tokens (e.g. "3:00 pm") or just 1 (e.g. "3pm")
+    parsed_time = _parse_time_eastern(tuple(parts[-2:]))
+    if parsed_time is not None:
+        day_date_parts = parts[:-2]
+    else:
+        parsed_time = _parse_time_eastern((parts[-1],))
+        if parsed_time is not None:
+            day_date_parts = parts[:-1]
+        else:
+            raise ValueError(
+                f"Cannot parse time from '{time_part}'. "
+                "Use HH:MM (24h) or H:MMam/pm (12h)."
+            )
+
+    # Parse the date part
+    now_eastern = datetime.datetime.now(EASTERN)
+    year, month, day = _parse_date_part(day_date_parts, now_eastern)
+
+    hour, minute = parsed_time
+    dt_eastern = datetime.datetime(year, month, day, hour, minute,
+                                   tzinfo=EASTERN)
+    return dt_eastern.astimezone(datetime.timezone.utc)
+
+
+def _parse_time_eastern(parts: tuple[str, ...]) -> tuple[int, int] | None:
+    """Parse time tokens like ("3pm",) or ("3:00", "pm") into (hour, minute).
+
+    Returns None if the tokens don't look like a time.
+    """
+    joined = " ".join(parts).strip().lower()
+
+    # Try HH:MM (24-hour)
+    m = re.match(r"^(\d{1,2}):(\d{2})$", joined)
+    if m:
+        hour = int(m.group(1))
+        minute = int(m.group(2))
+        if 0 <= hour <= 23 and 0 <= minute <= 59:
+            return (hour, minute)
+        return None
+
+    # Try H:MMam or H:MMpm or Ham or Hpm
+    m = re.match(r"^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$", joined)
+    if m:
+        hour = int(m.group(1))
+        minute = int(m.group(2)) if m.group(2) else 0
+        ampm = m.group(3)
+        if hour < 1 or hour > 12 or minute > 59:
+            return None
+        if ampm == "pm" and hour != 12:
+            hour += 12
+        elif ampm == "am" and hour == 12:
+            hour = 0
+        return (hour, minute)
+
+    return None
+
+
+def _parse_date_part(parts: list[str],
+                     now_eastern: datetime.datetime) -> tuple[int, int, int]:
+    """Parse date tokens into (year, month, day).
+
+    Supports:
+      - "today" / "tomorrow"
+      - "MM/DD" (US format)
+      - "Month DD" (e.g. "May 1")
+    """
+    if not parts:
+        raise ValueError("Missing date. Use 'today', 'tomorrow', 'MM/DD', "
+                         "or 'Month DD'.")
+
+    joined = " ".join(parts).strip().lower()
+
+    if joined == "today":
+        return (now_eastern.year, now_eastern.month, now_eastern.day)
+
+    if joined == "tomorrow":
+        tomorrow = now_eastern + datetime.timedelta(days=1)
+        return (tomorrow.year, tomorrow.month, tomorrow.day)
+
+    # Try MM/DD
+    m = re.match(r"^(\d{1,2})/(\d{1,2})$", joined)
+    if m:
+        month, day = int(m.group(1)), int(m.group(2))
+        if 1 <= month <= 12 and 1 <= day <= 31:
+            return (now_eastern.year, month, day)
+        raise ValueError(f"Invalid date: {joined}")
+
+    # Try Month DD
+    if len(parts) == 2:
+        month_name = parts[0].lower()
+        month = _MONTH_NAMES.get(month_name)
+        if month is None:
+            raise ValueError(f"Unknown month '{parts[0]}'. "
+                             "Use full or abbreviated month name.")
+        try:
+            day = int(parts[1])
+        except ValueError:
+            raise ValueError(f"Invalid day '{parts[1]}'.")
+        if day < 1 or day > 31:
+            raise ValueError(f"Invalid day {day}.")
+        return (now_eastern.year, month, day)
+
+    raise ValueError(
+        f"Cannot parse date '{joined}'. "
+        "Use 'today', 'tomorrow', 'MM/DD', or 'Month DD'."
+    )
 
 
 def format_create_error(exc: HttpError) -> str:
@@ -75,39 +238,37 @@ def get_today_eastern_range() -> tuple[datetime.datetime, datetime.datetime]:
     return start_utc, end_utc
 
 
-def _format_time_eastern(date_time_str: str) -> str:
-    """Convert an ISO 8601 datetime string to US Eastern 12-hour time.
+def _format_time_range_eastern(start_str: str, end_str: str) -> str:
+    """Format a time range in US Eastern 12-hour time.
 
     Args:
-        date_time_str: An ISO 8601 string like '2026-04-28T10:00:00-04:00'.
+        start_str: ISO 8601 start datetime string.
+        end_str: ISO 8601 end datetime string.
 
     Returns:
-        A string like '10:00 AM'.
+        A string like '3:00–4:30 PM ET' or '?' when times are missing.
     """
-    dt = datetime.datetime.fromisoformat(date_time_str)
-    dt_eastern = dt.astimezone(EASTERN)
-    return dt_eastern.strftime("%I:%M %p").lstrip("0")
+    if not start_str or not end_str:
+        return "?"
 
+    dt_start = datetime.datetime.fromisoformat(start_str)
+    dt_end = datetime.datetime.fromisoformat(end_str)
 
-def _format_duration(start_str: str, end_str: str) -> str:
-    """Compute a human-readable duration between two ISO 8601 datetime strings.
+    start_eastern = dt_start.astimezone(EASTERN)
+    end_eastern = dt_end.astimezone(EASTERN)
 
-    Returns a string like '1h 30m' or '45m'.
-    """
-    start_dt = datetime.datetime.fromisoformat(start_str)
-    end_dt = datetime.datetime.fromisoformat(end_str)
-    delta = end_dt - start_dt
+    fmt = "%I:%M"
+    start_fmt = start_eastern.strftime(fmt).lstrip("0")
+    end_fmt = end_eastern.strftime(fmt).lstrip("0")
 
-    total_minutes = int(delta.total_seconds() / 60)
-    hours = total_minutes // 60
-    minutes = total_minutes % 60
+    # Show AM/PM once if both are the same, otherwise on each
+    start_ampm = start_eastern.strftime("%p")
+    end_ampm = end_eastern.strftime("%p")
 
-    if hours > 0 and minutes > 0:
-        return f"{hours}h {minutes}m"
-    elif hours > 0:
-        return f"{hours}h"
+    if start_ampm == end_ampm:
+        return f"{start_fmt}–{end_fmt} {start_ampm} ET"
     else:
-        return f"{minutes}m"
+        return f"{start_fmt} {start_ampm}–{end_fmt} {end_ampm} ET"
 
 
 def format_events_embed(
@@ -138,10 +299,9 @@ def format_events_embed(
         end_str = event.get("end", {}).get("dateTime", "")
         html_link = event.get("htmlLink", "")
 
-        time_str = _format_time_eastern(start_str) if start_str else "?"
-        duration_str = _format_duration(start_str, end_str) if start_str and end_str else "?"
+        time_range = _format_time_range_eastern(start_str, end_str)
 
-        value_lines = [f"**Start:** {time_str} ET", f"**Duration:** {duration_str}"]
+        value_lines = [f"**When:** {time_range}"]
         if html_link:
             value_lines.append(f"[Open in Google Calendar]({html_link})")
 

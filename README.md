@@ -86,8 +86,28 @@ docker compose up -d
 ### Running tests
 
 ```bash
+# Run all tests (mock-based unit tests + VCR integration tests with cassettes)
 python -m pytest tests/ -v
+
+# Re-record VCR cassettes against the live Google Calendar API
+# Requires GOOGLE_SERVICE_ACCOUNT_FILE and GOOGLE_CALENDAR_ID env vars
+python -m pytest tests/ -v --record
 ```
+
+**VCR integration tests** (in `tests/test_calendar_vcr.py`) use
+[vcrpy](https://vcrpy.readthedocs.io/) to record and replay real Google
+Calendar API interactions. Cassettes are stored in `tests/cassettes/`
+and committed to the repo.
+
+- **Default mode** (`pytest`): Plays back cassettes — no network or
+  credentials needed. New contributors can run the full suite without
+  any Calendar API setup.
+- **Record mode** (`pytest --record`): Hits the live API and overwrites
+  cassettes. Use when the Google Calendar API response format changes
+  or when adding new VCR tests.
+
+Authorization headers are automatically stripped from cassettes before
+recording.
 
 ### Sandcastle (AI agent orchestration)
 

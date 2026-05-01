@@ -3,7 +3,11 @@
 import datetime
 from unittest.mock import MagicMock
 
-from src.utils import format_events_embed, get_today_eastern_range
+from src.utils import (
+    _format_time_range_eastern,
+    format_events_embed,
+    get_today_eastern_range,
+)
 
 
 class TestFormatDeleteError:
@@ -81,6 +85,42 @@ class TestGetTodayEasternRange:
         assert delta <= datetime.timedelta(hours=25)
 
 
+class TestFormatTimeRangeEastern:
+    """Tests for _format_time_range_eastern."""
+
+    def test_formats_same_ampm_range(self):
+        """Both times in the same AM/PM period show AM/PM once."""
+        result = _format_time_range_eastern(
+            "2026-04-28T09:00:00-04:00",
+            "2026-04-28T09:30:00-04:00",
+        )
+        assert result == "9:00–9:30 AM ET"
+
+    def test_formats_cross_ampm_range(self):
+        """Times crossing AM/PM show AM/PM on each."""
+        result = _format_time_range_eastern(
+            "2026-04-28T11:00:00-04:00",
+            "2026-04-28T13:00:00-04:00",
+        )
+        assert result == "11:00 AM–1:00 PM ET"
+
+    def test_formats_same_hour_pm_range(self):
+        """PM range shows PM once."""
+        result = _format_time_range_eastern(
+            "2026-04-28T18:00:00-04:00",
+            "2026-04-28T19:30:00-04:00",
+        )
+        assert result == "6:00–7:30 PM ET"
+
+    def test_returns_question_mark_for_empty_strings(self):
+        """Returns '?' when either time string is empty."""
+        result = _format_time_range_eastern("", "2026-04-28T11:00:00-04:00")
+        assert result == "?"
+
+        result = _format_time_range_eastern("2026-04-28T10:00:00-04:00", "")
+        assert result == "?"
+
+
 class TestFormatEventsEmbed:
     """Tests for format_events_embed."""
 
@@ -117,20 +157,18 @@ class TestFormatEventsEmbed:
         assert embed.description is None
         assert len(embed.fields) == 2
 
-        # First event
+        # First event — time range display
         assert embed.fields[0].name == "Morning Standup"
-        assert "9:00 AM" in embed.fields[0].value
-        assert "30m" in embed.fields[0].value
+        assert "9:00–9:30 AM ET" in embed.fields[0].value
         assert "https://calendar.google.com/event?eid=evt1" in embed.fields[0].value
 
         # Second event
         assert embed.fields[1].name == "Lunch"
-        assert "12:00 PM" in embed.fields[1].value
-        assert "1h" in embed.fields[1].value
+        assert "12:00–1:00 PM ET" in embed.fields[1].value
         assert "https://calendar.google.com/event?eid=evt2" in embed.fields[1].value
 
     def test_duration_formatting(self):
-        """format_events_embed formats durations correctly for minutes and hours."""
+        """format_events_embed uses time range display."""
         events = [
             {
                 "summary": "Short",
@@ -142,8 +180,7 @@ class TestFormatEventsEmbed:
 
         embed = format_events_embed(events, "April 28, 2026")
 
-        assert "15m" in embed.fields[0].value
-        assert "2:00 PM" in embed.fields[0].value
+        assert "2:00–2:15 PM ET" in embed.fields[0].value
 
     def test_missing_htmlLink_falls_back(self):
         """format_events_embed handles events without an htmlLink gracefully."""
@@ -158,5 +195,7 @@ class TestFormatEventsEmbed:
         embed = format_events_embed(events, "April 28, 2026")
 
         assert embed.fields[0].name == "No Link"
+        # Should contain the time range
+        assert "10:00–11:00 AM ET" in embed.fields[0].value
         # Should not contain a calendar link since none was provided
         assert "google.com" not in embed.fields[0].value

@@ -7,6 +7,7 @@ import pytest
 
 from src.calendar.service import CalendarService
 from src.commands.create import create
+from src.utils import EASTERN, parse_when
 
 
 # ── CalendarService.create_event ─────────────────────────────────────────────
@@ -160,6 +161,92 @@ def test_create_event_raises_on_http_error():
             svc.create_event(title="Blocked", start=start)
 
 
+# ── parse_when ───────────────────────────────────────────────────────────────
+
+
+class TestParseWhen:
+    """Tests for the parse_when function."""
+
+    def test_parses_iso_format(self):
+        """parse_when handles YYYY-MM-DD HH:MM (interpreted as Eastern)."""
+        # May 1 2026 14:00 Eastern = 18:00 UTC (May is EDT, UTC-4)
+        result = parse_when("2026-05-01 14:00")
+        assert result.year == 2026
+        assert result.month == 5
+        assert result.day == 1
+        assert result.hour == 18  # 2pm EDT → 6pm UTC
+        assert result.minute == 0
+        assert result.tzinfo == datetime.timezone.utc
+
+    def test_parses_us_slash_format(self):
+        """parse_when handles MM/DD HH:MM format."""
+        result = parse_when("5/1 15:00")
+        assert result.month == 5
+        assert result.day == 1
+        # 3pm EDT = 19:00 UTC
+        assert result.hour == 19
+        assert result.minute == 0
+
+    def test_parses_month_name_format(self):
+        """parse_when handles 'Month DD HH:MM' format."""
+        result = parse_when("May 1 3pm")
+        assert result.month == 5
+        assert result.day == 1
+        # 3pm EDT = 19:00 UTC
+        assert result.hour == 19
+        assert result.minute == 0
+
+    def test_parses_today(self):
+        """parse_when handles 'today HH:MM' using the current date."""
+        now_eastern = datetime.datetime.now(EASTERN)
+        result = parse_when("today 9:00")
+        assert result.month == now_eastern.month
+        assert result.day == now_eastern.day
+        assert result.year == now_eastern.year
+        # 9am EDT → 13:00 UTC
+        assert result.hour == 13
+        assert result.minute == 0
+
+    def test_parses_tomorrow(self):
+        """parse_when handles 'tomorrow HH:MMam'."""
+        now_eastern = datetime.datetime.now(EASTERN)
+        tomorrow = now_eastern + datetime.timedelta(days=1)
+        result = parse_when("tomorrow 9am")
+        assert result.month == tomorrow.month
+        assert result.day == tomorrow.day
+        # 9am EDT → 13:00 UTC
+        assert result.hour == 13
+        assert result.minute == 0
+
+    def test_parses_month_abbreviation(self):
+        """parse_when handles 3-letter month abbreviations."""
+        result = parse_when("Feb 14 5:30pm")
+        assert result.month == 2
+        assert result.day == 14
+        # 5:30pm EST → 22:30 UTC (Feb is in EST, UTC-5)
+        assert result.hour == 22
+        assert result.minute == 30
+
+    def test_parses_time_with_minutes_and_ampm(self):
+        """parse_when handles H:MMam/pm format with minutes."""
+        result = parse_when("Dec 25 2:15pm")
+        assert result.month == 12
+        assert result.day == 25
+        # 2:15pm EST → 19:15 UTC
+        assert result.hour == 19
+        assert result.minute == 15
+
+    def test_raises_on_invalid_string(self):
+        """parse_when raises ValueError for unparseable strings."""
+        with pytest.raises(ValueError):
+            parse_when("not a valid time")
+
+    def test_raises_on_garbage(self):
+        """parse_when raises ValueError for completely invalid input."""
+        with pytest.raises(ValueError):
+            parse_when("xyz")
+
+
 # ── /cal create command handler ──────────────────────────────────────────────
 
 
@@ -171,9 +258,9 @@ async def test_create_command_has_correct_metadata():
 
 
 @pytest.mark.asyncio
-async def test_create_command_parses_args_and_calls_service():
-    """The create command parses title, date, time, duration, description
-    and calls CalendarService.create_event with correct values."""
+async def test_create_command_parses_when_and_calls_service():
+    """The create command parses title, when, duration, description
+    and calls CalendarService.create_event with correct UTC values."""
     interaction = MagicMock()
     interaction.response = MagicMock()
     interaction.response.send_message = AsyncMock()
@@ -186,11 +273,11 @@ async def test_create_command_parses_args_and_calls_service():
     }
     interaction.client.calendar = mock_calendar
 
+    # "2026-05-01 14:00" is parsed as Eastern, 2pm EDT = 6pm UTC
     await create.callback(
         interaction,
         title="Team Sync",
-        date="2026-05-01",
-        time="14:00",
+        when="2026-05-01 14:00",
         duration=30,
         description="Weekly standup",
     )
@@ -201,12 +288,12 @@ async def test_create_command_parses_args_and_calls_service():
     assert call_kwargs["duration_minutes"] == 30
     assert call_kwargs["description"] == "Weekly standup"
 
-    # Verify the start datetime
+    # Verify the start datetime: 2pm EDT on May 1 = 18:00 UTC
     start = call_kwargs["start"]
     assert start.year == 2026
     assert start.month == 5
     assert start.day == 1
-    assert start.hour == 14
+    assert start.hour == 18  # 2pm EDT = 6pm UTC
     assert start.minute == 0
     assert start.tzinfo == datetime.timezone.utc
 
@@ -216,8 +303,7 @@ async def test_create_command_parses_args_and_calls_service():
     interaction.response.send_message.assert_called_once()
     response_text = interaction.response.send_message.call_args.args[0]
     assert "Team Sync" in response_text
-    assert "2026-05-01" in response_text
-    assert "14:00" in response_text
+    assert "May 1, 2026 at 2:00 PM ET" in response_text
     assert "https://calendar.google.com/event?eid=evt_001" in response_text
 
 
@@ -238,8 +324,7 @@ async def test_create_command_defaults_duration_to_60():
     await create.callback(
         interaction,
         title="Quick Sync",
-        date="2026-05-02",
-        time="09:00",
+        when="2026-05-02 09:00",
     )
 
     kwargs = mock_calendar.create_event.call_args.kwargs
@@ -257,8 +342,7 @@ async def test_create_command_handles_no_calendar():
     await create.callback(
         interaction,
         title="Test",
-        date="2026-05-01",
-        time="12:00",
+        when="2026-05-01 12:00",
         duration=60,
         description=None,
     )
@@ -266,6 +350,27 @@ async def test_create_command_handles_no_calendar():
     interaction.response.send_message.assert_called_once()
     msg = interaction.response.send_message.call_args.args[0]
     assert "not configured" in msg.lower()
+
+
+@pytest.mark.asyncio
+async def test_create_command_handles_invalid_when():
+    """The create command responds with a parse error for invalid when strings."""
+    interaction = MagicMock()
+    interaction.response = MagicMock()
+    interaction.response.send_message = AsyncMock()
+    interaction.client.calendar = MagicMock()
+
+    await create.callback(
+        interaction,
+        title="Test",
+        when="nonsense",
+        duration=60,
+        description=None,
+    )
+
+    interaction.response.send_message.assert_called_once()
+    msg = interaction.response.send_message.call_args.args[0]
+    assert "Cannot parse" in msg
 
 
 @pytest.mark.asyncio
@@ -288,8 +393,7 @@ async def test_create_command_formats_unauthorized_error():
     await create.callback(
         interaction,
         title="Test",
-        date="2026-05-01",
-        time="12:00",
+        when="2026-05-01 12:00",
         duration=60,
         description=None,
     )
@@ -318,8 +422,7 @@ async def test_create_command_formats_not_found_error():
     await create.callback(
         interaction,
         title="Test",
-        date="2026-05-01",
-        time="12:00",
+        when="2026-05-01 12:00",
         duration=60,
         description=None,
     )
@@ -348,8 +451,7 @@ async def test_create_command_formats_rate_limit_error():
     await create.callback(
         interaction,
         title="Test",
-        date="2026-05-01",
-        time="12:00",
+        when="2026-05-01 12:00",
         duration=60,
         description=None,
     )
@@ -378,8 +480,7 @@ async def test_create_command_formats_generic_error():
     await create.callback(
         interaction,
         title="Test",
-        date="2026-05-01",
-        time="12:00",
+        when="2026-05-01 12:00",
         duration=60,
         description=None,
     )

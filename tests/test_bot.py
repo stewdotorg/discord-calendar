@@ -8,7 +8,6 @@ import pytest
 
 from src.bot import DiscalClient
 from src.commands.list_events import cal
-from src.commands.ping import ping
 from tests import VALID_KEY_JSON
 
 
