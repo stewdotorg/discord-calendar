@@ -10,6 +10,7 @@ from src.utils import (
     _format_time_range_eastern,
     format_events_embed,
     get_today_eastern_range,
+    parse_date_eastern,
     parse_when,
 )
 
@@ -315,3 +316,38 @@ class TestParseWhenDateparser:
         assert result.day == 6
         assert result.year == 2026
         assert result.tzinfo == datetime.timezone.utc
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  parse_date_eastern — Issue #10
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class TestParseDateEastern:
+    """Tests for parse_date_eastern (YYYY-MM-DD in Eastern → UTC)."""
+
+    def test_valid_date_returns_utc_datetime(self):
+        """parse_date_eastern parses YYYY-MM-DD as Eastern midnight
+        and returns a timezone-aware UTC datetime."""
+        result = parse_date_eastern("2026-05-15")
+        assert result.tzinfo == datetime.timezone.utc
+        assert result.year == 2026
+        assert result.month == 5
+        assert result.day == 15
+        # May in EDT (UTC-4), midnight Eastern = 4:00 UTC
+        assert result.hour == 4
+        assert result.minute == 0
+
+    def test_valid_date_is_start_of_day_in_eastern(self):
+        """parse_date_eastern returns midnight Eastern for the given date."""
+        result = parse_date_eastern("2026-01-15")
+        assert result.tzinfo == datetime.timezone.utc
+        # January in EST (UTC-5), midnight Eastern = 5:00 UTC
+        assert result.hour == 5
+        assert result.minute == 0
+
+    @pytest.mark.parametrize("invalid", ["not-a-date", "", "05/15/2026", "2026-13-01"])
+    def test_invalid_date_raises_value_error(self, invalid):
+        """parse_date_eastern raises ValueError for invalid date strings."""
+        with pytest.raises(ValueError):
+            parse_date_eastern(invalid)
