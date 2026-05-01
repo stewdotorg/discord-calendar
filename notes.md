@@ -1,0 +1,3 @@
+Discord Application ID: 1499782054764744775
+Discord Application public key: 6276476cf3d3821d64360d56c1521e0e3ca16d5158904cb04c85f025099e44ec
+Discord Bot token:  MTQ5OTc4MjA1NDc2NDc0NDc3NQ.GBeShr.-w23Fu4tm34HyhrSc63fFESBBNtuwj5YmML7QQ

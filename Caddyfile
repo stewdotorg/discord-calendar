@@ -1,4 +1,3 @@
-# Replace your.domain with your actual domain
-your.domain {
+discal.ztu.fm {
     reverse_proxy bot:8000
 }
