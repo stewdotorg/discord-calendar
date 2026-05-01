@@ -153,6 +153,55 @@ class CalendarService:
 
         return result.get("items", [])
 
+    def get_event(self, event_id: str) -> dict:
+        """Get a single Google Calendar event by ID.
+
+        Args:
+            event_id: The Google Calendar event ID.
+
+        Returns:
+            The full event resource dict from the Calendar API.
+
+        Raises:
+            HttpError: If the API call fails.
+        """
+        service = self._build_service()
+        result = (
+            service.events()
+            .get(calendarId=self._calendar_id, eventId=event_id)
+            .execute()
+        )
+        return result
+
+    def update_event(self, event_id: str, **kwargs: dict) -> dict:
+        """Update a Google Calendar event using partial patch.
+
+        Only the fields passed in kwargs are sent to the API, leaving
+        all other fields unchanged.
+
+        Args:
+            event_id: The Google Calendar event ID to update.
+            **kwargs: Event fields to patch (e.g. summary, description,
+                start, end). Only provided fields are sent.
+
+        Returns:
+            A dict with 'id' and 'htmlLink' from the updated event.
+
+        Raises:
+            HttpError: If the API call fails.
+        """
+        service = self._build_service()
+        result = (
+            service.events()
+            .patch(
+                calendarId=self._calendar_id,
+                eventId=event_id,
+                body=kwargs,
+            )
+            .execute()
+        )
+        return {"id": result["id"], "htmlLink": result["htmlLink"]}
+
     def delete_event(self, event_id: str) -> dict:
         """Delete a Google Calendar event.
 

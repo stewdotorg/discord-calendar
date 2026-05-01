@@ -123,7 +123,7 @@ async def test_help_command_responds_ephemeral_embed():
 
 @pytest.mark.asyncio
 async def test_help_embed_contains_all_commands():
-    """The help embed includes ping, create, today, delete, and help."""
+    """The help embed includes all registered /cal commands."""
     from src.commands.help import help_cmd
 
     interaction = MagicMock()
@@ -135,14 +135,17 @@ async def test_help_embed_contains_all_commands():
     call_args = interaction.response.send_message.call_args
     embed = call_args[1]["embed"]
 
-    # All five commands should appear as fields
+    # All commands should appear as fields
     field_names = [field.name for field in embed.fields]
     assert "/cal ping" in field_names
     assert "/cal create" in field_names
     assert "/cal today" in field_names
     assert "/cal delete" in field_names
+    assert "/cal week" in field_names
+    assert "/cal list" in field_names
+    assert "/cal edit" in field_names
     assert "/cal help" in field_names
-    assert len(embed.fields) >= 5
+    assert len(embed.fields) >= 8
 
 
 @pytest.mark.asyncio

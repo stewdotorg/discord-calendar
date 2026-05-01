@@ -277,6 +277,31 @@ def format_create_error(exc: HttpError) -> str:
     return messages.get(status, f"❌ Failed to create event. ({status})")
 
 
+def format_edit_error(exc: HttpError) -> str:
+    """Return a user-friendly error message for a Google Calendar edit error.
+
+    Maps specific HTTP status codes to actionable messages.
+    """
+    status = exc.resp.status if exc.resp else 0
+
+    messages = {
+        403: (
+            "❌ Permission denied — the bot does not have permission to "
+            "edit events on this calendar."
+        ),
+        404: (
+            "❌ Event not found — the event may have been deleted "
+            "or the event ID is incorrect."
+        ),
+        429: (
+            "⏳ Rate limited — too many requests. Please wait a moment "
+            "and try again."
+        ),
+    }
+
+    return messages.get(status, f"❌ Failed to edit event. ({status})")
+
+
 def format_delete_error(exc: HttpError) -> str:
     """Return a user-friendly error message for a Google Calendar delete error.
 
