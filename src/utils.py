@@ -51,11 +51,13 @@ _TIME_OF_DAY_MAP = {
 
 
 def _dateparser_now() -> datetime.datetime:
-    """Return the current datetime (extracted for testability).
+    """Return the current datetime in US Eastern (extracted for testability).
 
     Tests patch this to pin the reference point for relative dates.
+    Using timezone-aware Eastern prevents timezone double-conversion when
+    the host system clock is UTC (e.g. Docker containers).
     """
-    return datetime.datetime.now()
+    return datetime.datetime.now(EASTERN)
 
 
 def parse_when(when: str) -> datetime.datetime:
