@@ -41,6 +41,16 @@ _COMMANDS = [
         "example": 'Change an event title: /cal edit event:<pick> title:"New Title"',
     },
     {
+        "name": "/cal rsvp",
+        "description": "RSVP to an event with your stored email",
+        "example": "RSVP to an event: /cal rsvp event:<pick> or with email: /cal rsvp event:<pick> email:me@example.com",
+    },
+    {
+        "name": "/cal invite",
+        "description": "Invite others to an event by email",
+        "example": "Invite others: /cal invite event:<pick> emails:alice@example.com, bob@example.com",
+    },
+    {
         "name": "/cal help",
         "description": "Show all available calendar commands",
         "example": "Display this help message",

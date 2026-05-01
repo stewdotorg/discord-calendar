@@ -6,6 +6,7 @@ import discord
 from discord import app_commands
 
 from src.commands.list_events import cal
+from src.utils import validate_email
 
 email_group = app_commands.Group(
     name="email",
@@ -18,25 +19,6 @@ timezone_group = app_commands.Group(
     description="Set or show your timezone for event display",
     parent=cal,
 )
-
-
-_INVALID_EMAIL_MSG = (
-    "❌ Invalid email: {reason}. "
-    "Please provide a valid email address, e.g. me@example.com."
-)
-
-
-def _validate_email(email: str) -> str | None:
-    """Validate basic email format.
-
-    Returns an error message string if invalid, or None if valid.
-    """
-    if "@" not in email:
-        return _INVALID_EMAIL_MSG.format(reason="missing '@'")
-    _, domain = email.rsplit("@", 1)
-    if "." not in domain:
-        return _INVALID_EMAIL_MSG.format(reason="domain missing '.'")
-    return None
 
 
 def _validate_timezone(tz_str: str) -> str | None:
@@ -60,7 +42,7 @@ def _validate_timezone(tz_str: str) -> str | None:
 @app_commands.describe(email="Your email address (e.g. me@example.com)")
 async def email_set(interaction: discord.Interaction, email: str) -> None:
     """Store the user's email address after basic format validation."""
-    error = _validate_email(email)
+    error = validate_email(email)
     if error:
         await interaction.response.send_message(error, ephemeral=True)
         return

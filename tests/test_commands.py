@@ -144,8 +144,10 @@ async def test_help_embed_contains_all_commands():
     assert "/cal week" in field_names
     assert "/cal list" in field_names
     assert "/cal edit" in field_names
+    assert "/cal rsvp" in field_names
+    assert "/cal invite" in field_names
     assert "/cal help" in field_names
-    assert len(embed.fields) >= 8
+    assert len(embed.fields) >= 10
 
 
 @pytest.mark.asyncio
