@@ -14,6 +14,8 @@ from src.commands.list_events import cal
 from src.commands.ping import ping  # noqa: F401  # side-effect: registers on cal group
 from src.commands.create import create  # noqa: F401  # side-effect: registers on cal group
 from src.commands.help import help_cmd  # noqa: F401  # side-effect: registers on cal group
+from src.commands.settings import email_group, timezone_group  # noqa: F401  # registers email, timezone on cal
+from src.db.queries import SettingsStore
 
 logger = logging.getLogger(__name__)
 
@@ -25,10 +27,11 @@ class DiscalClient(discord.Client):
     and registers slash commands via app_commands.CommandTree.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, db_path: str = "data/discal.db") -> None:
         intents = discord.Intents.default()
         super().__init__(intents=intents)
         self.tree = app_commands.CommandTree(self)
+        self.settings = SettingsStore(db_path)
 
     async def setup_hook(self) -> None:
         """Register commands, verify calendar access, and sync with Discord on startup."""
