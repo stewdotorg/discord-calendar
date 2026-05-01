@@ -66,6 +66,21 @@ async def create(
         await interaction.edit_original_response(content=error_msg)
         return
 
+    # Auto-apply user's default reminders if configured
+    default_reminders = interaction.client.settings.get(  # type: ignore[attr-defined]
+        creator_discord_id, "default_reminders"
+    )
+    if default_reminders:
+        try:
+            from src.commands.reminders import _parse_minutes
+            minutes_list = _parse_minutes(default_reminders)
+            calendar.add_reminders(result["id"], minutes_list)
+        except (ValueError, HttpError) as exc:
+            logger.warning(
+                "Failed to apply default reminders for user %s: %s",
+                creator_discord_id, exc,
+            )
+
     # Display confirmation in US Eastern
     start_fmt = format_datetime_eastern(start)
 
