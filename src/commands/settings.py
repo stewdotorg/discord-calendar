@@ -1,11 +1,6 @@
-"""/cal email and /cal timezone — store user preferences.
+"""Commands for per-user email and timezone preferences under /cal."""
 
-Groups are placed directly under /cal because Discord.py supports
-only one level of command group nesting (cal → email → set is valid,
-cal → settings → email → set would exceed the limit).
-"""
-
-from zoneinfo import ZoneInfo, available_timezones
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 
 import discord
 from discord import app_commands
@@ -25,22 +20,22 @@ timezone_group = app_commands.Group(
 )
 
 
+_INVALID_EMAIL_MSG = (
+    "❌ Invalid email: {reason}. "
+    "Please provide a valid email address, e.g. me@example.com."
+)
+
+
 def _validate_email(email: str) -> str | None:
     """Validate basic email format.
 
     Returns an error message string if invalid, or None if valid.
     """
     if "@" not in email:
-        return (
-            "❌ Invalid email: missing '@'. "
-            "Please provide a valid email address, e.g. me@example.com."
-        )
-    local_part, domain = email.rsplit("@", 1)
+        return _INVALID_EMAIL_MSG.format(reason="missing '@'")
+    _, domain = email.rsplit("@", 1)
     if "." not in domain:
-        return (
-            "❌ Invalid email: domain missing '.'. "
-            "Please provide a valid email address, e.g. me@example.com."
-        )
+        return _INVALID_EMAIL_MSG.format(reason="domain missing '.'")
     return None
 
 
@@ -51,7 +46,7 @@ def _validate_timezone(tz_str: str) -> str | None:
     """
     try:
         ZoneInfo(tz_str)
-    except Exception:
+    except ZoneInfoNotFoundError:
         available = ", ".join(sorted(available_timezones())[:5])
         return (
             f"❌ Invalid timezone '{tz_str}'. "
