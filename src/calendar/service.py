@@ -39,7 +39,7 @@ class CalendarService:
         service = self._build_service()
         try:
             result = (
-                service.calendarList()
+                service.calendars()
                 .get(calendarId=self._calendar_id)
                 .execute()
             )
