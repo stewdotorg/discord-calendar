@@ -173,7 +173,7 @@ class CalendarService:
         )
         return result
 
-    def update_event(self, event_id: str, **kwargs: dict) -> dict:
+    def update_event(self, event_id: str, **kwargs: object) -> dict:
         """Update a Google Calendar event using partial patch.
 
         Only the fields passed in kwargs are sent to the API, leaving

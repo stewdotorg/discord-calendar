@@ -104,9 +104,6 @@ async def edit(
     await interaction.edit_original_response(content=response)
 
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
-
-
 def _compute_start_end(
     current: dict,
     when: str | None,
@@ -138,11 +135,9 @@ def _compute_start_end(
     if duration is not None:
         new_end = new_start + datetime.timedelta(minutes=duration)
     elif when is not None:
-        # User changed when but not duration — keep existing duration
         existing_minutes = (current_end - current_start).total_seconds() / 60
         new_end = new_start + datetime.timedelta(minutes=int(existing_minutes))
     else:
-        # Only duration changed — keep existing start
         new_end = current_end
 
     return new_start, new_end
@@ -159,7 +154,6 @@ async def _respond_no_changes(
     description = current.get("description", "")
     html_link = current.get("htmlLink", "")
 
-    # Format time/duration
     time_line = ""
     if start_str and end_str:
         try:
@@ -202,16 +196,13 @@ def _format_confirmation(
     Returns:
         A formatted confirmation string.
     """
-    # Resolve the final title
     new_title = patch_body.get("summary", current.get("summary", "Untitled Event"))
     old_title = current.get("summary", "Untitled Event")
 
-    # Resolve final description
     new_description = patch_body.get(
         "description", current.get("description", "")
     )
 
-    # Resolve final start/end for display
     if "start" in patch_body:
         start_dt = datetime.datetime.fromisoformat(
             patch_body["start"]["dateTime"]
@@ -220,7 +211,6 @@ def _format_confirmation(
             patch_body["end"]["dateTime"]
         )
     else:
-        # Use current times
         start_str = current.get("start", {}).get("dateTime", "")
         end_str = current.get("end", {}).get("dateTime", "")
         start_dt = datetime.datetime.fromisoformat(start_str)
