@@ -16,7 +16,7 @@ discord (slash commands) → bot (Python) → Google Calendar API
 | Command | Description |
 |---|---|
 | `/cal ping` | Bot responds "pong" (connectivity check) |
-| `/cal create title:"..." date:YYYY-MM-DD time:HH:MM [duration:60] [description:"..."]` | Create a Google Calendar event |
+| `/cal create title:"..." when:"..." [duration:60] [description:"..."]` | Create a Google Calendar event — `when` parses US Eastern time, e.g. "May 1 3pm", "5/1 15:00", "tomorrow 2pm" |
 | `/cal today` | List today's events |
 | `/cal delete <event>` | Delete an event (autocomplete picks from existing events) |
 
