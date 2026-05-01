@@ -1,12 +1,16 @@
-"""Tests for utility functions — embed formatting and timezone conversion."""
+"""Tests for utility functions — embed formatting, timezone conversion,
+and when-param parsing."""
 
 import datetime
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from src.utils import (
     _format_time_range_eastern,
     format_events_embed,
     get_today_eastern_range,
+    parse_when,
 )
 
 
@@ -199,3 +203,124 @@ class TestFormatEventsEmbed:
         assert "10:00–11:00 AM ET" in embed.fields[0].value
         # Should not contain a calendar link since none was provided
         assert "google.com" not in embed.fields[0].value
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  NLP Date Parsing (dateparser) — Issue #7
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Fixed reference point for relative date parsing tests.
+# May 1, 2026 12:00 PM US Eastern (EDT, UTC-4).
+_BASE = datetime.datetime(2026, 5, 1, 12, 0)
+
+
+class TestParseWhenDateparser:
+    """Tests for parse_when using dateparser NLP parsing (Issue #7)."""
+
+    # ── Valid inputs ────────────────────────────────────────────────────────
+
+    def test_dateparser_next_tuesday_at_3pm(self):
+        """'next tuesday at 3pm' → next Tue May 5 2026 3pm EDT = 19:00 UTC."""
+        with patch("src.utils._dateparser_now", return_value=_BASE):
+            result = parse_when("next tuesday at 3pm")
+        assert result.year == 2026
+        assert result.month == 5
+        assert result.day == 5
+        assert result.hour == 19  # 3pm EDT → 7pm UTC
+        assert result.minute == 0
+        assert result.tzinfo == datetime.timezone.utc
+
+    def test_dateparser_may_15_2026_230pm(self):
+        """'May 15 2026 2:30pm' → May 15 2026 2:30pm EDT = 18:30 UTC."""
+        result = parse_when("May 15 2026 2:30pm")
+        assert result.year == 2026
+        assert result.month == 5
+        assert result.day == 15
+        assert result.hour == 18  # 2:30pm EDT → 6:30pm UTC
+        assert result.minute == 30
+        assert result.tzinfo == datetime.timezone.utc
+
+    def test_dateparser_in_2_hours(self):
+        """'in 2 hours' from May 1 12pm EDT → May 1 2pm EDT = 18:00 UTC."""
+        with patch("src.utils._dateparser_now", return_value=_BASE):
+            result = parse_when("in 2 hours")
+        assert result.year == 2026
+        assert result.month == 5
+        assert result.day == 1
+        assert result.hour == 18  # 2pm EDT → 6pm UTC
+        assert result.minute == 0
+        assert result.tzinfo == datetime.timezone.utc
+
+    def test_dateparser_tomorrow_morning(self):
+        """'tomorrow morning' → May 2 2026 9am EDT = 13:00 UTC."""
+        with patch("src.utils._dateparser_now", return_value=_BASE):
+            result = parse_when("tomorrow morning")
+        assert result.year == 2026
+        assert result.month == 5
+        assert result.day == 2
+        assert result.hour == 13  # 9am EDT → 1pm UTC
+        assert result.minute == 0
+        assert result.tzinfo == datetime.timezone.utc
+
+    def test_dateparser_friday_at_noon(self):
+        """'friday at noon' → next Fri May 8 2026 12pm EDT = 16:00 UTC."""
+        with patch("src.utils._dateparser_now", return_value=_BASE):
+            result = parse_when("friday at noon")
+        assert result.year == 2026
+        assert result.month == 5
+        assert result.day == 8
+        assert result.hour == 16  # 12pm EDT → 4pm UTC
+        assert result.minute == 0
+        assert result.tzinfo == datetime.timezone.utc
+
+    def test_dateparser_slash_date_24h(self):
+        """'5/15/2026 14:00' → May 15 2026 2pm EDT = 18:00 UTC."""
+        result = parse_when("5/15/2026 14:00")
+        assert result.year == 2026
+        assert result.month == 5
+        assert result.day == 15
+        assert result.hour == 18  # 2pm EDT → 6pm UTC
+        assert result.minute == 0
+        assert result.tzinfo == datetime.timezone.utc
+
+    def test_dateparser_june_5th_4pm(self):
+        """'June 5th 4pm' → Jun 5 2026 4pm EDT = 20:00 UTC."""
+        result = parse_when("June 5th 4pm")
+        assert result.year == 2026
+        assert result.month == 6
+        assert result.day == 5
+        assert result.hour == 20  # 4pm EDT → 8pm UTC
+        assert result.minute == 0
+        assert result.tzinfo == datetime.timezone.utc
+
+    # ── Invalid inputs ──────────────────────────────────────────────────────
+
+    def test_dateparser_asdfasdf(self):
+        """'asdfasdf' raises ValueError."""
+        with pytest.raises(ValueError):
+            parse_when("asdfasdf")
+
+    def test_dateparser_blarb(self):
+        """'blarb' raises ValueError."""
+        with pytest.raises(ValueError):
+            parse_when("blarb")
+
+    def test_dateparser_not_a_date(self):
+        """'not a date' raises ValueError."""
+        with pytest.raises(ValueError):
+            parse_when("not a date")
+
+    def test_dateparser_empty_string(self):
+        """Empty string raises ValueError."""
+        with pytest.raises(ValueError):
+            parse_when("")
+
+    # ── Ambiguous input ─────────────────────────────────────────────────────
+
+    def test_dateparser_ambiguous_us_month_first(self):
+        """'05/06/2026' defaults to US month-first (May 6)."""
+        result = parse_when("05/06/2026")
+        assert result.month == 5
+        assert result.day == 6
+        assert result.year == 2026
+        assert result.tzinfo == datetime.timezone.utc

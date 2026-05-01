@@ -37,18 +37,34 @@ _MONTH_NAMES = {
     "sep": 9, "sept": 9, "oct": 10, "nov": 11, "dec": 12,
 }
 
+# Words stripped before dateparser ("tuesday" already means next tuesday).
+_DATEWORDS_TO_STRIP = {"next", "this", "at", "on"}
+
+# Time-of-day words → specific times for NLP expansion.
+_TIME_OF_DAY_MAP = {
+    "morning": "9am",
+    "afternoon": "3pm",
+    "evening": "6pm",
+    "night": "9pm",
+}
+
+
+def _dateparser_now() -> datetime.datetime:
+    """Return the current datetime (extracted for testability).
+
+    Tests patch this to pin the reference point for relative dates.
+    """
+    return datetime.datetime.now()
+
 
 def parse_when(when: str) -> datetime.datetime:
     """Parse a `when` string into a timezone-aware UTC datetime.
 
-    Supported patterns (all times in US Eastern):
-      - "YYYY-MM-DD HH:MM"        (24-hour time)
-      - "MM/DD HH:MM[am|pm]"      (US date, 12-hour optional suffix)
-      - "Month DD HH:MM[am|pm]"   (e.g. "May 1 3pm" or "May 1 15:00")
-      - "today HH:MM[am|pm]"
-      - "tomorrow HH:MM[am|pm]"
+    Uses dateparser for NLP date parsing (e.g. "next tuesday at 3pm",
+    "friday at noon", "in 2 hours"), falling back to manual patterns
+    (e.g. "2026-05-01 14:00", "5/1 3pm", "May 1 3pm", "today 9am").
 
-    Defaults year to the current year when not specified.
+    All times are interpreted as US Eastern, returned as UTC.
 
     Returns:
         A timezone-aware UTC datetime.
@@ -56,8 +72,47 @@ def parse_when(when: str) -> datetime.datetime:
     Raises:
         ValueError: If the string cannot be parsed.
     """
-    when_stripped = when.strip()
+    import dateparser
 
+    when_stripped = when.strip()
+    if not when_stripped:
+        raise ValueError(
+            "Expected date and time, e.g. 'May 1 3pm' or '2026-05-01 14:00'."
+        )
+
+    # ── Try NLP dateparser first ────────────────────────────────────────────
+    # Preprocess: strip filler words ("next", "this", "at", "on") and
+    # expand time-of-day words ("morning"→"9am", "evening"→"6pm", etc.).
+    lower_words = when_stripped.lower().split()
+    words = [_TIME_OF_DAY_MAP.get(w, w) for w in lower_words
+             if w not in _DATEWORDS_TO_STRIP]
+    processed = " ".join(words)
+
+    dateparser_settings = {
+        "PREFER_DATES_FROM": "future",
+        "TIMEZONE": "US/Eastern",
+        "PREFER_DAY_OF_MONTH": "first",
+        "RELATIVE_BASE": _dateparser_now(),
+        "RETURN_AS_TIMEZONE_AWARE": True,
+    }
+    parsed = dateparser.parse(processed, settings=dateparser_settings)
+    if parsed is not None:
+        return parsed.astimezone(datetime.timezone.utc)
+
+    # ── Fall back to manual patterns ────────────────────────────────────────
+    return _parse_when_manual(when_stripped)
+
+
+def _parse_when_manual(when_stripped: str) -> datetime.datetime:
+    """Fallback manual parser for structured date/time patterns.
+
+    Supports:
+      - "YYYY-MM-DD HH:MM"        (24-hour time)
+      - "MM/DD HH:MM[am|pm]"      (US date, 12-hour optional suffix)
+      - "Month DD HH:MM[am|pm]"   (e.g. "May 1 3pm" or "May 1 15:00")
+      - "today HH:MM[am|pm]"
+      - "tomorrow HH:MM[am|pm]"
+    """
     # Try ISO-like: YYYY-MM-DD HH:MM
     iso_match = re.match(
         r"^(\d{4})-(\d{2})-(\d{2})\s+(\d{1,2}):(\d{2})",
