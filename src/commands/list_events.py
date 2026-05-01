@@ -17,33 +17,44 @@ logger = logging.getLogger(__name__)
 
 cal = app_commands.Group(name="cal", description="Calendar commands")
 
+_NOT_CONFIGURED_MSG = (
+    "Calendar is not configured. Ask an admin to set "
+    "GOOGLE_SERVICE_ACCOUNT_FILE and GOOGLE_CALENDAR_ID."
+)
 
-def _fetch_and_respond(
+
+def _fetch_events_embed(
     interaction: discord.Interaction,
     time_min: datetime.datetime,
     time_max: datetime.datetime,
     date_title: str,
     q: str | None = None,
 ) -> discord.Embed:
-    """Shared helper: fetch events and build the embed response.
+    """Fetch events and build a formatted embed.
 
     Args:
-        interaction: The Discord interaction.
+        interaction: The Discord interaction (used to access the calendar service).
         time_min: Start of the time range (timezone-aware UTC datetime).
         time_max: End of the time range (timezone-aware UTC datetime).
         date_title: Human-readable date title for the embed.
         q: Optional search keyword.
+
+    Returns:
+        A discord.Embed with the formatted event list.
+
+    Raises:
+        _CalendarNotConfigured: If the calendar service is None.
+        _FetchFailed: If the Google Calendar API call fails.
     """
     calendar_service = interaction.client.calendar
 
     if calendar_service is None:
         raise _CalendarNotConfigured()
 
-    kwargs = {"time_min": time_min, "time_max": time_max}
-    if q is not None:
-        kwargs["q"] = q
     try:
-        events = calendar_service.list_events(**kwargs)
+        events = calendar_service.list_events(
+            time_min=time_min, time_max=time_max, q=q
+        )
     except RuntimeError as exc:
         logger.error("Failed to list events: %s", exc)
         raise _FetchFailed() from exc
@@ -67,13 +78,11 @@ async def today(interaction: discord.Interaction) -> None:
         time_min, time_max = get_today_eastern_range()
         now_eastern = time_min.astimezone(EASTERN)
         date_title = now_eastern.strftime("%B %d, %Y")
-        embed = _fetch_and_respond(interaction, time_min, time_max, date_title)
+        embed = _fetch_events_embed(interaction, time_min, time_max, date_title)
         await interaction.response.send_message(embed=embed)
     except _CalendarNotConfigured:
         await interaction.response.send_message(
-            "Calendar is not configured. Ask an admin to set "
-            "GOOGLE_SERVICE_ACCOUNT_FILE and GOOGLE_CALENDAR_ID.",
-            ephemeral=True,
+            _NOT_CONFIGURED_MSG, ephemeral=True
         )
     except _FetchFailed:
         await interaction.response.send_message(
@@ -95,13 +104,11 @@ async def week(interaction: discord.Interaction) -> None:
             f"{now_eastern.strftime('%B %d')}–{end_eastern.strftime('%B %d, %Y')}"
         )
 
-        embed = _fetch_and_respond(interaction, time_min, time_max, date_title)
+        embed = _fetch_events_embed(interaction, time_min, time_max, date_title)
         await interaction.response.send_message(embed=embed)
     except _CalendarNotConfigured:
         await interaction.response.send_message(
-            "Calendar is not configured. Ask an admin to set "
-            "GOOGLE_SERVICE_ACCOUNT_FILE and GOOGLE_CALENDAR_ID.",
-            ephemeral=True,
+            _NOT_CONFIGURED_MSG, ephemeral=True
         )
     except _FetchFailed:
         await interaction.response.send_message(
@@ -142,15 +149,13 @@ async def list_events(
             f"{dt_min_eastern.strftime('%B %d')}–"
             f"{dt_max_eastern.strftime('%B %d, %Y')}"
         )
-        embed = _fetch_and_respond(
+        embed = _fetch_events_embed(
             interaction, time_min, time_max, date_title, q=search
         )
         await interaction.response.send_message(embed=embed)
     except _CalendarNotConfigured:
         await interaction.response.send_message(
-            "Calendar is not configured. Ask an admin to set "
-            "GOOGLE_SERVICE_ACCOUNT_FILE and GOOGLE_CALENDAR_ID.",
-            ephemeral=True,
+            _NOT_CONFIGURED_MSG, ephemeral=True
         )
     except _FetchFailed:
         await interaction.response.send_message(

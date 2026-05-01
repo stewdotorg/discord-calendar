@@ -65,7 +65,7 @@ async def test_today_command_lists_events():
             await today.callback(interaction)
 
             mock_calendar.list_events.assert_called_once_with(
-                time_min=tmin, time_max=tmax
+                time_min=tmin, time_max=tmax, q=None
             )
 
             interaction.response.send_message.assert_called_once_with(
@@ -136,7 +136,7 @@ async def test_week_command_lists_events_for_next_7_days():
             await week.callback(interaction)
 
             mock_calendar.list_events.assert_called_once_with(
-                time_min=tmin, time_max=tmax
+                time_min=tmin, time_max=tmax, q=None
             )
 
             interaction.response.send_message.assert_called_once_with(
@@ -207,7 +207,7 @@ async def test_list_command_lists_events_for_date_range():
             await list_events.callback(interaction, from_="2026-05-01", to="2026-05-05")
 
             mock_calendar.list_events.assert_called_once_with(
-                time_min=tmin, time_max=tmax
+                time_min=tmin, time_max=tmax, q=None
             )
 
             interaction.response.send_message.assert_called_once_with(
@@ -322,4 +322,4 @@ async def test_list_command_no_search_passes_none():
             await list_events.callback(interaction, from_="2026-05-01", to="2026-05-05")
 
             call_kwargs = mock_calendar.list_events.call_args.kwargs
-            assert "q" not in call_kwargs
+            assert call_kwargs["q"] is None
