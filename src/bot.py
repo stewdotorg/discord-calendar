@@ -15,6 +15,7 @@ from src.commands.ping import ping  # noqa: F401  # side-effect: registers on ca
 from src.commands.create import create  # noqa: F401  # side-effect: registers on cal group
 from src.commands.help import help_cmd  # noqa: F401  # side-effect: registers on cal group
 from src.commands.settings import email_group, timezone_group  # noqa: F401  # registers email, timezone on cal
+from src.commands.edit import edit  # noqa: F401  # side-effect: registers on cal group
 from src.db.queries import SettingsStore
 
 logger = logging.getLogger(__name__)

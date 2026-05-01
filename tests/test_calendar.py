@@ -293,6 +293,186 @@ def test_delete_event_calls_events_delete_with_correct_id():
         )
 
 
+# ── CalendarService.get_event ──────────────────────────────────────────────
+
+
+def test_get_event_returns_event_data():
+    """get_event calls events().get with correct params and returns the event."""
+    with patch("src.calendar.service.build") as mock_build:
+        mock_service = MagicMock()
+        mock_build.return_value = mock_service
+
+        mock_events = MagicMock()
+        mock_service.events.return_value = mock_events
+
+        mock_get = MagicMock()
+        mock_events.get.return_value = mock_get
+        mock_get.execute.return_value = {
+            "id": "evt1",
+            "summary": "Team Standup",
+            "start": {"dateTime": "2026-05-01T14:00:00+00:00", "timeZone": "UTC"},
+            "end": {"dateTime": "2026-05-01T15:00:00+00:00", "timeZone": "UTC"},
+            "description": "Daily sync",
+            "htmlLink": "https://calendar.google.com/event?eid=evt1",
+        }
+
+        svc = CalendarService(MagicMock(), "test-cal@group.calendar.google.com")
+        result = svc.get_event("evt1")
+
+        assert result["id"] == "evt1"
+        assert result["summary"] == "Team Standup"
+        assert result["htmlLink"] == "https://calendar.google.com/event?eid=evt1"
+
+        mock_events.get.assert_called_once_with(
+            calendarId="test-cal@group.calendar.google.com", eventId="evt1"
+        )
+
+
+def test_get_event_raises_on_http_error():
+    """get_event raises HttpError when the API call fails."""
+    from googleapiclient.errors import HttpError
+
+    with patch("src.calendar.service.build") as mock_build:
+        mock_service = MagicMock()
+        mock_build.return_value = mock_service
+
+        mock_events = MagicMock()
+        mock_service.events.return_value = mock_events
+
+        mock_get = MagicMock()
+        mock_events.get.return_value = mock_get
+
+        http_resp = MagicMock()
+        http_resp.status = 404
+        http_resp.reason = "Not Found"
+        mock_get.execute.side_effect = HttpError(
+            http_resp, b'{"error": "not found"}'
+        )
+
+        svc = CalendarService(MagicMock(), "primary")
+
+        with pytest.raises(HttpError):
+            svc.get_event("nonexistent_id")
+
+
+# ── CalendarService.update_event ────────────────────────────────────────────
+
+
+def test_update_event_calls_events_patch():
+    """update_event calls events().patch with correct params and returns result."""
+    with patch("src.calendar.service.build") as mock_build:
+        mock_service = MagicMock()
+        mock_build.return_value = mock_service
+
+        mock_events = MagicMock()
+        mock_service.events.return_value = mock_events
+
+        mock_patch = MagicMock()
+        mock_events.patch.return_value = mock_patch
+        mock_patch.execute.return_value = {
+            "id": "evt1",
+            "htmlLink": "https://calendar.google.com/event?eid=evt1",
+        }
+
+        svc = CalendarService(MagicMock(), "test-cal@group.calendar.google.com")
+        result = svc.update_event(
+            "evt1",
+            summary="Updated Title",
+            description="Updated description",
+        )
+
+        assert result["id"] == "evt1"
+        assert result["htmlLink"] == "https://calendar.google.com/event?eid=evt1"
+
+        mock_events.patch.assert_called_once()
+        call_kwargs = mock_events.patch.call_args.kwargs
+        assert call_kwargs["calendarId"] == "test-cal@group.calendar.google.com"
+        assert call_kwargs["eventId"] == "evt1"
+        assert call_kwargs["body"]["summary"] == "Updated Title"
+        assert call_kwargs["body"]["description"] == "Updated description"
+
+
+def test_update_event_only_sends_provided_fields():
+    """update_event only includes fields that are explicitly passed in kwargs."""
+    with patch("src.calendar.service.build") as mock_build:
+        mock_service = MagicMock()
+        mock_build.return_value = mock_service
+
+        mock_events = MagicMock()
+        mock_service.events.return_value = mock_events
+
+        mock_patch = MagicMock()
+        mock_events.patch.return_value = mock_patch
+        mock_patch.execute.return_value = {
+            "id": "evt2",
+            "htmlLink": "https://example.com",
+        }
+
+        svc = CalendarService(MagicMock(), "cal-id")
+        svc.update_event("evt2", summary="New Title")
+
+        body = mock_events.patch.call_args.kwargs["body"]
+        assert body == {"summary": "New Title"}
+        assert "description" not in body
+        assert "start" not in body
+        assert "end" not in body
+
+
+def test_update_event_sends_start_and_end_when_provided():
+    """update_event passes start and end dicts to the patch body."""
+    with patch("src.calendar.service.build") as mock_build:
+        mock_service = MagicMock()
+        mock_build.return_value = mock_service
+
+        mock_events = MagicMock()
+        mock_service.events.return_value = mock_events
+
+        mock_patch = MagicMock()
+        mock_events.patch.return_value = mock_patch
+        mock_patch.execute.return_value = {
+            "id": "evt3",
+            "htmlLink": "https://example.com",
+        }
+
+        svc = CalendarService(MagicMock(), "cal-id")
+        svc.update_event(
+            "evt3",
+            start={"dateTime": "2026-06-01T18:00:00+00:00", "timeZone": "UTC"},
+            end={"dateTime": "2026-06-01T19:00:00+00:00", "timeZone": "UTC"},
+        )
+
+        body = mock_events.patch.call_args.kwargs["body"]
+        assert body["start"]["dateTime"] == "2026-06-01T18:00:00+00:00"
+        assert body["end"]["dateTime"] == "2026-06-01T19:00:00+00:00"
+
+
+def test_update_event_raises_on_http_error():
+    """update_event raises HttpError when the API call fails."""
+    from googleapiclient.errors import HttpError
+
+    with patch("src.calendar.service.build") as mock_build:
+        mock_service = MagicMock()
+        mock_build.return_value = mock_service
+
+        mock_events = MagicMock()
+        mock_service.events.return_value = mock_events
+
+        mock_patch = MagicMock()
+        mock_events.patch.return_value = mock_patch
+
+        http_resp = MagicMock()
+        http_resp.status = 403
+        http_resp.reason = "Forbidden"
+        mock_patch.execute.side_effect = HttpError(
+            http_resp, b'{"error": "forbidden"}'
+        )
+
+        svc = CalendarService(MagicMock(), "primary")
+
+        with pytest.raises(HttpError):
+            svc.update_event("evt", summary="Blocked")
+
+
 def test_delete_event_raises_on_http_error():
     """delete_event raises HttpError when the API call fails."""
     with patch("src.calendar.service.build") as mock_build:

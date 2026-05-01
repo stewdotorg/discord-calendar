@@ -36,6 +36,11 @@ _COMMANDS = [
         "example": '/cal list from:2026-05-01 to:2026-05-15 search:standup',
     },
     {
+        "name": "/cal edit",
+        "description": "Edit a Google Calendar event",
+        "example": 'Change an event title: /cal edit event:<pick> title:"New Title"',
+    },
+    {
         "name": "/cal help",
         "description": "Show all available calendar commands",
         "example": "Display this help message",
