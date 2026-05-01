@@ -20,8 +20,8 @@ from src.calendar.service import CalendarService
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 
-def _requires_calendar_config():
-    """Check that the required env vars are set."""
+def _get_calendar_ids() -> tuple[str, str]:
+    """Return (key_path, calendar_id) from env, skipping if unset."""
     key_path = os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE", "")
     calendar_id = os.environ.get("GOOGLE_CALENDAR_ID", "")
 
@@ -31,12 +31,11 @@ def _requires_calendar_config():
             "GOOGLE_CALENDAR_ID environment variables."
         )
 
+    return key_path, calendar_id
 
-def _build_service():
-    """Build a CalendarService from environment variables."""
-    key_path = os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE", "")
-    calendar_id = os.environ.get("GOOGLE_CALENDAR_ID", "")
 
+def _build_service(key_path: str, calendar_id: str) -> CalendarService:
+    """Build a CalendarService from the given credentials path and calendar ID."""
     credentials = load_credentials(key_path)
     return CalendarService(credentials, calendar_id)
 
@@ -55,13 +54,13 @@ def test_create_list_delete_roundtrip(vcr):
 
     Uses a VCR cassette to record/replay the HTTP interactions.
     """
-    _requires_calendar_config()
+    key_path, calendar_id = _get_calendar_ids()
 
     title = _unique_title()
     start = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=7)
     start = start.replace(hour=10, minute=0, second=0, microsecond=0)
 
-    service = _build_service()
+    service = _build_service(key_path, calendar_id)
 
     # ── Create ──────────────────────────────────────────────────────────
     with vcr.use_cassette("test_create_event"):
@@ -113,9 +112,9 @@ def test_create_list_delete_roundtrip(vcr):
 
 def test_list_events_empty_range(vcr):
     """list_events returns an empty list when querying a range with no events."""
-    _requires_calendar_config()
+    key_path, calendar_id = _get_calendar_ids()
 
-    service = _build_service()
+    service = _build_service(key_path, calendar_id)
 
     # Query a range far in the past — unlikely to have any events
     far_past = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
@@ -134,9 +133,9 @@ def test_list_events_empty_range(vcr):
 
 def test_delete_nonexistent_event_raises(vcr):
     """delete_event raises HttpError when the event ID does not exist."""
-    _requires_calendar_config()
+    key_path, calendar_id = _get_calendar_ids()
 
-    service = _build_service()
+    service = _build_service(key_path, calendar_id)
 
     from googleapiclient.errors import HttpError
 

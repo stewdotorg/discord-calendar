@@ -7,7 +7,7 @@ import discord
 from discord import app_commands
 from googleapiclient.errors import HttpError
 
-from src.utils import EASTERN, format_delete_error
+from src.utils import format_datetime_eastern, format_delete_error
 
 logger = logging.getLogger(__name__)
 
@@ -96,12 +96,7 @@ async def delete(interaction: discord.Interaction, event_id: str) -> None:
     if start_str:
         try:
             dt = datetime.datetime.fromisoformat(start_str)
-            dt_eastern = dt.astimezone(EASTERN)
-            month = dt_eastern.strftime("%B")
-            day = dt_eastern.strftime("%d").lstrip("0")
-            year = dt_eastern.strftime("%Y")
-            time_str = dt_eastern.strftime("%I:%M %p").lstrip("0")
-            date_display = f" on {month} {day}, {year} at {time_str} ET"
+            date_display = f" on {format_datetime_eastern(dt)} ET"
         except (ValueError, OverflowError):
             pass  # Malformed date string — omit date from confirmation
 

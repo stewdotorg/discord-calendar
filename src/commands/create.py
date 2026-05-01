@@ -7,7 +7,7 @@ from discord import app_commands
 from googleapiclient.errors import HttpError
 
 from src.commands.list_events import cal
-from src.utils import EASTERN, format_create_error, parse_when
+from src.utils import format_create_error, format_datetime_eastern, parse_when
 
 logger = logging.getLogger(__name__)
 
@@ -64,12 +64,7 @@ async def create(
         return
 
     # Display confirmation in US Eastern
-    start_eastern = start.astimezone(EASTERN)
-    month = start_eastern.strftime("%B")
-    day = start_eastern.strftime("%d").lstrip("0")
-    year = start_eastern.strftime("%Y")
-    time_str = start_eastern.strftime("%I:%M %p").lstrip("0")
-    start_fmt = f"{month} {day}, {year} at {time_str}"
+    start_fmt = format_datetime_eastern(start)
 
     response = (
         f"✅ **Event created!**\n"

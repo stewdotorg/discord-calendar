@@ -9,6 +9,23 @@ from googleapiclient.errors import HttpError
 
 EASTERN = ZoneInfo("America/New_York")
 
+def format_datetime_eastern(dt: datetime.datetime) -> str:
+    """Format a timezone-aware datetime in US Eastern 12-hour style.
+
+    Args:
+        dt: A timezone-aware datetime (any timezone).
+
+    Returns:
+        A string like 'May 1, 2026 at 2:00 PM'.
+    """
+    dt_eastern = dt.astimezone(EASTERN)
+    month = dt_eastern.strftime("%B")
+    day = dt_eastern.strftime("%d").lstrip("0")
+    year = dt_eastern.strftime("%Y")
+    time_str = dt_eastern.strftime("%I:%M %p").lstrip("0")
+    return f"{month} {day}, {year} at {time_str}"
+
+
 # ── when-param parsing ──────────────────────────────────────────────────────
 
 _MONTH_NAMES = {
@@ -52,19 +69,13 @@ def parse_when(when: str) -> datetime.datetime:
                                        tzinfo=EASTERN)
         return dt_eastern.astimezone(datetime.timezone.utc)
 
-    # Split into date part and time part from the right
-    # Time part is the last 1-2 words (e.g. "3pm", "15:00", "3:00pm")
     parts = when_stripped.split()
     if len(parts) < 2:
         raise ValueError(
             "Expected date and time, e.g. 'May 1 3pm' or '2026-05-01 14:00'."
         )
 
-    # The time part could be "HH:MM" or "HH:MMam/pm" or "HHam/pm"
-    time_part = " ".join(parts[-2:])
-    day_date_parts = parts[:-2] if len(parts) > 2 else []
-
-    # Check if time is in last 2 tokens (e.g. "3:00 pm") or just 1 (e.g. "3pm")
+    # Time is in the last 1-2 tokens (e.g. "3pm" or "3:00 pm")
     parsed_time = _parse_time_eastern(tuple(parts[-2:]))
     if parsed_time is not None:
         day_date_parts = parts[:-2]
@@ -74,7 +85,7 @@ def parse_when(when: str) -> datetime.datetime:
             day_date_parts = parts[:-1]
         else:
             raise ValueError(
-                f"Cannot parse time from '{time_part}'. "
+                f"Cannot parse time from '{' '.join(parts[-2:])}'. "
                 "Use HH:MM (24h) or H:MMam/pm (12h)."
             )
 
