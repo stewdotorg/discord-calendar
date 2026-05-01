@@ -89,8 +89,9 @@ def parse_when(when: str) -> datetime.datetime:
                 "Use HH:MM (24h) or H:MMam/pm (12h)."
             )
 
-    # Parse the date part
+    # Parse the date part (skip filler words like "at", "on")
     now_eastern = datetime.datetime.now(EASTERN)
+    day_date_parts = [p for p in day_date_parts if p.lower() not in ("at", "on")]
     year, month, day = _parse_date_part(day_date_parts, now_eastern)
 
     hour, minute = parsed_time
