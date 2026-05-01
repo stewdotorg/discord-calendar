@@ -7,7 +7,6 @@ Uses WAL mode and a threading lock for safe concurrent access.
 import os
 import sqlite3
 import threading
-from typing import Optional
 
 from src.db.schema import init_db
 
@@ -36,7 +35,7 @@ class SettingsStore:
 
     # ── user_settings ──────────────────────────────────────────────────
 
-    def get(self, discord_id: str, key: str) -> Optional[str]:
+    def get(self, discord_id: str, key: str) -> str | None:
         """Return the value for *discord_id* and *key*, or ``None`` if not set."""
         with self._lock:
             row = self._conn.execute(
