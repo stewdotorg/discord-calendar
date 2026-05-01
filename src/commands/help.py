@@ -45,6 +45,16 @@ _COMMANDS = [
         "description": "Show all available calendar commands",
         "example": "Display this help message",
     },
+    {
+        "name": "/cal settings email",
+        "description": "Set or show your stored email for RSVPs",
+        "example": '/cal settings email set me@example.com or /cal settings email show',
+    },
+    {
+        "name": "/cal settings timezone",
+        "description": "Set or show your timezone for event display",
+        "example": '/cal settings timezone set America/Chicago or /cal settings timezone show',
+    },
 ]
 
 
