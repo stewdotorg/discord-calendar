@@ -160,6 +160,55 @@ def test_list_events_returns_empty_list_when_no_events():
         assert results == []
 
 
+def test_list_events_passes_q_parameter_to_api():
+    """list_events passes the q parameter through to the Google Calendar API
+    for keyword search."""
+    with patch("src.calendar.service.build") as mock_build:
+        mock_service = MagicMock()
+        mock_build.return_value = mock_service
+
+        mock_events = MagicMock()
+        mock_service.events.return_value = mock_events
+
+        mock_list = MagicMock()
+        mock_events.list.return_value = mock_list
+
+        mock_list.execute.return_value = {"items": []}
+
+        tmin = datetime.datetime(2026, 5, 1, 4, 0, 0, tzinfo=datetime.timezone.utc)
+        tmax = datetime.datetime(2026, 5, 8, 4, 0, 0, tzinfo=datetime.timezone.utc)
+
+        svc = CalendarService(MagicMock(), "primary")
+        svc.list_events(time_min=tmin, time_max=tmax, q="standup")
+
+        call_kwargs = mock_events.list.call_args.kwargs
+        assert call_kwargs["q"] == "standup"
+
+
+def test_list_events_omits_q_when_none():
+    """list_events does not pass q to the API when it is None."""
+    with patch("src.calendar.service.build") as mock_build:
+        mock_service = MagicMock()
+        mock_build.return_value = mock_service
+
+        mock_events = MagicMock()
+        mock_service.events.return_value = mock_events
+
+        mock_list = MagicMock()
+        mock_events.list.return_value = mock_list
+
+        mock_list.execute.return_value = {"items": []}
+
+        tmin = datetime.datetime(2026, 5, 1, 4, 0, 0, tzinfo=datetime.timezone.utc)
+        tmax = datetime.datetime(2026, 5, 2, 4, 0, 0, tzinfo=datetime.timezone.utc)
+
+        svc = CalendarService(MagicMock(), "primary")
+        svc.list_events(time_min=tmin, time_max=tmax)
+
+        call_kwargs = mock_events.list.call_args.kwargs
+        assert "q" not in call_kwargs
+
+
 def test_list_events_raises_on_api_error():
     """list_events raises RuntimeError when the API call fails."""
     from googleapiclient.errors import HttpError

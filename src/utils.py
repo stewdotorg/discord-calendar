@@ -293,6 +293,32 @@ def format_delete_error(exc: HttpError) -> str:
     return messages.get(status, f"❌ Failed to delete event. ({status})")
 
 
+def parse_date_eastern(date_str: str) -> datetime.datetime:
+    """Parse a YYYY-MM-DD date string in US Eastern as a UTC datetime.
+
+    Interprets the date at midnight US Eastern time and converts to UTC.
+    Used by /cal list for from/to date range parameters.
+
+    Args:
+        date_str: A date string in YYYY-MM-DD format (e.g. '2026-05-15').
+
+    Returns:
+        A timezone-aware UTC datetime at midnight Eastern for that date.
+
+    Raises:
+        ValueError: If the string is not in YYYY-MM-DD format or the
+            date is invalid.
+    """
+    try:
+        dt_eastern = datetime.datetime.strptime(date_str.strip(), "%Y-%m-%d")
+    except ValueError:
+        raise ValueError(
+            f"Invalid date '{date_str}'. Expected YYYY-MM-DD format."
+        ) from None
+    dt_eastern = dt_eastern.replace(tzinfo=EASTERN)
+    return dt_eastern.astimezone(datetime.timezone.utc)
+
+
 def get_today_eastern_range() -> tuple[datetime.datetime, datetime.datetime]:
     """Return (start_of_today_utc, end_of_today_utc) covering today in US Eastern.
 

@@ -111,6 +111,7 @@ class CalendarService:
         self,
         time_min: datetime.datetime,
         time_max: datetime.datetime,
+        q: str | None = None,
         max_results: int = 250,
     ) -> list[dict]:
         """List events in a time range.
@@ -118,6 +119,7 @@ class CalendarService:
         Args:
             time_min: Start of the time range (timezone-aware datetime).
             time_max: End of the time range (timezone-aware datetime).
+            q: Optional search keyword to filter events by title/description.
             max_results: Maximum number of events to return.
 
         Returns:
@@ -128,17 +130,20 @@ class CalendarService:
             RuntimeError: If the API call fails.
         """
         service = self._build_service()
+        params = {
+            "calendarId": self._calendar_id,
+            "timeMin": time_min.isoformat(),
+            "timeMax": time_max.isoformat(),
+            "singleEvents": True,
+            "orderBy": "startTime",
+            "maxResults": max_results,
+        }
+        if q is not None:
+            params["q"] = q
         try:
             result = (
                 service.events()
-                .list(
-                    calendarId=self._calendar_id,
-                    timeMin=time_min.isoformat(),
-                    timeMax=time_max.isoformat(),
-                    singleEvents=True,
-                    orderBy="startTime",
-                    maxResults=max_results,
-                )
+                .list(**params)
                 .execute()
             )
         except HttpError as exc:
