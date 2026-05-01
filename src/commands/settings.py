@@ -24,9 +24,7 @@ timezone_group = app_commands.Group(
     parent=settings_group,
 )
 
-# Manually attach settings_group to cal to work around discord.py's
-# one-level group nesting limit.  Both email_group and timezone_group
-# were already added to settings_group during their __init__ above.
+# discord.py only supports one nesting level, so attach to cal manually.
 cal.add_command(settings_group)
 
 
