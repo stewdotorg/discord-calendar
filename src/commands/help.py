@@ -26,6 +26,16 @@ _COMMANDS = [
         "example": "Remove an event by selecting it from the autocomplete dropdown",
     },
     {
+        "name": "/cal week",
+        "description": "List events for the next 7 days",
+        "example": "See everything coming up this week",
+    },
+    {
+        "name": "/cal list",
+        "description": "List events in a custom date range",
+        "example": '/cal list from:2026-05-01 to:2026-05-15 search:standup',
+    },
+    {
         "name": "/cal help",
         "description": "Show all available calendar commands",
         "example": "Display this help message",

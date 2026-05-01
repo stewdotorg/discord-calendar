@@ -118,9 +118,10 @@ async def week(interaction: discord.Interaction) -> None:
 
 
 @cal.command(name="list", description="List events in a date range")
+@app_commands.rename(from_="from")
 @app_commands.describe(
-    from_="Start date (YYYY-MM-DD) in US Eastern",
-    to="End date (YYYY-MM-DD) in US Eastern",
+    from_="Start date (YYYY-MM-DD)",
+    to="End date (YYYY-MM-DD)",
     search="Optional keyword to search event titles and descriptions",
 )
 async def list_events(
