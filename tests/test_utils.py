@@ -220,7 +220,7 @@ class TestParseWhenDateparser:
     # ── Valid inputs ────────────────────────────────────────────────────────
 
     def test_dateparser_next_tuesday_at_3pm(self):
-        """'next tuesday at 3pm' → next Tue May 5 2026 3pm EDT = 19:00 UTC."""
+        """Parses day-of-week with time and AM/PM suffix."""
         with patch("src.utils._dateparser_now", return_value=_BASE):
             result = parse_when("next tuesday at 3pm")
         assert result.year == 2026
@@ -231,7 +231,7 @@ class TestParseWhenDateparser:
         assert result.tzinfo == datetime.timezone.utc
 
     def test_dateparser_may_15_2026_230pm(self):
-        """'May 15 2026 2:30pm' → May 15 2026 2:30pm EDT = 18:30 UTC."""
+        """Parses month-name date with year and minutes+AM/PM."""
         result = parse_when("May 15 2026 2:30pm")
         assert result.year == 2026
         assert result.month == 5
@@ -241,7 +241,7 @@ class TestParseWhenDateparser:
         assert result.tzinfo == datetime.timezone.utc
 
     def test_dateparser_in_2_hours(self):
-        """'in 2 hours' from May 1 12pm EDT → May 1 2pm EDT = 18:00 UTC."""
+        """Parses relative 'in N hours' from the current time."""
         with patch("src.utils._dateparser_now", return_value=_BASE):
             result = parse_when("in 2 hours")
         assert result.year == 2026
@@ -252,7 +252,7 @@ class TestParseWhenDateparser:
         assert result.tzinfo == datetime.timezone.utc
 
     def test_dateparser_tomorrow_morning(self):
-        """'tomorrow morning' → May 2 2026 9am EDT = 13:00 UTC."""
+        """Parses 'tomorrow' with time-of-day word expanded to a clock time."""
         with patch("src.utils._dateparser_now", return_value=_BASE):
             result = parse_when("tomorrow morning")
         assert result.year == 2026
@@ -263,7 +263,7 @@ class TestParseWhenDateparser:
         assert result.tzinfo == datetime.timezone.utc
 
     def test_dateparser_friday_at_noon(self):
-        """'friday at noon' → next Fri May 8 2026 12pm EDT = 16:00 UTC."""
+        """Parses day-of-week with 'at noon'."""
         with patch("src.utils._dateparser_now", return_value=_BASE):
             result = parse_when("friday at noon")
         assert result.year == 2026
@@ -274,7 +274,7 @@ class TestParseWhenDateparser:
         assert result.tzinfo == datetime.timezone.utc
 
     def test_dateparser_slash_date_24h(self):
-        """'5/15/2026 14:00' → May 15 2026 2pm EDT = 18:00 UTC."""
+        """Parses US slash date with year and 24-hour time."""
         result = parse_when("5/15/2026 14:00")
         assert result.year == 2026
         assert result.month == 5
@@ -284,7 +284,7 @@ class TestParseWhenDateparser:
         assert result.tzinfo == datetime.timezone.utc
 
     def test_dateparser_june_5th_4pm(self):
-        """'June 5th 4pm' → Jun 5 2026 4pm EDT = 20:00 UTC."""
+        """Parses month-name date with ordinal suffix and AM/PM."""
         result = parse_when("June 5th 4pm")
         assert result.year == 2026
         assert result.month == 6
@@ -295,30 +295,21 @@ class TestParseWhenDateparser:
 
     # ── Invalid inputs ──────────────────────────────────────────────────────
 
-    def test_dateparser_asdfasdf(self):
-        """'asdfasdf' raises ValueError."""
+    @pytest.mark.parametrize("garbage", ["asdfasdf", "blarb", "not a date"])
+    def test_dateparser_garbage_raises_value_error(self, garbage):
+        """Garbage input that neither dateparser nor manual parser can handle."""
         with pytest.raises(ValueError):
-            parse_when("asdfasdf")
-
-    def test_dateparser_blarb(self):
-        """'blarb' raises ValueError."""
-        with pytest.raises(ValueError):
-            parse_when("blarb")
-
-    def test_dateparser_not_a_date(self):
-        """'not a date' raises ValueError."""
-        with pytest.raises(ValueError):
-            parse_when("not a date")
+            parse_when(garbage)
 
     def test_dateparser_empty_string(self):
-        """Empty string raises ValueError."""
+        """Empty string is rejected before any parsing is attempted."""
         with pytest.raises(ValueError):
             parse_when("")
 
     # ── Ambiguous input ─────────────────────────────────────────────────────
 
     def test_dateparser_ambiguous_us_month_first(self):
-        """'05/06/2026' defaults to US month-first (May 6)."""
+        """Ambiguous date defaults to US month-first interpretation."""
         result = parse_when("05/06/2026")
         assert result.month == 5
         assert result.day == 6

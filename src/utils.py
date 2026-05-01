@@ -4,6 +4,7 @@ import datetime
 import re
 from zoneinfo import ZoneInfo
 
+import dateparser
 import discord
 from googleapiclient.errors import HttpError
 
@@ -66,14 +67,15 @@ def parse_when(when: str) -> datetime.datetime:
 
     All times are interpreted as US Eastern, returned as UTC.
 
+    Args:
+        when: A natural-language or structured date/time string.
+
     Returns:
         A timezone-aware UTC datetime.
 
     Raises:
         ValueError: If the string cannot be parsed.
     """
-    import dateparser
-
     when_stripped = when.strip()
     if not when_stripped:
         raise ValueError(
@@ -81,12 +83,11 @@ def parse_when(when: str) -> datetime.datetime:
         )
 
     # ── Try NLP dateparser first ────────────────────────────────────────────
-    # Preprocess: strip filler words ("next", "this", "at", "on") and
-    # expand time-of-day words ("morning"→"9am", "evening"→"6pm", etc.).
-    lower_words = when_stripped.lower().split()
-    words = [_TIME_OF_DAY_MAP.get(w, w) for w in lower_words
-             if w not in _DATEWORDS_TO_STRIP]
-    processed = " ".join(words)
+    # Strip filler words and expand time-of-day words.
+    tokens = when_stripped.lower().split()
+    filtered = [t for t in tokens if t not in _DATEWORDS_TO_STRIP]
+    expanded = [_TIME_OF_DAY_MAP.get(t, t) for t in filtered]
+    processed = " ".join(expanded)
 
     dateparser_settings = {
         "PREFER_DATES_FROM": "future",
