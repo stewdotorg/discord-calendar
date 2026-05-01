@@ -304,3 +304,216 @@ def test_delete_event_raises_on_http_error():
 
         with pytest.raises(HttpError):
             svc.delete_event("nonexistent_id")
+
+
+# ── CalendarService.add_attendees ───────────────────────────────────────────
+
+
+def test_add_attendees_appends_to_existing_and_patches():
+    """add_attendees reads existing attendees, appends new ones, and
+    calls events().patch() with only the attendees field."""
+    with patch("src.calendar.service.build") as mock_build:
+        mock_service = MagicMock()
+        mock_build.return_value = mock_service
+
+        mock_events = MagicMock()
+        mock_service.events.return_value = mock_events
+
+        # Mock get: event has one existing attendee
+        mock_get = MagicMock()
+        mock_events.get.return_value = mock_get
+        mock_get.execute.return_value = {
+            "attendees": [
+                {"email": "alice@example.com", "responseStatus": "accepted"}
+            ]
+        }
+
+        # Mock patch
+        mock_patch = MagicMock()
+        mock_events.patch.return_value = mock_patch
+        mock_patch.execute.return_value = {
+            "attendees": [
+                {"email": "alice@example.com", "responseStatus": "accepted"},
+                {"email": "bob@example.com", "responseStatus": "needsAction"},
+            ]
+        }
+
+        svc = CalendarService(MagicMock(), "test-cal@group.calendar.google.com")
+        result = svc.add_attendees("evt1", ["bob@example.com"])
+
+        assert len(result) == 2
+        assert result[0]["email"] == "alice@example.com"
+        assert result[1]["email"] == "bob@example.com"
+
+        mock_events.get.assert_called_once_with(
+            calendarId="test-cal@group.calendar.google.com", eventId="evt1"
+        )
+        mock_events.patch.assert_called_once_with(
+            calendarId="test-cal@group.calendar.google.com",
+            eventId="evt1",
+            body={"attendees": [
+                {"email": "alice@example.com", "responseStatus": "accepted"},
+                {"email": "bob@example.com"},
+            ]},
+        )
+
+
+def test_add_attendees_handles_no_existing_attendees():
+    """add_attendees works when the event has no existing attendees."""
+    with patch("src.calendar.service.build") as mock_build:
+        mock_service = MagicMock()
+        mock_build.return_value = mock_service
+
+        mock_events = MagicMock()
+        mock_service.events.return_value = mock_events
+
+        mock_get = MagicMock()
+        mock_events.get.return_value = mock_get
+        mock_get.execute.return_value = {}
+
+        mock_patch = MagicMock()
+        mock_events.patch.return_value = mock_patch
+        mock_patch.execute.return_value = {
+            "attendees": [{"email": "bob@example.com", "responseStatus": "needsAction"}]
+        }
+
+        svc = CalendarService(MagicMock(), "primary")
+        result = svc.add_attendees("evt1", ["bob@example.com"])
+
+        assert len(result) == 1
+        assert result[0]["email"] == "bob@example.com"
+
+        mock_events.patch.assert_called_once_with(
+            calendarId="primary",
+            eventId="evt1",
+            body={"attendees": [{"email": "bob@example.com"}]},
+        )
+
+
+def test_add_attendees_propagates_http_error():
+    """add_attendees raises HttpError when the get or patch call fails."""
+    from googleapiclient.errors import HttpError
+
+    with patch("src.calendar.service.build") as mock_build:
+        mock_service = MagicMock()
+        mock_build.return_value = mock_service
+
+        mock_events = MagicMock()
+        mock_service.events.return_value = mock_events
+
+        mock_get = MagicMock()
+        mock_events.get.return_value = mock_get
+
+        http_resp = MagicMock()
+        http_resp.status = 404
+        http_resp.reason = "Not Found"
+        mock_get.execute.side_effect = HttpError(
+            http_resp, b'{"error": "not found"}'
+        )
+
+        svc = CalendarService(MagicMock(), "primary")
+
+        with pytest.raises(HttpError):
+            svc.add_attendees("nonexistent_id", ["bob@example.com"])
+
+
+# ── CalendarService.add_reminders ───────────────────────────────────────────
+
+
+def test_add_reminders_sets_use_default_false_with_overrides():
+    """add_reminders calls events().patch() with reminders.useDefault=False
+    and the correct overrides array."""
+    with patch("src.calendar.service.build") as mock_build:
+        mock_service = MagicMock()
+        mock_build.return_value = mock_service
+
+        mock_events = MagicMock()
+        mock_service.events.return_value = mock_events
+
+        mock_patch = MagicMock()
+        mock_events.patch.return_value = mock_patch
+        mock_patch.execute.return_value = {
+            "reminders": {
+                "useDefault": False,
+                "overrides": [
+                    {"method": "popup", "minutes": 10},
+                    {"method": "popup", "minutes": 30},
+                ],
+            }
+        }
+
+        svc = CalendarService(MagicMock(), "primary")
+        result = svc.add_reminders("evt1", [10, 30])
+
+        assert result == {
+            "useDefault": False,
+            "overrides": [
+                {"method": "popup", "minutes": 10},
+                {"method": "popup", "minutes": 30},
+            ],
+        }
+
+        mock_events.patch.assert_called_once_with(
+            calendarId="primary",
+            eventId="evt1",
+            body={
+                "reminders": {
+                    "useDefault": False,
+                    "overrides": [
+                        {"method": "popup", "minutes": 10},
+                        {"method": "popup", "minutes": 30},
+                    ],
+                }
+            },
+        )
+
+
+def test_add_reminders_handles_single_override():
+    """add_reminders works with a single reminder."""
+    with patch("src.calendar.service.build") as mock_build:
+        mock_service = MagicMock()
+        mock_build.return_value = mock_service
+
+        mock_events = MagicMock()
+        mock_service.events.return_value = mock_events
+
+        mock_patch = MagicMock()
+        mock_events.patch.return_value = mock_patch
+        mock_patch.execute.return_value = {
+            "reminders": {
+                "useDefault": False,
+                "overrides": [{"method": "popup", "minutes": 5}],
+            }
+        }
+
+        svc = CalendarService(MagicMock(), "primary")
+        result = svc.add_reminders("evt1", [5])
+
+        assert result["overrides"] == [{"method": "popup", "minutes": 5}]
+
+
+def test_add_reminders_propagates_http_error():
+    """add_reminders raises HttpError when the patch call fails."""
+    from googleapiclient.errors import HttpError
+
+    with patch("src.calendar.service.build") as mock_build:
+        mock_service = MagicMock()
+        mock_build.return_value = mock_service
+
+        mock_events = MagicMock()
+        mock_service.events.return_value = mock_events
+
+        mock_patch = MagicMock()
+        mock_events.patch.return_value = mock_patch
+
+        http_resp = MagicMock()
+        http_resp.status = 404
+        http_resp.reason = "Not Found"
+        mock_patch.execute.side_effect = HttpError(
+            http_resp, b'{"error": "not found"}'
+        )
+
+        svc = CalendarService(MagicMock(), "primary")
+
+        with pytest.raises(HttpError):
+            svc.add_reminders("nonexistent_id", [10])

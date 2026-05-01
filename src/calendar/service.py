@@ -153,6 +153,89 @@ class CalendarService:
 
         return result.get("items", [])
 
+    def add_attendees(self, event_id: str, emails: list[str]) -> list[dict]:
+        """Add attendees to an existing event.
+
+        Reads the current event to get any existing attendees, appends the
+        new email addresses, and patches the event. Google Calendar sends
+        invitation emails automatically.
+
+        Args:
+            event_id: The Google Calendar event ID.
+            emails: List of email addresses to add as attendees.
+
+        Returns:
+            The updated attendee list from the API response.
+
+        Raises:
+            HttpError: If the Calendar API call fails.
+        """
+        service = self._build_service()
+
+        event = (
+            service.events()
+            .get(calendarId=self._calendar_id, eventId=event_id)
+            .execute()
+        )
+
+        existing = event.get("attendees", [])
+        new_attendees = [{"email": email} for email in emails]
+        body = {"attendees": existing + new_attendees}
+
+        result = (
+            service.events()
+            .patch(
+                calendarId=self._calendar_id,
+                eventId=event_id,
+                body=body,
+            )
+            .execute()
+        )
+
+        return result.get("attendees", [])
+
+    def add_reminders(self, event_id: str, minutes: list[int]) -> dict:
+        """Set reminders on an event.
+
+        Replaces any existing reminders with the provided list of minutes.
+        Each value in ``minutes`` creates a popup reminder that many minutes
+        before the event start.
+
+        Args:
+            event_id: The Google Calendar event ID.
+            minutes: List of integers representing minutes before the event
+                start (e.g. ``[10, 30]`` for 10min and 30min reminders).
+
+        Returns:
+            The updated reminders config dict with ``useDefault`` and
+            ``overrides`` keys.
+
+        Raises:
+            HttpError: If the Calendar API call fails.
+        """
+        service = self._build_service()
+
+        body = {
+            "reminders": {
+                "useDefault": False,
+                "overrides": [
+                    {"method": "popup", "minutes": m} for m in minutes
+                ],
+            }
+        }
+
+        result = (
+            service.events()
+            .patch(
+                calendarId=self._calendar_id,
+                eventId=event_id,
+                body=body,
+            )
+            .execute()
+        )
+
+        return result.get("reminders", {})
+
     def delete_event(self, event_id: str) -> dict:
         """Delete a Google Calendar event.
 
