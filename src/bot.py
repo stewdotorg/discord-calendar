@@ -13,6 +13,7 @@ from src.commands.delete import delete  # noqa: F401  # side-effect: registers o
 from src.commands.list_events import cal
 from src.commands.ping import ping  # noqa: F401  # side-effect: registers on cal group
 from src.commands.create import create  # noqa: F401  # side-effect: registers on cal group
+from src.commands.help import help_cmd  # noqa: F401  # side-effect: registers on cal group
 
 logger = logging.getLogger(__name__)
 

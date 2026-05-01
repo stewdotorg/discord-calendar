@@ -98,3 +98,79 @@ async def test_today_command_has_correct_metadata():
 
     assert today.name == "today"
     assert today.description == "List today's events"
+
+
+# ── /cal help ───────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_help_command_responds_ephemeral_embed():
+    """The /cal help command responds with an ephemeral embed listing commands."""
+    from src.commands.help import help_cmd
+
+    interaction = MagicMock()
+    interaction.response = MagicMock()
+    interaction.response.send_message = AsyncMock()
+
+    await help_cmd.callback(interaction)
+
+    interaction.response.send_message.assert_called_once()
+    call_args = interaction.response.send_message.call_args
+    _, kwargs = call_args
+    assert kwargs["ephemeral"] is True
+    assert kwargs["embed"] is not None
+
+
+@pytest.mark.asyncio
+async def test_help_embed_contains_all_commands():
+    """The help embed includes ping, create, today, delete, and help."""
+    from src.commands.help import help_cmd
+
+    interaction = MagicMock()
+    interaction.response = MagicMock()
+    interaction.response.send_message = AsyncMock()
+
+    await help_cmd.callback(interaction)
+
+    call_args = interaction.response.send_message.call_args
+    embed = call_args[1]["embed"]
+
+    # All five commands should appear as fields
+    field_names = [field.name for field in embed.fields]
+    assert "/cal ping" in field_names
+    assert "/cal create" in field_names
+    assert "/cal today" in field_names
+    assert "/cal delete" in field_names
+    assert "/cal help" in field_names
+    assert len(embed.fields) >= 5
+
+
+@pytest.mark.asyncio
+async def test_help_embed_each_field_has_description_and_example():
+    """Each help field contains a description and a usage example."""
+    from src.commands.help import help_cmd
+
+    interaction = MagicMock()
+    interaction.response = MagicMock()
+    interaction.response.send_message = AsyncMock()
+
+    await help_cmd.callback(interaction)
+
+    call_args = interaction.response.send_message.call_args
+    embed = call_args[1]["embed"]
+
+    for field in embed.fields:
+        assert field.value, f"Field '{field.name}' has no value"
+        # Should contain both a description line and an example line
+        assert "Example:" in field.value, (
+            f"Field '{field.name}' missing 'Example:' label"
+        )
+
+
+@pytest.mark.asyncio
+async def test_help_command_has_correct_metadata():
+    """The help command is named 'help' under the 'cal' group."""
+    from src.commands.help import help_cmd
+
+    assert help_cmd.name == "help"
+    assert help_cmd.description == "Show all available calendar commands"
