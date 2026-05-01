@@ -13,6 +13,22 @@ from src.utils import format_rsvp_error, validate_email
 logger = logging.getLogger(__name__)
 
 
+async def _require_calendar(interaction: discord.Interaction) -> bool:
+    """Check that the calendar service is configured on the client.
+
+    Sends an ephemeral error message and returns False if the calendar is
+    not configured.  Returns True otherwise so the caller can proceed.
+    """
+    if interaction.client.calendar is None:  # type: ignore[attr-defined]
+        await interaction.response.send_message(
+            "❌ Calendar is not configured. Ask an admin to set "
+            "GOOGLE_SERVICE_ACCOUNT_FILE and GOOGLE_CALENDAR_ID.",
+            ephemeral=True,
+        )
+        return False
+    return True
+
+
 @cal.command(name="rsvp", description="RSVP to an event using your stored email")
 @app_commands.describe(
     event_id="Event to RSVP to",
@@ -25,16 +41,10 @@ async def rsvp(
     email: str | None = None,
 ) -> None:
     """Handle RSVP — add user (or specified email) as an attendee."""
-    calendar = interaction.client.calendar  # type: ignore[attr-defined]
-
-    if calendar is None:
-        await interaction.response.send_message(
-            "❌ Calendar is not configured. Ask an admin to set "
-            "GOOGLE_SERVICE_ACCOUNT_FILE and GOOGLE_CALENDAR_ID.",
-            ephemeral=True,
-        )
+    if not await _require_calendar(interaction):
         return
 
+    calendar = interaction.client.calendar  # type: ignore[attr-defined]
     await interaction.response.defer()
 
     if email is not None:
@@ -80,40 +90,35 @@ async def invite(
     emails: str,
 ) -> None:
     """Handle invite — add comma-separated emails as attendees."""
-    calendar = interaction.client.calendar  # type: ignore[attr-defined]
-
-    if calendar is None:
-        await interaction.response.send_message(
-            "❌ Calendar is not configured. Ask an admin to set "
-            "GOOGLE_SERVICE_ACCOUNT_FILE and GOOGLE_CALENDAR_ID.",
-            ephemeral=True,
-        )
+    if not await _require_calendar(interaction):
         return
 
+    calendar = interaction.client.calendar  # type: ignore[attr-defined]
     await interaction.response.defer()
 
-    parsed = [e.strip() for e in emails.split(",") if e.strip()]
-    if not parsed:
+    recipients = [e.strip() for e in emails.split(",") if e.strip()]
+    if not recipients:
         await interaction.edit_original_response(
             content="❌ No email addresses provided."
         )
         return
 
-    for addr in parsed:
-        error = validate_email(addr)
+    for recipient in recipients:
+        error = validate_email(recipient)
         if error:
             await interaction.edit_original_response(content=error)
             return
 
     try:
-        calendar.add_attendees(event_id, parsed)
+        calendar.add_attendees(event_id, recipients)
     except HttpError as exc:
         logger.error("Failed to invite to event %s: %s", event_id, exc)
         error_msg = format_rsvp_error(exc)
         await interaction.edit_original_response(content=error_msg)
         return
 
-    attendee_word = "attendee" if len(parsed) == 1 else "attendees"
+    count = len(recipients)
+    attendee_word = "attendee" if count == 1 else "attendees"
     await interaction.edit_original_response(
-        content=f"✅ Invited {len(parsed)} {attendee_word}: {', '.join(parsed)}"
+        content=f"✅ Invited {count} {attendee_word}: {', '.join(recipients)}"
     )
