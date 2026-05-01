@@ -14,7 +14,7 @@ from src.commands.list_events import cal
 from src.commands.ping import ping  # noqa: F401  # side-effect: registers on cal group
 from src.commands.create import create  # noqa: F401  # side-effect: registers on cal group
 from src.commands.help import help_cmd  # noqa: F401  # side-effect: registers on cal group
-from src.commands.settings import email_group, timezone_group  # noqa: F401  # registers email, timezone on cal
+import src.commands.settings  # noqa: F401  # side-effect: registers settings subgroup on cal
 from src.commands.edit import edit  # noqa: F401  # side-effect: registers on cal group
 from src.db.queries import SettingsStore
 

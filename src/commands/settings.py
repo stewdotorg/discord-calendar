@@ -7,17 +7,25 @@ from discord import app_commands
 
 from src.commands.list_events import cal
 
+settings_group = app_commands.Group(
+    name="settings",
+    description="Manage your calendar settings",
+)
+
 email_group = app_commands.Group(
     name="email",
     description="Set or show your stored email for RSVPs",
-    parent=cal,
+    parent=settings_group,
 )
 
 timezone_group = app_commands.Group(
     name="timezone",
     description="Set or show your timezone for event display",
-    parent=cal,
+    parent=settings_group,
 )
+
+# discord.py only supports one nesting level, so attach to cal manually.
+cal.add_command(settings_group)
 
 
 _INVALID_EMAIL_MSG = (
@@ -83,7 +91,7 @@ async def email_show(interaction: discord.Interaction) -> None:
         )
     else:
         await interaction.response.send_message(
-            "📧 No email set. Use `/cal email set` to store one.",
+            "📧 No email set. Use `/cal settings email set` to store one.",
             ephemeral=True,
         )
 
