@@ -41,6 +41,11 @@ _MONTH_NAMES = {
 # Words stripped before dateparser ("tuesday" already means next tuesday).
 _DATEWORDS_TO_STRIP = {"next", "this", "at", "on"}
 
+# Pattern for relative time offsets like "in 5 hours" or "in 30 minutes".
+_RELATIVE_TIME_PATTERN = re.compile(
+    r"\bin\s+(\d+)\s*(hours?|hrs?|h|minutes?|mins?)\b"
+)
+
 # Time-of-day words → specific times for NLP expansion.
 _TIME_OF_DAY_MAP = {
     "morning": "9am",
@@ -111,8 +116,49 @@ def parse_when(when: str) -> datetime.datetime:
     if parsed is not None:
         return parsed.astimezone(datetime.timezone.utc)
 
+    # ── Try stripping "in X hours/minutes" and reparsing ──────────────────
+    remainder, offset = _extract_relative_offset(processed)
+    if offset is not None:
+        if not remainder:
+            now_utc = _dateparser_now()
+            return now_utc + offset
+        # Try dateparser on the remainder
+        parsed = dateparser.parse(remainder, settings=dateparser_settings)
+        if parsed is not None:
+            return (parsed + offset).astimezone(datetime.timezone.utc)
+        # Try manual parser on remainder
+        try:
+            base = _parse_when_manual(remainder)
+            return base + offset
+        except ValueError:
+            pass
+
     # ── Fall back to manual patterns ────────────────────────────────────────
     return _parse_when_manual(when_stripped)
+
+
+def _extract_relative_offset(when_str: str) -> tuple[str, datetime.timedelta | None]:
+    """Extract 'in X hours/minutes' from *when_str*.
+
+    Returns (remainder_without_offset, timedelta) or (original, None)
+    if no relative time pattern is found.
+    """
+    m = _RELATIVE_TIME_PATTERN.search(when_str)
+    if not m:
+        return when_str, None
+
+    amount = int(m.group(1))
+    unit = m.group(2)
+
+    if unit[0] == "h":
+        delta = datetime.timedelta(hours=amount)
+    else:
+        delta = datetime.timedelta(minutes=amount)
+
+    remainder = (when_str[: m.start()] + when_str[m.end() :]).strip()
+    remainder = " ".join(remainder.split())  # collapse whitespace
+
+    return remainder, delta
 
 
 def _parse_when_manual(when_stripped: str) -> datetime.datetime:
@@ -124,7 +170,21 @@ def _parse_when_manual(when_stripped: str) -> datetime.datetime:
       - "Month DD HH:MM[am|pm]"   (e.g. "May 1 3pm" or "May 1 15:00")
       - "today HH:MM[am|pm]"
       - "tomorrow HH:MM[am|pm]"
+      - "<date> in X hours/minutes" (relative time offset)
+      - "in X hours/minutes" (standalone relative from now)
     """
+    # ── Extract relative time offset ("in X hours/minutes") ──────────────
+    remainder, offset = _extract_relative_offset(when_stripped.lower())
+    if offset is not None:
+        if not remainder:
+            # Standalone relative: "in 2 hours" → now + offset
+            now_eastern = datetime.datetime.now(EASTERN)
+            dt_eastern = now_eastern + offset
+            return dt_eastern.astimezone(datetime.timezone.utc)
+        # Combined: "today in 5 hours" → parse "today", add offset
+        base_dt = _parse_when_manual(remainder)
+        return base_dt + offset
+
     # Try ISO-like: YYYY-MM-DD HH:MM
     iso_match = re.match(
         r"^(\d{4})-(\d{2})-(\d{2})\s+(\d{1,2}):(\d{2})",
@@ -138,6 +198,16 @@ def _parse_when_manual(when_stripped: str) -> datetime.datetime:
 
     parts = when_stripped.split()
     if len(parts) < 2:
+        # Handle bare date keywords (used by recursive relative-time calls).
+        joined = " ".join(parts).strip().lower()
+        now_eastern = datetime.datetime.now(EASTERN)
+        if joined == "today":
+            dt_eastern = now_eastern.replace(hour=0, minute=0, second=0, microsecond=0)
+            return dt_eastern.astimezone(datetime.timezone.utc)
+        if joined == "tomorrow":
+            tomorrow = now_eastern + datetime.timedelta(days=1)
+            dt_eastern = tomorrow.replace(hour=0, minute=0, second=0, microsecond=0)
+            return dt_eastern.astimezone(datetime.timezone.utc)
         raise ValueError(
             "Expected date and time, e.g. 'May 1 3pm' or '2026-05-01 14:00'."
         )

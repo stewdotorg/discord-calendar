@@ -317,6 +317,97 @@ class TestParseWhenDateparser:
         assert result.year == 2026
         assert result.tzinfo == datetime.timezone.utc
 
+    # ── Relative time: 'in X hours/minutes' ───────────────────────────────
+
+    def test_relative_today_in_hours(self):
+        """Parses 'today in N hours' as today start + N hours."""
+        with patch("src.utils._dateparser_now", return_value=_BASE):
+            result = parse_when("today in 5 hours")
+        # Today (May 1) start midnight EDT = 4:00 UTC + 5h = 9:00 UTC
+        assert result.year == 2026
+        assert result.month == 5
+        assert result.day == 1
+        assert result.hour == 9
+        assert result.minute == 0
+        assert result.tzinfo == datetime.timezone.utc
+
+    def test_relative_tomorrow_in_hour(self):
+        """Parses 'tomorrow in 1 hour' as tomorrow start + 1 hour."""
+        with patch("src.utils._dateparser_now", return_value=_BASE):
+            result = parse_when("tomorrow in 1 hour")
+        # Tomorrow (May 2) start midnight EDT = 4:00 UTC + 1h = 5:00 UTC
+        assert result.year == 2026
+        assert result.month == 5
+        assert result.day == 2
+        assert result.hour == 5
+        assert result.minute == 0
+        assert result.tzinfo == datetime.timezone.utc
+
+    def test_relative_next_monday_in_hours(self):
+        """Parses 'next monday in 3 hours' as next Monday start + 3 hours."""
+        with patch("src.utils._dateparser_now", return_value=_BASE):
+            result = parse_when("next monday in 3 hours")
+        # May 1 is Friday, next Monday = May 4
+        # Monday midnight EDT = 4:00 UTC + 3h = 7:00 UTC
+        assert result.year == 2026
+        assert result.month == 5
+        assert result.day == 4
+        assert result.hour == 7
+        assert result.minute == 0
+        assert result.tzinfo == datetime.timezone.utc
+
+    def test_relative_in_minutes(self):
+        """Parses standalone 'in 30 minutes' from the current time."""
+        with patch("src.utils._dateparser_now", return_value=_BASE):
+            result = parse_when("in 30 minutes")
+        # _BASE is naive 12:00, dateparser reads it as 12:00 PM EDT
+        # +30m = 12:30 PM EDT = 16:30 UTC
+        assert result.year == 2026
+        assert result.month == 5
+        assert result.day == 1
+        assert result.hour == 16
+        assert result.minute == 30
+        assert result.tzinfo == datetime.timezone.utc
+
+    def test_relative_short_form_h(self):
+        """Parses 'in 1h' as 1 hour from now (via dateparser)."""
+        with patch("src.utils._dateparser_now", return_value=_BASE):
+            result = parse_when("in 1h")
+        # _BASE is naive 12:00, dateparser reads it as 12:00 PM EDT
+        # +1h = 1pm EDT = 17:00 UTC
+        assert result.year == 2026
+        assert result.month == 5
+        assert result.day == 1
+        assert result.hour == 17
+        assert result.minute == 0
+        assert result.tzinfo == datetime.timezone.utc
+
+    def test_relative_short_form_hr(self):
+        """Parses 'in 1hr' as 1 hour from now (via dateparser)."""
+        with patch("src.utils._dateparser_now", return_value=_BASE):
+            result = parse_when("in 1hr")
+        # _BASE is naive 12:00, dateparser reads it as 12:00 PM EDT
+        # +1h = 1pm EDT = 17:00 UTC
+        assert result.year == 2026
+        assert result.month == 5
+        assert result.day == 1
+        assert result.hour == 17
+        assert result.minute == 0
+        assert result.tzinfo == datetime.timezone.utc
+
+    def test_relative_stacked_minutes(self):
+        """Parses 'in 5 min' as 5 minutes from now (via dateparser)."""
+        with patch("src.utils._dateparser_now", return_value=_BASE):
+            result = parse_when("in 5 min")
+        # _BASE is naive 12:00, dateparser reads it as 12:00 PM EDT
+        # +5m = 12:05 PM EDT = 16:05 UTC
+        assert result.year == 2026
+        assert result.month == 5
+        assert result.day == 1
+        assert result.hour == 16
+        assert result.minute == 5
+        assert result.tzinfo == datetime.timezone.utc
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  parse_date_eastern — Issue #10
