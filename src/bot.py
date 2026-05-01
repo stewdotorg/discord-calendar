@@ -17,6 +17,7 @@ from src.commands.help import help_cmd  # noqa: F401  # side-effect: registers o
 import src.commands.settings  # noqa: F401  # side-effect: registers settings subgroup on cal
 from src.commands.edit import edit  # noqa: F401  # side-effect: registers on cal group
 from src.commands.rsvp import rsvp, invite  # noqa: F401  # side-effect: registers on cal group
+from src.commands.reminders import reminders_group, reminders_defaults_group  # noqa: F401
 from src.db.queries import SettingsStore
 
 logger = logging.getLogger(__name__)

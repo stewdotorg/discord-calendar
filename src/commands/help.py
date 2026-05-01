@@ -51,6 +51,26 @@ _COMMANDS = [
         "example": "Invite others: /cal invite event:<pick> emails:alice@example.com, bob@example.com",
     },
     {
+        "name": "/cal reminders set",
+        "description": "Set reminders on an event",
+        "example": 'Add reminders: /cal reminders set event:<pick> minutes:"10,30"',
+    },
+    {
+        "name": "/cal reminders show",
+        "description": "Show current reminders on an event",
+        "example": 'Check reminders: /cal reminders show event:<pick>',
+    },
+    {
+        "name": "/cal reminders-defaults set",
+        "description": "Set default reminder minutes for new events",
+        "example": 'Store default: /cal reminders-defaults set minutes:"10,30"',
+    },
+    {
+        "name": "/cal reminders-defaults show",
+        "description": "Show your default reminder configuration",
+        "example": 'Check defaults: /cal reminders-defaults show'
+    },
+    {
         "name": "/cal help",
         "description": "Show all available calendar commands",
         "example": "Display this help message",

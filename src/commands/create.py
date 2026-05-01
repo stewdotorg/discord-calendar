@@ -7,7 +7,7 @@ from discord import app_commands
 from googleapiclient.errors import HttpError
 
 from src.commands.list_events import cal
-from src.utils import format_create_error, format_datetime_eastern, parse_when
+from src.utils import format_create_error, format_datetime_eastern, parse_minutes, parse_when
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +65,20 @@ async def create(
         error_msg = format_create_error(exc)
         await interaction.edit_original_response(content=error_msg)
         return
+
+    # Auto-apply user's default reminders if configured
+    default_reminders = interaction.client.settings.get(  # type: ignore[attr-defined]
+        creator_discord_id, "default_reminders"
+    )
+    if default_reminders:
+        try:
+            minutes_list = parse_minutes(default_reminders)
+            calendar.add_reminders(result["id"], minutes_list)
+        except (ValueError, HttpError) as exc:
+            logger.warning(
+                "Failed to apply default reminders for user %s: %s",
+                creator_discord_id, exc,
+            )
 
     # Display confirmation in US Eastern
     start_fmt = format_datetime_eastern(start)
