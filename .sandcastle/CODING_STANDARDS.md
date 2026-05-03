@@ -29,6 +29,82 @@ so these standards are enforced during review without costing tokens during impl
 - Use `pytest fixtures` for shared setup (e.g., mock calendar client).
 - Run tests with: `python -m pytest tests/ -v`
 
+### Integration Testing with VCR
+
+This project uses **VCR (vcrpy)** for integration tests against the real Google Calendar API.
+VCR records HTTP interactions to cassette files (`tests/cassettes/`) so tests can replay
+without network access — providing the fidelity of live API testing with the speed and
+repeatability of offline fixtures.
+
+**Two modes:**
+
+| Mode | Command | Behavior |
+|---|---|---|
+| **Playback** (default) | `pytest tests/test_calendar_vcr.py` | Replays cassettes. No network. No credentials needed. |
+| **Record** | `pytest tests/test_calendar_vcr.py --record` | Hits live Google API. Re-records all cassettes. Requires `.env` with credentials. |
+
+**When to record cassettes:**
+- After adding new VCR tests
+- After changing API request bodies (e.g., new event fields)
+- After OAuth token rotation
+- After calendar schema changes
+
+**When cassettes suffice (no re-record needed):**
+- Refactoring code without changing API calls
+- Running existing VCR tests in CI or sandbox (no credentials available)
+- Pre-commit validation
+
+**Cassette hygiene:**
+- Use `_unique_title(suffix)` for deterministic event titles — never `uuid4()` or timestamps.
+  Deterministic titles let VCR match recorded request bodies at playback time.
+- Delete stale cassettes before re-recording: `rm tests/cassettes/test_*.yaml`
+- Commitment: recorded cassettes are committed to git as offline test fixtures.
+- Authorization headers are automatically stripped before recording (see `conftest.py`).
+- Each distinct API call gets its own named cassette: `with vcr.use_cassette("test_name"):`
+
+**Recording workflow:**
+```bash
+# 1. On the droplet (has .env + client-secret.json):
+ssh discord-calendar-bot
+cd /opt/discal
+docker compose run --rm bot bash scripts/integration_test.sh --record
+# Gate passes → copy cassettes out of container:
+docker compose cp bot:/app/tests/cassettes/. ./tests/cassettes/
+exit
+
+# 2. Back on local — pull cassettes from droplet and commit:
+scp discord-calendar-bot:/opt/discal/tests/cassettes/test_*.yaml ./tests/cassettes/
+git add tests/cassettes/ && git commit -m "test: record VCR cassettes" && git push
+```
+
+**Sandcastle limitations:** Docker sandboxes have no `.env` secrets — VCR tests in sandcastle
+run in playback mode only. Record cassettes manually on the droplet before/after sandcastle runs
+that touch Calendar API code.
+
+### Integration Test Gate (Pre-QA)
+
+Before handing off to human QA, run the integration test gate on the droplet:
+
+```bash
+# Quick gate using committed cassettes (do this for non-API changes):
+ssh discord-calendar-bot "cd /opt/discal && docker compose run --rm bot bash scripts/integration_test.sh"
+
+# Full gate with fresh cassette recording (do this when API code changed):
+ssh discord-calendar-bot "cd /opt/discal && docker compose run --rm bot bash scripts/integration_test.sh --record"
+# Then pull cassettes back to local for commit:
+ssh discord-calendar-bot "cd /opt/discal && docker compose cp bot:/app/tests/cassettes/. ./tests/cassettes/"
+scp discord-calendar-bot:/opt/discal/tests/cassettes/test_*.yaml ./tests/cassettes/
+git add tests/cassettes/ && git commit -m "test: record VCR cassettes" && git push
+```
+
+The gate runs, in order:
+1. **ruff lint** — checks style and static analysis
+2. **Unit + command tests** — all tests except VCR (no credentials needed)
+3. **VCR tests** — integration tests against Google Calendar API (record or playback)
+4. **VCR playback verification** — only with `--record`: replays recorded cassettes to confirm they're clean
+
+If the gate fails, **do not hand off to QA**. Fix issues and re-run.
+
 ## Architecture
 
 - Deep modules: small public interface, deep implementation. Fewer methods = better.
