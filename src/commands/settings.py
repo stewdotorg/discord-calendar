@@ -13,18 +13,6 @@ settings_group = app_commands.Group(
     description="Manage your calendar settings",
 )
 
-email_group = app_commands.Group(
-    name="email",
-    description="Set or show your stored email for RSVPs",
-    parent=settings_group,
-)
-
-timezone_group = app_commands.Group(
-    name="timezone",
-    description="Set or show your timezone for event display",
-    parent=settings_group,
-)
-
 # discord.py only supports one nesting level, so attach to cal manually.
 cal.add_command(settings_group)
 
@@ -46,7 +34,7 @@ def _validate_timezone(tz_str: str) -> str | None:
     return None
 
 
-@email_group.command(name="set", description="Store your email for RSVPs")
+@settings_group.command(name="email-set", description="Store your email for RSVPs")
 @app_commands.describe(email="Your email address (e.g. me@example.com)")
 async def email_set(interaction: discord.Interaction, email: str) -> None:
     """Store the user's email address after basic format validation."""
@@ -62,7 +50,7 @@ async def email_set(interaction: discord.Interaction, email: str) -> None:
     )
 
 
-@email_group.command(name="show", description="Show your stored email")
+@settings_group.command(name="email-show", description="Show your stored email")
 async def email_show(interaction: discord.Interaction) -> None:
     """Display the user's stored email, or a message if none is set."""
     discord_id = str(interaction.user.id)
@@ -73,12 +61,12 @@ async def email_show(interaction: discord.Interaction) -> None:
         )
     else:
         await interaction.response.send_message(
-            "📧 No email set. Use `/cal settings email set` to store one.",
+            "📧 No email set. Use `/cal settings email-set` to store one.",
             ephemeral=True,
         )
 
 
-@timezone_group.command(name="set", description="Store your timezone")
+@settings_group.command(name="timezone-set", description="Store your timezone")
 @app_commands.describe(timezone="An IANA timezone (e.g. America/Chicago)")
 async def timezone_set(interaction: discord.Interaction, timezone: str) -> None:
     """Store the user's timezone after validating against the IANA database."""
@@ -94,7 +82,7 @@ async def timezone_set(interaction: discord.Interaction, timezone: str) -> None:
     )
 
 
-@timezone_group.command(name="show", description="Show your stored timezone")
+@settings_group.command(name="timezone-show", description="Show your stored timezone")
 async def timezone_show(interaction: discord.Interaction) -> None:
     """Display the user's stored timezone, or the default (US Eastern)."""
     discord_id = str(interaction.user.id)

@@ -76,14 +76,24 @@ _COMMANDS = [
         "example": "Display this help message",
     },
     {
-        "name": "/cal settings email",
-        "description": "Set or show your stored email for RSVPs",
-        "example": '/cal settings email set me@example.com or /cal settings email show',
+        "name": "/cal settings email-set",
+        "description": "Store your email for RSVPs",
+        "example": '/cal settings email-set me@example.com',
     },
     {
-        "name": "/cal settings timezone",
-        "description": "Set or show your timezone for event display",
-        "example": '/cal settings timezone set America/Chicago or /cal settings timezone show',
+        "name": "/cal settings email-show",
+        "description": "Show your stored email",
+        "example": '/cal settings email-show',
+    },
+    {
+        "name": "/cal settings timezone-set",
+        "description": "Store your timezone for event display",
+        "example": '/cal settings timezone-set America/Chicago',
+    },
+    {
+        "name": "/cal settings timezone-show",
+        "description": "Show your stored timezone",
+        "example": '/cal settings timezone-show',
     },
 ]
 
