@@ -52,7 +52,7 @@ def test_load_credentials_raises_on_invalid_json(tmp_path):
     key_file = tmp_path / "bad.json"
     key_file.write_text("not json")
 
-    with pytest.raises(CredentialsError, match="Failed to load credentials"):
+    with pytest.raises(CredentialsError, match="Failed to load service account key"):
         load_credentials(str(key_file))
 
 

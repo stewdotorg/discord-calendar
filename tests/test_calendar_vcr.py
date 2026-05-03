@@ -1,11 +1,15 @@
 """VCR-based integration tests for CalendarService against the real Google Calendar API.
 
 These tests record HTTP interactions to cassettes in tests/cassettes/.
-By default, pytest plays back cassettes (no network).  Use `pytest --record`
+By default, pytest plays back cassettes (no network).  Use ``pytest --record``
 to re-record cassettes against the live API.
 
 The tests verify that the CalendarService wrapper correctly interacts with
-the Google Calendar API — creating events, listing them, and deleting them.
+the Google Calendar API — creating events, listing them, deleting them,
+adding attendees, setting reminders, and updating events.
+
+Supports both OAuth2 user credentials (GOOGLE_REFRESH_TOKEN) and
+service account (GOOGLE_SERVICE_ACCOUNT_FILE).
 """
 
 import datetime
@@ -22,14 +26,23 @@ from src.calendar.service import CalendarService
 
 
 def _get_calendar_ids() -> tuple[str, str]:
-    """Return (key_path, calendar_id) from env, skipping if unset."""
+    """Return (key_path, calendar_id) from env, skipping if unset.
+
+    Supports both OAuth2 user credentials (GOOGLE_REFRESH_TOKEN) and
+    service account (GOOGLE_SERVICE_ACCOUNT_FILE).  OAuth2 takes
+    precedence when both are configured.
+    """
+    refresh_token = os.environ.get("GOOGLE_REFRESH_TOKEN", "")
     key_path = os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE", "")
     calendar_id = os.environ.get("GOOGLE_CALENDAR_ID", "")
 
-    if not key_path or not calendar_id:
+    if not calendar_id:
+        pytest.skip("VCR test requires GOOGLE_CALENDAR_ID environment variable.")
+
+    if not refresh_token and not key_path:
         pytest.skip(
-            "VCR test requires GOOGLE_SERVICE_ACCOUNT_FILE and "
-            "GOOGLE_CALENDAR_ID environment variables."
+            "VCR test requires GOOGLE_REFRESH_TOKEN (OAuth2) or "
+            "GOOGLE_SERVICE_ACCOUNT_FILE (service account)."
         )
 
     return key_path, calendar_id
@@ -41,16 +54,18 @@ def _build_service(key_path: str, calendar_id: str) -> CalendarService:
     return CalendarService(credentials, calendar_id)
 
 
-def _unique_title() -> str:
+def _unique_title(suffix: str = "") -> str:
     """Generate a unique, deterministic title for VCR test isolation.
 
     Uses a seed based on the day so cassettes remain valid for ~24 hours
-    before needing re-record for a different value.
+    before needing re-record for a different value.  An optional *suffix*
+    distinguishes titles across different tests within the same day.
     """
     import hashlib
     today = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d")
-    suffix = hashlib.md5(today.encode()).hexdigest()[:8]
-    return f"VCR-Test-{suffix}"
+    seed = today + suffix
+    digest = hashlib.md5(seed.encode()).hexdigest()[:8]
+    return f"VCR-Test-{digest}"
 
 
 # ── create_event → list_events → delete_event round-trip ─────────────────────
@@ -64,7 +79,7 @@ def test_create_list_delete_roundtrip(vcr):
     """
     key_path, calendar_id = _get_calendar_ids()
 
-    title = _unique_title()
+    title = _unique_title("roundtrip")
     start = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=7)
     start = start.replace(hour=10, minute=0, second=0, microsecond=0)
 
@@ -136,19 +151,19 @@ def test_list_events_empty_range(vcr):
     assert events == [], "Expected no events in the distant past"
 
 
-# ── add_attendees (service account restriction) ──────────────────────────────
+# ── add_attendees (success) ──────────────────────────────────────────────────
 
 
-def test_add_attendees_service_account_restriction(vcr):
-    """add_attendees raises HttpError(403) on group calendars.
+def test_add_attendees_success(vcr):
+    """add_attendees successfully adds an attendee via CalendarService.
 
-    Service accounts cannot add attendees on group calendars without
-    Domain-Wide Delegation of Authority. This test records the 403
-    response so the code's error handling can be verified offline.
+    Uses the CalendarService.add_attendees() helper which sends
+    ``sendUpdates="none"`` to avoid 403 errors on group calendars.
+    Works with both OAuth2 user credentials and service accounts.
     """
     key_path, calendar_id = _get_calendar_ids()
 
-    title = _unique_title()
+    title = _unique_title("add-attendees")
     start = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=8)
     start = start.replace(hour=10, minute=0, second=0, microsecond=0)
 
@@ -157,45 +172,154 @@ def test_add_attendees_service_account_restriction(vcr):
     service = _build_service(key_path, calendar_id)
 
     # ── Create event ───────────────────────────────────────────────────
-    with vcr.use_cassette("test_add_attendees_service_account_restriction"):
+    with vcr.use_cassette("test_add_attendees_create"):
         result = service.create_event(
             title=title,
             start=start,
             duration_minutes=30,
-            description="VCR add_attendees service account restriction test",
+            description="VCR add_attendees success test",
         )
 
     assert result["id"], "Expected a non-empty event ID"
     event_id = result["id"]
 
     try:
-        # ── Attempt add_attendees (triggers 403 for service accounts) ───
-        with vcr.use_cassette("test_add_attendees_service_account_restriction"):
-            # Bypass the CalendarService helper and call the API directly
-            # with sendUpdates="all" to reproduce the 403.
-            srv = service._build_service()
-            event = (
-                srv.events()
-                .get(calendarId=calendar_id, eventId=event_id)
-                .execute()
+        # ── Add attendee via CalendarService helper ─────────────────────
+        with vcr.use_cassette("test_add_attendees_patch"):
+            updated_attendees = service.add_attendees(
+                event_id=event_id, emails=[test_email]
             )
-            existing = event.get("attendees", [])
-            body = {"attendees": existing + [{"email": test_email}]}
 
-            with pytest.raises(HttpError):
-                (
-                    srv.events()
-                    .patch(
-                        calendarId=calendar_id,
-                        eventId=event_id,
-                        body=body,
-                        sendUpdates="all",
-                    )
-                    .execute()
-                )
+        emails = [a.get("email") for a in updated_attendees]
+        assert test_email in emails, (
+            f"Expected {test_email} in attendee list, got {emails}"
+        )
+
+        # ── Verify attendee persisted ───────────────────────────────────
+        with vcr.use_cassette("test_add_attendees_verify"):
+            event = service.get_event(event_id)
+
+        verify_emails = [a.get("email") for a in event.get("attendees", [])]
+        assert test_email in verify_emails, (
+            f"Expected {test_email} to persist on event, got {verify_emails}"
+        )
     finally:
-        # ── Clean up: delete the event ─────────────────────────────────
-        with vcr.use_cassette("test_add_attendees_service_account_restriction"):
+        # ── Clean up: delete the event ──────────────────────────────────
+        with vcr.use_cassette("test_add_attendees_cleanup"):
+            service.delete_event(event_id)
+
+
+# ── add_reminders ────────────────────────────────────────────────────────────
+
+
+def test_add_reminders(vcr):
+    """add_reminders sets popup reminders on an event and verifies them."""
+    key_path, calendar_id = _get_calendar_ids()
+
+    title = _unique_title("reminders")
+    start = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=9)
+    start = start.replace(hour=14, minute=0, second=0, microsecond=0)
+
+    service = _build_service(key_path, calendar_id)
+
+    # ── Create event ───────────────────────────────────────────────────
+    with vcr.use_cassette("test_add_reminders_create"):
+        result = service.create_event(
+            title=title,
+            start=start,
+            duration_minutes=60,
+            description="VCR add_reminders test",
+        )
+
+    assert result["id"], "Expected a non-empty event ID"
+    event_id = result["id"]
+
+    try:
+        # ── Set reminders ───────────────────────────────────────────────
+        reminder_minutes = [10, 30]
+        with vcr.use_cassette("test_add_reminders_patch"):
+            reminders = service.add_reminders(
+                event_id=event_id, minutes=reminder_minutes
+            )
+
+        assert reminders["useDefault"] is False
+        overrides = reminders.get("overrides", [])
+        override_minutes = sorted(o["minutes"] for o in overrides)
+        assert override_minutes == sorted(reminder_minutes), (
+            f"Expected reminders {reminder_minutes}, got {override_minutes}"
+        )
+
+        # ── Verify reminders persisted ──────────────────────────────────
+        with vcr.use_cassette("test_add_reminders_verify"):
+            event = service.get_event(event_id)
+
+        saved_reminders = event.get("reminders", {})
+        assert saved_reminders.get("useDefault") is False
+        saved_overrides = saved_reminders.get("overrides", [])
+        saved_minutes = sorted(o["minutes"] for o in saved_overrides)
+        assert saved_minutes == sorted(reminder_minutes), (
+            f"Expected reminders {reminder_minutes} on event, got {saved_minutes}"
+        )
+    finally:
+        # ── Clean up: delete the event ──────────────────────────────────
+        with vcr.use_cassette("test_add_reminders_cleanup"):
+            service.delete_event(event_id)
+
+
+# ── update_event ─────────────────────────────────────────────────────────────
+
+
+def test_update_event(vcr):
+    """update_event patches event fields and verifies the changes."""
+    key_path, calendar_id = _get_calendar_ids()
+
+    title = _unique_title("update")
+    start = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=10)
+    start = start.replace(hour=11, minute=0, second=0, microsecond=0)
+
+    service = _build_service(key_path, calendar_id)
+
+    # ── Create event ───────────────────────────────────────────────────
+    with vcr.use_cassette("test_update_event_create"):
+        result = service.create_event(
+            title=title,
+            start=start,
+            duration_minutes=45,
+            description="Original description for VCR update test",
+        )
+
+    assert result["id"], "Expected a non-empty event ID"
+    event_id = result["id"]
+
+    try:
+        # ── Update event summary and description ────────────────────────
+        new_title = title + " (Updated)"
+        new_description = "Updated description via VCR integration test"
+
+        with vcr.use_cassette("test_update_event_patch"):
+            updated = service.update_event(
+                event_id=event_id,
+                summary=new_title,
+                description=new_description,
+            )
+
+        assert updated["id"] == event_id
+        assert updated["htmlLink"]
+
+        # ── Verify updates persisted ────────────────────────────────────
+        with vcr.use_cassette("test_update_event_verify"):
+            event = service.get_event(event_id)
+
+        assert event["summary"] == new_title, (
+            f"Expected summary '{new_title}', got '{event['summary']}'"
+        )
+        assert event["description"] == new_description, (
+            f"Expected description '{new_description}', "
+            f"got '{event['description']}'"
+        )
+    finally:
+        # ── Clean up: delete the event ──────────────────────────────────
+        with vcr.use_cassette("test_update_event_cleanup"):
             service.delete_event(event_id)
 
 

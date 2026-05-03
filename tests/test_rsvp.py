@@ -306,7 +306,7 @@ async def test_invite_handles_api_error():
     await invite.callback(interaction, event_id="evt1", emails="alice@example.com")
 
     content = interaction.edit_original_response.call_args.kwargs["content"]
-    assert "permission" in content.lower()
+    assert "cannot add attendees" in content.lower()
 
 
 @pytest.mark.asyncio
