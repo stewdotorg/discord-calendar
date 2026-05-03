@@ -3,7 +3,7 @@
 import datetime
 import logging
 
-from google.oauth2.service_account import Credentials
+from google.auth.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 

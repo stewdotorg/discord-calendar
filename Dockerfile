@@ -14,6 +14,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY src/ ./src/
 COPY tests/ ./tests/
+COPY scripts/ ./scripts/
+COPY client-secret.json ./client-secret.json
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \

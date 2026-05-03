@@ -56,18 +56,16 @@ class DiscalClient(discord.Client):
         Returns a CalendarService on success, None when calendar env vars
         are not set, or exits the process on failure.
         """
-        key_path = os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE", "")
         calendar_id = os.environ.get("GOOGLE_CALENDAR_ID", "")
 
-        if not key_path or not calendar_id:
+        if not calendar_id:
             logger.warning(
-                "Calendar not configured: GOOGLE_SERVICE_ACCOUNT_FILE "
-                "or GOOGLE_CALENDAR_ID is empty."
+                "Calendar not configured: GOOGLE_CALENDAR_ID is empty."
             )
             return None
 
         try:
-            credentials = load_credentials(key_path)
+            credentials = load_credentials()
         except CredentialsError as exc:
             logger.critical("Calendar auth failed: %s", exc)
             sys.exit(1)
