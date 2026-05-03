@@ -1,0 +1,55 @@
+interactions:
+- request:
+    body: null
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      content-length:
+      - '0'
+      user-agent:
+      - (gzip)
+      x-goog-api-client:
+      - gdcl/2.195.0 gl-python/3.12.13 cred-type/u
+    method: GET
+    uri: https://www.googleapis.com/calendar/v3/calendars/05d4187ed0f51c86a0c422d5a0644f9e4f25e8502b68d2c12277f7a4cf100549%40group.calendar.google.com/events?timeMin=2000-01-01T00%3A00%3A00%2B00%3A00&timeMax=2000-01-02T00%3A00%3A00%2B00%3A00&singleEvents=true&orderBy=startTime&maxResults=250&alt=json
+  response:
+    body:
+      string: "{\n \"kind\": \"calendar#events\",\n \"etag\": \"\\\"p32fo9jeakee980o\\\"\",\n
+        \"summary\": \"Aloe Discord\",\n \"description\": \"\",\n \"updated\": \"2026-05-03T04:26:54.852Z\",\n
+        \"timeZone\": \"America/New_York\",\n \"accessRole\": \"owner\",\n \"defaultReminders\":
+        [],\n \"items\": []\n}\n"
+    headers:
+      Alt-Svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      Cache-Control:
+      - private, max-age=0, must-revalidate, no-transform
+      Content-Type:
+      - application/json; charset=UTF-8
+      Date:
+      - Sun, 03 May 2026 04:26:55 GMT
+      Expires:
+      - Sun, 03 May 2026 04:26:55 GMT
+      Server:
+      - ESF
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      - X-Origin
+      - Referer
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-XSS-Protection:
+      - '0'
+      content-length:
+      - '248'
+      x-l2-request-path:
+      - l2-managed-14
+    status:
+      code: 200
+      message: OK
+version: 1

@@ -1,0 +1,71 @@
+interactions:
+- request:
+    body: '{"summary": "VCR-Test-bc84e208", "start": {"dateTime": "2026-05-13T11:00:00+00:00",
+      "timeZone": "UTC"}, "end": {"dateTime": "2026-05-13T11:45:00+00:00", "timeZone":
+      "UTC"}, "description": "Original description for VCR update test"}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      content-length:
+      - '231'
+      content-type:
+      - application/json
+      user-agent:
+      - (gzip)
+      x-goog-api-client:
+      - gdcl/2.195.0 gl-python/3.12.13 cred-type/u
+    method: POST
+    uri: https://www.googleapis.com/calendar/v3/calendars/05d4187ed0f51c86a0c422d5a0644f9e4f25e8502b68d2c12277f7a4cf100549%40group.calendar.google.com/events?alt=json
+  response:
+    body:
+      string: "{\n \"kind\": \"calendar#event\",\n \"etag\": \"\\\"3555564841937150\\\"\",\n
+        \"id\": \"09dnhguctrqh5k1tl59sqgh1ig\",\n \"status\": \"confirmed\",\n \"htmlLink\":
+        \"https://www.google.com/calendar/event?eid=MDlkbmhndWN0cnFoNWsxdGw1OXNxZ2gxaWcgMDVkNDE4N2VkMGY1MWM4NmEwYzQyMmQ1YTA2NDRmOWU0ZjI1ZTg1MDJiNjhkMmMxMjI3N2Y3YTRjZjEwMDU0OUBn\",\n
+        \"created\": \"2026-05-03T04:27:00.000Z\",\n \"updated\": \"2026-05-03T04:27:00.968Z\",\n
+        \"summary\": \"VCR-Test-bc84e208\",\n \"description\": \"Original description
+        for VCR update test\",\n \"creator\": {\n  \"email\": \"calendarbotdiscord@gmail.com\"\n
+        },\n \"organizer\": {\n  \"email\": \"05d4187ed0f51c86a0c422d5a0644f9e4f25e8502b68d2c12277f7a4cf100549@group.calendar.google.com\",\n
+        \ \"displayName\": \"Aloe Discord\",\n  \"self\": true\n },\n \"start\": {\n
+        \ \"dateTime\": \"2026-05-13T07:00:00-04:00\",\n  \"timeZone\": \"UTC\"\n
+        },\n \"end\": {\n  \"dateTime\": \"2026-05-13T07:45:00-04:00\",\n  \"timeZone\":
+        \"UTC\"\n },\n \"iCalUID\": \"09dnhguctrqh5k1tl59sqgh1ig@google.com\",\n \"sequence\":
+        0,\n \"reminders\": {\n  \"useDefault\": true\n },\n \"eventType\": \"default\"\n}\n"
+    headers:
+      Alt-Svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      Cache-Control:
+      - no-cache, no-store, max-age=0, must-revalidate
+      Content-Type:
+      - application/json; charset=UTF-8
+      Date:
+      - Sun, 03 May 2026 04:27:01 GMT
+      ETag:
+      - '"3555564841937150"'
+      Expires:
+      - Mon, 01 Jan 1990 00:00:00 GMT
+      Pragma:
+      - no-cache
+      Server:
+      - ESF
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      - X-Origin
+      - Referer
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-XSS-Protection:
+      - '0'
+      content-length:
+      - '1004'
+      x-l2-request-path:
+      - l2-managed-14
+    status:
+      code: 200
+      message: OK
+version: 1

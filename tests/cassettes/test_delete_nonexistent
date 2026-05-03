@@ -1,0 +1,56 @@
+interactions:
+- request:
+    body: null
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      content-length:
+      - '0'
+      user-agent:
+      - (gzip)
+      x-goog-api-client:
+      - gdcl/2.195.0 gl-python/3.12.13 cred-type/u
+    method: GET
+    uri: https://www.googleapis.com/calendar/v3/calendars/05d4187ed0f51c86a0c422d5a0644f9e4f25e8502b68d2c12277f7a4cf100549%40group.calendar.google.com/events/nonexistent-event-id-12345?alt=json
+  response:
+    body:
+      string: "{\n \"error\": {\n  \"errors\": [\n   {\n    \"domain\": \"global\",\n
+        \   \"reason\": \"notFound\",\n    \"message\": \"Not Found\"\n   }\n  ],\n
+        \ \"code\": 404,\n  \"message\": \"Not Found\"\n }\n}\n"
+    headers:
+      Alt-Svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      Cache-Control:
+      - no-cache, no-store, max-age=0, must-revalidate
+      Content-Type:
+      - application/json; charset=UTF-8
+      Date:
+      - Sun, 03 May 2026 04:27:03 GMT
+      Expires:
+      - Mon, 01 Jan 1990 00:00:00 GMT
+      Pragma:
+      - no-cache
+      Server:
+      - ESF
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      - X-Origin
+      - Referer
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-XSS-Protection:
+      - '0'
+      content-length:
+      - '165'
+      x-l2-request-path:
+      - l2-managed-14
+    status:
+      code: 404
+      message: Not Found
+version: 1
