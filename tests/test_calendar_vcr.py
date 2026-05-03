@@ -14,6 +14,8 @@ import uuid
 
 import pytest
 
+from googleapiclient.errors import HttpError
+
 from src.calendar.auth import load_credentials
 from src.calendar.service import CalendarService
 
@@ -201,9 +203,8 @@ def test_add_attendees_permission_denied(vcr):
             description="VCR add_attendees permission denied test",
         )
 
+    assert result["id"], "Expected a non-empty event ID"
     event_id = result["id"]
-
-    from googleapiclient.errors import HttpError
 
     try:
         # ── Attempt add_attendees with sendUpdates="all" (triggers 403) ──
@@ -244,8 +245,6 @@ def test_delete_nonexistent_event_raises(vcr):
     key_path, calendar_id = _get_calendar_ids()
 
     service = _build_service(key_path, calendar_id)
-
-    from googleapiclient.errors import HttpError
 
     with vcr.use_cassette("test_delete_nonexistent"):
         with pytest.raises(HttpError):
