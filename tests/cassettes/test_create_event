@@ -110,4 +110,115 @@ interactions:
     status:
       code: 200
       message: OK
+- request:
+    body: assertion=eyJ0eXAiOiAiSldUIiwgImFsZyI6ICJSUzI1NiIsICJraWQiOiAiMDUxNTIwMWVkODE4ZWQ2NGM0MGU4NzVhYWM3OTkwNTlhODczOTQ0YiJ9.eyJpYXQiOiAxNzc3NzY5NjcxLCAiZXhwIjogMTc3Nzc3MzI3MSwgImlzcyI6ICJkaXNjb3JkLWNhbGVuZGFyLWJvdEBzdGV3LWNzMjUzLWh3MS5pYW0uZ3NlcnZpY2VhY2NvdW50LmNvbSIsICJhdWQiOiAiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCAic2NvcGUiOiAiaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhciBodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2NhbGVuZGFyLmFjbHMgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5hY2xzLnJlYWRvbmx5IGh0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL2F1dGgvY2FsZW5kYXIuYXBwLmNyZWF0ZWQgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5jYWxlbmRhcmxpc3QgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5jYWxlbmRhcmxpc3QucmVhZG9ubHkgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5jYWxlbmRhcnMgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5jYWxlbmRhcnMucmVhZG9ubHkgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5ldmVudHMgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5ldmVudHMuZnJlZWJ1c3kgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5ldmVudHMub3duZWQgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5ldmVudHMub3duZWQucmVhZG9ubHkgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5ldmVudHMucHVibGljLnJlYWRvbmx5IGh0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL2F1dGgvY2FsZW5kYXIuZXZlbnRzLnJlYWRvbmx5IGh0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL2F1dGgvY2FsZW5kYXIuZnJlZWJ1c3kgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5yZWFkb25seSBodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2NhbGVuZGFyLnNldHRpbmdzLnJlYWRvbmx5In0.DDBcP3hkazAY7yk_F1ize2V5B0arbPL-l1q5FWF7iyHwMpzhMOH_PXpeeZT1-FsnQW68tQdAbc5mBCMgd2zaHZTPVhp-rZjYAx-aT3uZEZLaEXN0De1_5WMfdKXSUqM5KtCUssj15CMnwsW1IaplqhF26nZDCnb7tNBk5Klh5i-Y0tYMJP33Kat6K_q9qVA7VctnEuNhwfBzztfYZ1lj4sDlQHZJCi7tvwcGE6eCp88QpSUQl5a2RFdIl7ir-NvgNz2bHNLbggkn5tXaHk2Ko9QGFrk8WGTgxpMst7Z_U_U0LrPr_ug2v5qoqA1HJQeGXrHhEwNB_TU50qQekDsrZA&grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer
+    headers:
+      accept-encoding:
+      - gzip, deflate
+      content-type:
+      - application/x-www-form-urlencoded
+      user-agent:
+      - Python-httplib2/0.31.2 (gzip)
+      x-goog-api-client:
+      - gl-python/3.12.13 auth/2.50.0 auth-request-type/at cred-type/sa
+    method: POST
+    uri: https://oauth2.googleapis.com/token
+  response:
+    body:
+      string: '{"access_token":"ya29.c.c0AZ4bNpapowgwub1WvjUH8K4eQi3I81GqAxqAY4IVRE6DjzfXnoVxmv89QHsTYWhISTbhohLIb4qWh2mFzorMOFgQYdXPm_bJU0ZCJW4aL84TYyKkZGRBAE69INoZt7JPfXg4LgyZjO0pFByqZ0JaV0KiCssGMhOyV1M5gHpbtEhSd4Cw8ovAA26RUqZhUt3Mrpp8u1rloEhy-9g6Wf_bLH_0fsPC59IgGK_N8pSyj16keaUXxlzIMCmdwyX8VYMQtOOA6gIy6ngbG7CPXZyiRCXE8j25auKz0Adj7w1Et7f9qO5adb7j_Sd6rBdPJDdxSecjampJfqqHjnpbK1BjBBsRz45--X78RsWzbqHMjRURY6kAWefRg765wzo6pZ4qhQDUXquarOj6LmAIEP2n3ue4gaWjzEelWqkL428Ca-aB-1w6fyU0SO9SBFyMROZ_oop8g852IStff67Vx_R8gsWIxy3sFqSXmxJII5ttcueUvbVbdnO8o71-XgJvyQkW9h-n_OW4qr_rlq0lZb2Zcacq0UFsv_Q43gOfZOd7jqi7rm0qldU74057Q7xc5jxv5Rbg-Y5XZ4jvw72afowdVtOMvptFjO0mkVU6rB2dvx1jooeg9fJJ8sUmSRaRfO7IV8SvQlw6uoao8ofunexk8txMexQmeXgu30e7wVbwfpf1oUIz1mWIsMSV7kbO30JW1Y5OxR7iSJBljhzd3JZjI2u1f1Qw7m9gBhQigUWIJz0gum-5-jyj_Z8jmu3g6S05976MnbO3osfvjl0U8d0XxW5Omo5QcXhZ5yk2gfVXX_BvWubRJ6FJhtmlg84yZsB8XjnwVdcB0_7oVO4O4j2rIoBmZ-7iwy_VIenm-JgZjkFSkSxBMg9dyRe6BM-2cUIgdOtWJjVV09Zlo1crlRim1vkO5ZrBMzVoXBu2Rpcte8zUlbgSa9uthdpml0uw-nv4lBdd9YvRi9WR9zamlc8Uip2yutz-Qg0pa6lt-fOQmpxr_Uixekn45Vg","expires_in":3599,"token_type":"Bearer"}'
+    headers:
+      Alt-Svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      Content-Type:
+      - application/json; charset=UTF-8
+      Date:
+      - Sun, 03 May 2026 00:54:31 GMT
+      Server:
+      - scaffolding on HTTPServer2
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      - X-Origin
+      - Referer
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-XSS-Protection:
+      - '0'
+      content-length:
+      - '1083'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"summary": "VCR-Test-5a05e13b", "start": {"dateTime": "2026-05-10T10:00:00+00:00",
+      "timeZone": "UTC"}, "end": {"dateTime": "2026-05-10T10:30:00+00:00", "timeZone":
+      "UTC"}, "description": "VCR integration test event"}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      content-length:
+      - '217'
+      content-type:
+      - application/json
+      user-agent:
+      - (gzip)
+      x-goog-api-client:
+      - gdcl/2.195.0 gl-python/3.12.13 cred-type/sa
+    method: POST
+    uri: https://www.googleapis.com/calendar/v3/calendars/05d4187ed0f51c86a0c422d5a0644f9e4f25e8502b68d2c12277f7a4cf100549%40group.calendar.google.com/events?alt=json
+  response:
+    body:
+      string: "{\n \"kind\": \"calendar#event\",\n \"etag\": \"\\\"3555539344171614\\\"\",\n
+        \"id\": \"0dilc4pqev62akdfqpke0rmod4\",\n \"status\": \"confirmed\",\n \"htmlLink\":
+        \"https://www.google.com/calendar/event?eid=MGRpbGM0cHFldjYyYWtkZnFwa2Uwcm1vZDQgMDVkNDE4N2VkMGY1MWM4NmEwYzQyMmQ1YTA2NDRmOWU0ZjI1ZTg1MDJiNjhkMmMxMjI3N2Y3YTRjZjEwMDU0OUBn\",\n
+        \"created\": \"2026-05-03T00:54:31.000Z\",\n \"updated\": \"2026-05-03T00:54:32.085Z\",\n
+        \"summary\": \"VCR-Test-5a05e13b\",\n \"description\": \"VCR integration test
+        event\",\n \"creator\": {\n  \"email\": \"discord-calendar-bot@stew-cs253-hw1.iam.gserviceaccount.com\"\n
+        },\n \"organizer\": {\n  \"email\": \"05d4187ed0f51c86a0c422d5a0644f9e4f25e8502b68d2c12277f7a4cf100549@group.calendar.google.com\",\n
+        \ \"displayName\": \"Aloe Discord\",\n  \"self\": true\n },\n \"start\": {\n
+        \ \"dateTime\": \"2026-05-10T06:00:00-04:00\",\n  \"timeZone\": \"UTC\"\n
+        },\n \"end\": {\n  \"dateTime\": \"2026-05-10T06:30:00-04:00\",\n  \"timeZone\":
+        \"UTC\"\n },\n \"iCalUID\": \"0dilc4pqev62akdfqpke0rmod4@google.com\",\n \"sequence\":
+        0,\n \"reminders\": {\n  \"useDefault\": true\n },\n \"eventType\": \"default\"\n}\n"
+    headers:
+      Alt-Svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      Cache-Control:
+      - no-cache, no-store, max-age=0, must-revalidate
+      Content-Type:
+      - application/json; charset=UTF-8
+      Date:
+      - Sun, 03 May 2026 00:54:32 GMT
+      ETag:
+      - '"3555539344171614"'
+      Expires:
+      - Mon, 01 Jan 1990 00:00:00 GMT
+      Pragma:
+      - no-cache
+      Server:
+      - ESF
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      - X-Origin
+      - Referer
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-XSS-Protection:
+      - '0'
+      content-length:
+      - '1021'
+      x-l2-request-path:
+      - l2-managed-14
+    status:
+      code: 200
+      message: OK
 version: 1
