@@ -39,9 +39,18 @@ class DiscalClient(discord.Client):
 
     async def setup_hook(self) -> None:
         """Register commands, verify calendar access, and sync with Discord on startup."""
+        logger.info("Setting up bot...")
         self.tree.add_command(cal)
-        await self.tree.sync()
+        guild_id = os.environ.get("DISCORD_GUILD_ID", "")
+        if guild_id:
+            guild = discord.Object(id=int(guild_id))
+            logger.info("Syncing commands to guild %s...", guild_id)
+            await self.tree.sync(guild=guild)
+        else:
+            logger.info("Syncing commands globally...")
+            await self.tree.sync()
 
+        logger.info("Commands synced. Pre-warming dateparser...")
         # Pre-warm dateparser (slow first import loads language data)
         try:
             from src.utils import parse_when
@@ -49,7 +58,9 @@ class DiscalClient(discord.Client):
         except ValueError:
             pass
 
+        logger.info("Initializing calendar...")
         self.calendar = self._init_calendar()
+        logger.info("Setup complete.")
 
     def _init_calendar(self) -> CalendarService | None:
         """Load service account credentials and verify calendar access.
