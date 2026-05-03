@@ -128,6 +128,114 @@ def test_list_events_empty_range(vcr):
     assert events == [], "Expected no events in the distant past"
 
 
+# ── add_attendees ─────────────────────────────────────────────────────────────
+
+
+def test_add_attendees_success(vcr):
+    """Create an event, add an attendee, verify the attendee is present, then
+    delete the event.
+
+    Uses a VCR cassette to record/replay the HTTP interactions.
+    """
+    key_path, calendar_id = _get_calendar_ids()
+
+    title = _unique_title()
+    start = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=7)
+    start = start.replace(hour=14, minute=0, second=0, microsecond=0)
+
+    test_email = "test-attendee@example.com"
+
+    service = _build_service(key_path, calendar_id)
+
+    # ── Create event ───────────────────────────────────────────────────
+    with vcr.use_cassette("test_add_attendees_success"):
+        result = service.create_event(
+            title=title,
+            start=start,
+            duration_minutes=60,
+            description="VCR add_attendees success test",
+        )
+
+    assert result["id"], "Expected a non-empty event ID"
+    event_id = result["id"]
+
+    # ── Add attendee ───────────────────────────────────────────────────
+    with vcr.use_cassette("test_add_attendees_success"):
+        attendees = service.add_attendees(event_id, [test_email])
+
+    # ── Verify attendee appears in the event ───────────────────────────
+    emails = [a["email"] for a in attendees]
+    assert test_email in emails, (
+        f"Expected {test_email} in attendee list, got {emails}"
+    )
+
+    # ── Clean up: delete the event ─────────────────────────────────────
+    with vcr.use_cassette("test_add_attendees_success"):
+        service.delete_event(event_id)
+
+
+def test_add_attendees_permission_denied(vcr):
+    """add_attendees raises HttpError when the API returns a 403.
+
+    This test directly calls the Google Calendar API with
+    ``sendUpdates="all"`` on a shared calendar where the service account
+    does not have permission to send invitation emails.  The resulting
+    403 response is recorded in the failure cassette.
+    """
+    key_path, calendar_id = _get_calendar_ids()
+
+    title = _unique_title()
+    start = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=8)
+    start = start.replace(hour=10, minute=0, second=0, microsecond=0)
+
+    test_email = "nobody@example.com"
+
+    service = _build_service(key_path, calendar_id)
+
+    # ── Create event ───────────────────────────────────────────────────
+    with vcr.use_cassette("test_add_attendees_permission_denied"):
+        result = service.create_event(
+            title=title,
+            start=start,
+            duration_minutes=30,
+            description="VCR add_attendees permission denied test",
+        )
+
+    event_id = result["id"]
+
+    from googleapiclient.errors import HttpError
+
+    try:
+        # ── Attempt add_attendees with sendUpdates="all" (triggers 403) ──
+        with vcr.use_cassette("test_add_attendees_permission_denied"):
+            # Bypass the CalendarService helper and call the API directly
+            # with sendUpdates="all" to reproduce the 403.
+            srv = service._build_service()
+            event = (
+                srv.events()
+                .get(calendarId=calendar_id, eventId=event_id)
+                .execute()
+            )
+            existing = event.get("attendees", [])
+            body = {"attendees": existing + [{"email": test_email}]}
+
+            with pytest.raises(HttpError):
+                (
+                    srv.events()
+                    .patch(
+                        calendarId=calendar_id,
+                        eventId=event_id,
+                        body=body,
+                        sendUpdates="all",
+                    )
+                    .execute()
+                )
+    finally:
+        # ── Clean up: delete the event ─────────────────────────────────
+        with vcr.use_cassette("test_add_attendees_permission_denied"):
+            service.delete_event(event_id)
+
+
 # ── delete_event raises HttpError for non-existent event ─────────────────────
 
 

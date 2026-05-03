@@ -206,8 +206,9 @@ class CalendarService:
         """Add attendees to an existing event.
 
         Reads the current event to get any existing attendees, appends the
-        new email addresses, and patches the event. Google Calendar sends
-        invitation emails automatically.
+        new email addresses, and patches the event.  Uses
+        ``sendUpdates="none"`` to avoid 403 errors on shared calendars
+        where the service account cannot send invitation emails.
 
         Args:
             event_id: The Google Calendar event ID.
@@ -237,7 +238,7 @@ class CalendarService:
                 calendarId=self._calendar_id,
                 eventId=event_id,
                 body=body,
-                sendUpdates="all",
+                sendUpdates="none",
             )
             .execute()
         )
