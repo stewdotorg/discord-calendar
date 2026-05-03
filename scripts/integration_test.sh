@@ -75,13 +75,24 @@ log_section "2. Unit & Command Tests"
 # Run test files individually to avoid OOM on 512MB droplets.
 UNIT_FAILED=0
 for test_file in tests/test_bot.py tests/test_calendar.py tests/test_commands.py \
-    tests/test_create.py tests/test_db.py tests/test_delete.py \
-    tests/test_edit.py tests/test_reminders.py tests/test_rsvp.py \
-    tests/test_utils.py; do
+    tests/test_db.py tests/test_delete.py tests/test_edit.py \
+    tests/test_reminders.py tests/test_rsvp.py; do
     if python -m pytest "$test_file" -v --tb=short 2>&1; then
         log_pass "$(basename "$test_file")"
     else
         log_fail "$(basename "$test_file")"
+        UNIT_FAILED=1
+    fi
+done
+# Large files split by class to avoid OOM on 512MB droplets
+for batch in "tests/test_create.py -k 'not TestParseWhen'" \
+             "tests/test_create.py -k TestParseWhen" \
+             "tests/test_utils.py -k 'TestFormatDeleteError or TestGetTodayEasternRange or TestFormatTimeRangeEastern'" \
+             "tests/test_utils.py -k 'TestFormatEventsEmbed or TestParseWhenDateparser or TestParseDateEastern'"; do
+    if python -m pytest $batch -v --tb=short 2>&1; then
+        log_pass "$(echo "$batch" | cut -d' ' -f1 | xargs basename) ($(echo "$batch" | grep -oP "(?<=-k ).*"))"
+    else
+        log_fail "$(echo "$batch" | cut -d' ' -f1 | xargs basename) ($(echo "$batch" | grep -oP "(?<=-k ).*"))"
         UNIT_FAILED=1
     fi
 done
