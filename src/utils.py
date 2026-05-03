@@ -194,7 +194,7 @@ def _parse_when_manual(when_stripped: str) -> datetime.datetime:
       - "<date> in X hours/minutes" (relative time offset)
       - "in X hours/minutes" (standalone relative from now)
     """
-    now_eastern = datetime.datetime.now(EASTERN)
+    now_eastern = _dateparser_now().astimezone(EASTERN)
 
     # ── Extract relative time offset ("in X hours/minutes") ──────────────
     remainder, offset = _extract_relative_offset(when_stripped.lower())
@@ -513,7 +513,7 @@ def get_today_eastern_range() -> tuple[datetime.datetime, datetime.datetime]:
 
     Returns timezone-aware UTC datetimes.
     """
-    now_eastern = datetime.datetime.now(EASTERN)
+    now_eastern = _dateparser_now().astimezone(EASTERN)
     start_eastern = now_eastern.replace(hour=0, minute=0, second=0, microsecond=0)
     end_eastern = start_eastern + datetime.timedelta(days=1)
 

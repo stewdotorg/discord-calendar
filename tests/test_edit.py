@@ -1,7 +1,7 @@
 """Tests for the /cal edit command and its autocomplete callback."""
 
 import datetime
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from googleapiclient.errors import HttpError
@@ -16,7 +16,8 @@ from src.commands.edit import (
 # ── _compute_start_end ──────────────────────────────────────────────────────
 
 
-def test_compute_start_end_when_only_keeps_existing_duration():
+@patch("src.utils._dateparser_now", return_value=datetime.datetime(2026, 5, 1, 12, 0, tzinfo=datetime.timezone.utc))
+def test_compute_start_end_when_only_keeps_existing_duration(_mock_now):
     """When only 'when' is provided, the existing duration is preserved."""
     current = {
         "start": {"dateTime": "2026-05-01T14:00:00+00:00"},
@@ -234,8 +235,9 @@ async def test_edit_updates_title_only():
     assert "New Title" in content
 
 
+@patch("src.utils._dateparser_now", return_value=datetime.datetime(2026, 5, 1, 12, 0, tzinfo=datetime.timezone.utc))
 @pytest.mark.asyncio
-async def test_edit_updates_when_only():
+async def test_edit_updates_when_only(_mock_now):
     """When only when is provided, start and end are sent, keeping existing duration."""
     interaction = MagicMock()
     interaction.response = MagicMock()

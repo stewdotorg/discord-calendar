@@ -147,8 +147,10 @@ async def test_help_embed_contains_all_commands():
     assert "/cal rsvp" in field_names
     assert "/cal invite" in field_names
     assert "/cal help" in field_names
-    assert "/cal settings email" in field_names
-    assert "/cal settings timezone" in field_names
+    assert "/cal settings email-set" in field_names
+    assert "/cal settings email-show" in field_names
+    assert "/cal settings timezone-set" in field_names
+    assert "/cal settings timezone-show" in field_names
     assert len(embed.fields) >= 10
 
 
@@ -642,7 +644,7 @@ async def test_email_set_has_correct_metadata():
     """The email set command has correct metadata."""
     from src.commands.settings import email_set
 
-    assert email_set.name == "set"
+    assert email_set.name == "email-set"
     assert "email" in email_set.description.lower()
 
 
@@ -651,7 +653,7 @@ async def test_email_show_has_correct_metadata():
     """The email show command has correct metadata."""
     from src.commands.settings import email_show
 
-    assert email_show.name == "show"
+    assert email_show.name == "email-show"
 
 
 @pytest.mark.asyncio
@@ -659,7 +661,7 @@ async def test_timezone_set_has_correct_metadata():
     """The timezone set command has correct metadata."""
     from src.commands.settings import timezone_set
 
-    assert timezone_set.name == "set"
+    assert timezone_set.name == "timezone-set"
     assert "timezone" in timezone_set.description.lower()
 
 
@@ -668,4 +670,4 @@ async def test_timezone_show_has_correct_metadata():
     """The timezone show command has correct metadata."""
     from src.commands.settings import timezone_show
 
-    assert timezone_show.name == "show"
+    assert timezone_show.name == "timezone-show"
