@@ -1,0 +1,98 @@
+interactions:
+- request:
+    body: assertion=eyJ0eXAiOiAiSldUIiwgImFsZyI6ICJSUzI1NiIsICJraWQiOiAiMDUxNTIwMWVkODE4ZWQ2NGM0MGU4NzVhYWM3OTkwNTlhODczOTQ0YiJ9.eyJpYXQiOiAxNzc3NzY5MjkzLCAiZXhwIjogMTc3Nzc3Mjg5MywgImlzcyI6ICJkaXNjb3JkLWNhbGVuZGFyLWJvdEBzdGV3LWNzMjUzLWh3MS5pYW0uZ3NlcnZpY2VhY2NvdW50LmNvbSIsICJhdWQiOiAiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCAic2NvcGUiOiAiaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhciBodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2NhbGVuZGFyLmFjbHMgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5hY2xzLnJlYWRvbmx5IGh0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL2F1dGgvY2FsZW5kYXIuYXBwLmNyZWF0ZWQgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5jYWxlbmRhcmxpc3QgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5jYWxlbmRhcmxpc3QucmVhZG9ubHkgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5jYWxlbmRhcnMgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5jYWxlbmRhcnMucmVhZG9ubHkgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5ldmVudHMgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5ldmVudHMuZnJlZWJ1c3kgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5ldmVudHMub3duZWQgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5ldmVudHMub3duZWQucmVhZG9ubHkgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5ldmVudHMucHVibGljLnJlYWRvbmx5IGh0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL2F1dGgvY2FsZW5kYXIuZXZlbnRzLnJlYWRvbmx5IGh0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL2F1dGgvY2FsZW5kYXIuZnJlZWJ1c3kgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5yZWFkb25seSBodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2NhbGVuZGFyLnNldHRpbmdzLnJlYWRvbmx5In0.MJmahLp5cmCfVq0pz_6dVWLqxvOK2rAoxrl3kH4fD7TEOi31RevTRNawAV5K7ZwfgZwtVzbajzqmaH-uxVQiCBGzfberl6WP3Faj0_WZIOtw3zQowJWlOq2DuGXBIoIMLjz71TaTCVsGTkDglGGHB-9N2fES8sEh4Tz0KrmGcsDDPeId_K8w9BWEIFo2jDNTg_OgF5lcpuSfyu8_RGdfal1KIPBJECQEtf8-YpI6x-3SEzVYlA2B0_CfMXBNKVdlJbtpZYAmat4YniGzxuBGVg4t1g5WizG6mdNazwwvRujMhy8sZGJFnuk81yRCuoQiLRyZU2qFIYCR0QlqowTJDQ&grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer
+    headers:
+      accept-encoding:
+      - gzip, deflate
+      content-type:
+      - application/x-www-form-urlencoded
+      user-agent:
+      - Python-httplib2/0.31.2 (gzip)
+      x-goog-api-client:
+      - gl-python/3.12.13 auth/2.50.0 auth-request-type/at cred-type/sa
+    method: POST
+    uri: https://oauth2.googleapis.com/token
+  response:
+    body:
+      string: '{"access_token":"ya29.c.c0AZ4bNpZTS10H2o4LpZ-fafhd46sQg-FykUmuRl0YB2IGkcawnrcsJLquj8vMINU1ri75X_FBcojPIP75ZSnZPqpxr8RbdF9pb5yVwNjpUCwfAmR9-ELrP4wVQX9aePOcf6BrsWiXrluwqK-HnM3rnCazG8OKNKaZUBSfjEiz4FWKxZxMZ_Vm0u20I7O3StuIvY7r4apDjq-Yk5KRmqQ4Jke7y-1lHF3iM4yPvVsPvUoLbEFpAfcwC6BRuBbh3Lw92F37RF0TGvhU4AODnFcZGT5SDNvmJji-bNTql5-aJcTrs-hjKkKl7Xq6oU3XG4_70XRM4U_Nu11rV9P7AdFwpPKP9QAvWB05b-w22u8NIp_o6DKkwQpL_6itK4DAeNR-JwBJSKEKOYVYuBnG3ExBTXZq2ZYwfifeL425DJ-8nldfBqS7lbah1egWgRYBqVitMaSp9xknWe_bhji810W49c5bs7BIRWsiX3SJq2swacleS05o-iFzxmiqO5cnpoYievbZz1Rae4ORdixM47R2fzVctzo8w9s9Vhsj1x8BX5c5-sf8tdmRfZlvgf_Ww_w9ZMZ690cMbx1JQWr85VRmhazWpocljqzOdr48w0z90QYJ2tIexYc_aaIXpuiYj9U8QqR1VxhlB2SjoRvsOcyczO-946s1vrY7XQ68VjexXOtJuZt0xSyvZaUs13yWlivnr5p12epr3cBSBapzegQUq0Yfxej4RwvS1aXbSqyIRvBpWXOdqZ156k_weSBQOiQpa7plb9-ZSYfo4s8VymfbwQ8piB8e9Yy9wF9Xpyjxei6fo20yriqn4yd4uMnjY5nxWYZvkel9sM51hdyX_koae6FBXfRBcwylis-2y6YOJlveXY3vUiajYF-uk0MQ1Mc0Oivnn_9VqB6jZ5FiFu0qBYoFvIQ2ii923Q1oJZ8bxmmB307w0Q2lrudvvWZc3uU8arORqJmgQp5ftVRpsjUXIdpWXf2oBIOXIYO-oURx_1kcQbifRWu8hj5","expires_in":3599,"token_type":"Bearer"}'
+    headers:
+      Alt-Svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      Content-Type:
+      - application/json; charset=UTF-8
+      Date:
+      - Sun, 03 May 2026 00:48:13 GMT
+      Server:
+      - scaffolding on HTTPServer2
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      - X-Origin
+      - Referer
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-XSS-Protection:
+      - '0'
+      content-length:
+      - '1083'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      content-length:
+      - '0'
+      user-agent:
+      - (gzip)
+      x-goog-api-client:
+      - gdcl/2.195.0 gl-python/3.12.13 cred-type/sa
+    method: GET
+    uri: https://www.googleapis.com/calendar/v3/calendars/05d4187ed0f51c86a0c422d5a0644f9e4f25e8502b68d2c12277f7a4cf100549%40group.calendar.google.com/events/nonexistent-event-id-12345?alt=json
+  response:
+    body:
+      string: "{\n \"error\": {\n  \"errors\": [\n   {\n    \"domain\": \"global\",\n
+        \   \"reason\": \"notFound\",\n    \"message\": \"Not Found\"\n   }\n  ],\n
+        \ \"code\": 404,\n  \"message\": \"Not Found\"\n }\n}\n"
+    headers:
+      Alt-Svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      Cache-Control:
+      - no-cache, no-store, max-age=0, must-revalidate
+      Content-Type:
+      - application/json; charset=UTF-8
+      Date:
+      - Sun, 03 May 2026 00:48:13 GMT
+      Expires:
+      - Mon, 01 Jan 1990 00:00:00 GMT
+      Pragma:
+      - no-cache
+      Server:
+      - ESF
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      - X-Origin
+      - Referer
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-XSS-Protection:
+      - '0'
+      content-length:
+      - '165'
+      x-l2-request-path:
+      - l2-managed-14
+    status:
+      code: 404
+      message: Not Found
+version: 1
