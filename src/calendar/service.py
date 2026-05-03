@@ -237,6 +237,7 @@ class CalendarService:
                 calendarId=self._calendar_id,
                 eventId=event_id,
                 body=body,
+                sendUpdates="all",
             )
             .execute()
         )
