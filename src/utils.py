@@ -401,8 +401,10 @@ def format_rsvp_error(exc: HttpError) -> str:
 
     messages = {
         403: (
-            "❌ Permission denied — the bot does not have permission to "
-            "modify attendees on this event."
+            "❌ Cannot add attendees — the shared calendar does not allow "
+            "the bot to modify attendee lists. This requires Domain-Wide "
+            "Delegation of Authority for service accounts, or a calendar "
+            "owned directly by the service account."
         ),
         404: (
             "❌ Event not found — the event may have been deleted "
