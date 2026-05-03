@@ -41,14 +41,16 @@ def test_load_credentials_returns_credentials_from_json_file(tmp_path):
     assert creds is not None
 
 
-def test_load_credentials_raises_on_missing_file():
+def test_load_credentials_raises_on_missing_file(monkeypatch):
     """load_credentials raises CredentialsError when the file does not exist."""
+    monkeypatch.delenv("GOOGLE_REFRESH_TOKEN", raising=False)
     with pytest.raises(CredentialsError, match="Service account key file not found"):
         load_credentials("./nonexistent-key.json")
 
 
-def test_load_credentials_raises_on_invalid_json(tmp_path):
+def test_load_credentials_raises_on_invalid_json(tmp_path, monkeypatch):
     """load_credentials raises CredentialsError when JSON is invalid."""
+    monkeypatch.delenv("GOOGLE_REFRESH_TOKEN", raising=False)
     key_file = tmp_path / "bad.json"
     key_file.write_text("not json")
 
