@@ -213,4 +213,111 @@ interactions:
     status:
       code: 200
       message: OK
+- request:
+    body: assertion=eyJ0eXAiOiAiSldUIiwgImFsZyI6ICJSUzI1NiIsICJraWQiOiAiMDUxNTIwMWVkODE4ZWQ2NGM0MGU4NzVhYWM3OTkwNTlhODczOTQ0YiJ9.eyJpYXQiOiAxNzc3NzY5ODc2LCAiZXhwIjogMTc3Nzc3MzQ3NiwgImlzcyI6ICJkaXNjb3JkLWNhbGVuZGFyLWJvdEBzdGV3LWNzMjUzLWh3MS5pYW0uZ3NlcnZpY2VhY2NvdW50LmNvbSIsICJhdWQiOiAiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCAic2NvcGUiOiAiaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhciBodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2NhbGVuZGFyLmFjbHMgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5hY2xzLnJlYWRvbmx5IGh0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL2F1dGgvY2FsZW5kYXIuYXBwLmNyZWF0ZWQgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5jYWxlbmRhcmxpc3QgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5jYWxlbmRhcmxpc3QucmVhZG9ubHkgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5jYWxlbmRhcnMgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5jYWxlbmRhcnMucmVhZG9ubHkgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5ldmVudHMgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5ldmVudHMuZnJlZWJ1c3kgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5ldmVudHMub3duZWQgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5ldmVudHMub3duZWQucmVhZG9ubHkgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5ldmVudHMucHVibGljLnJlYWRvbmx5IGh0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL2F1dGgvY2FsZW5kYXIuZXZlbnRzLnJlYWRvbmx5IGh0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL2F1dGgvY2FsZW5kYXIuZnJlZWJ1c3kgaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9jYWxlbmRhci5yZWFkb25seSBodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2NhbGVuZGFyLnNldHRpbmdzLnJlYWRvbmx5In0.aRxs1ExdVonLGRpa8E1PkEfLV5zQfJGuCpqBpgfH_xmyA44Pj95ucg2BoEb52KH6WLb25LoNbNlcGRazpKXPT8yodT2-xTmFsJ-pwIxtUDNzEwGVXe1AafILSS0vGIJsLA41i5RgK8soyOD-gafid8BIB3A2HAEXbf1HNdnfpvEPANrqp9odaZUgeTpw0f59YKnO256DgNmJZ3_j-o81bOV7Wz87RP1f9JReWiRfyMmLMM5niEOBCDzeiC9UCTH0YO93l6fspJX3q4a__uCHGLk6-bcDyaW4QsUPTMBIot1omRRE-tRoPz6lg-b4zb3MR2i5rbD-S1nAkngdea292w&grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer
+    headers:
+      accept-encoding:
+      - gzip, deflate
+      content-type:
+      - application/x-www-form-urlencoded
+      user-agent:
+      - Python-httplib2/0.31.2 (gzip)
+      x-goog-api-client:
+      - gl-python/3.12.13 auth/2.50.0 auth-request-type/at cred-type/sa
+    method: POST
+    uri: https://oauth2.googleapis.com/token
+  response:
+    body:
+      string: '{"access_token":"ya29.c.c0AZ4bNpaLLKeYjg_Y7uYozHaNCtZ-AcWWrxVg7gh2qWtS-Wpv3RZPiYFXSMOZiahlVUkBACMHOudsR9cDJSZIlhdOS00PmeEGNxKlNnLdK5cjsNPO68f13YzYbfQ4T2BjwRpjqK1QqA5c3FYzrD0DZLBH3AB2kwVsMl1vkv5_COuUQuFRAZqTQ1KrUJiP9cy_4fTzWmOi8TL-qNBywJX2IaPxWSkIQf9jVXrPqZpkPKRf3YKt_l3PnFiuxGzBQ_ttptHk4OUQqsDWsj_i6FCAlm9ZhQNAla_C6jUS8FyDrR7Degzqbqc8iAb85okA4elVv1mcepxLKAraROd8ORhnR2uStL6V7oQyOu5LpWJaomzuZgEA5-FlkSgnBC5vmpEBrJR38KfqJI08sqWVnQUVkDA3h68I_puZ1gH427CR9dO7F0Z0Ol8jrIk-cc4wScMQSzxWhxbUtod2qtXZSQgdgmhdZvpnR1wzlO_f38aR2mFhwkllzxqMmJ30lh0RoiBuJBs6r2B4lrrxuFgXaWIz9elRk66kBhkZ3u7zMJWbt3-9R4l0bqt1lUIORIzR986mlvzqqWwBfqsmWmyaeyf7dxigi50cwgd5b6WFcUYrigoIURV2uk-awUZUvcR2YysR44geBMyJwzeezgd_opl6vgRlWmQhvB5SF7bi26OpkFv7hY1uuBnIQtUQ5JmBvVo5rxcIfc2sWJviRZ-zQ0qo45Q-lUsJxO-MdzI3IsmX6k79pm0mJ5UoOv9eOW8_u5d3snVuokMO-das0RZWrrXrYYY8jf8rqcBtFaM8ZdObBmW73sVsZdUtVcOl_hdO5YSkQktRMSW13XVaUMY1RlJfwbl0MriIUxUtow3X8r4kf4dBVR7Ma6dst9d1tyy9Q9Yl_0VvmvmmSumOeto1djMfWBJ6-8hlF6c4aV_dZ7jiz8Qyqs__61s1JiRBFu9fVkRfXh70zUhk9vpM5Fj9a2VIi39xkg7UjY2qv1-ygu8p7hf_nrxy9re5oVk","expires_in":3599,"token_type":"Bearer"}'
+    headers:
+      Alt-Svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      Content-Type:
+      - application/json; charset=UTF-8
+      Date:
+      - Sun, 03 May 2026 00:57:56 GMT
+      Server:
+      - scaffolding on HTTPServer2
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      - X-Origin
+      - Referer
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-XSS-Protection:
+      - '0'
+      content-length:
+      - '1083'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      content-length:
+      - '0'
+      user-agent:
+      - (gzip)
+      x-goog-api-client:
+      - gdcl/2.195.0 gl-python/3.12.13 cred-type/sa
+    method: GET
+    uri: https://www.googleapis.com/calendar/v3/calendars/05d4187ed0f51c86a0c422d5a0644f9e4f25e8502b68d2c12277f7a4cf100549%40group.calendar.google.com/events?timeMin=2026-05-10T09%3A00%3A00%2B00%3A00&timeMax=2026-05-10T12%3A00%3A00%2B00%3A00&singleEvents=true&orderBy=startTime&maxResults=250&alt=json
+  response:
+    body:
+      string: "{\n \"kind\": \"calendar#events\",\n \"etag\": \"\\\"p32fv9gnfuidp80o\\\"\",\n
+        \"summary\": \"Aloe Discord\",\n \"description\": \"\",\n \"updated\": \"2026-05-03T00:57:55.814Z\",\n
+        \"timeZone\": \"America/New_York\",\n \"accessRole\": \"owner\",\n \"defaultReminders\":
+        [],\n \"items\": [\n  {\n   \"kind\": \"calendar#event\",\n   \"etag\": \"\\\"3555539751629886\\\"\",\n
+        \  \"id\": \"4u05g6e7e6mcfdl13pa4dj1ha8\",\n   \"status\": \"confirmed\",\n
+        \  \"htmlLink\": \"https://www.google.com/calendar/event?eid=NHUwNWc2ZTdlNm1jZmRsMTNwYTRkajFoYTggMDVkNDE4N2VkMGY1MWM4NmEwYzQyMmQ1YTA2NDRmOWU0ZjI1ZTg1MDJiNjhkMmMxMjI3N2Y3YTRjZjEwMDU0OUBn\",\n
+        \  \"created\": \"2026-05-03T00:57:55.000Z\",\n   \"updated\": \"2026-05-03T00:57:55.814Z\",\n
+        \  \"summary\": \"VCR-Test-5a05e13b\",\n   \"description\": \"VCR integration
+        test event\",\n   \"creator\": {\n    \"email\": \"discord-calendar-bot@stew-cs253-hw1.iam.gserviceaccount.com\"\n
+        \  },\n   \"organizer\": {\n    \"email\": \"05d4187ed0f51c86a0c422d5a0644f9e4f25e8502b68d2c12277f7a4cf100549@group.calendar.google.com\",\n
+        \   \"displayName\": \"Aloe Discord\",\n    \"self\": true\n   },\n   \"start\":
+        {\n    \"dateTime\": \"2026-05-10T06:00:00-04:00\",\n    \"timeZone\": \"UTC\"\n
+        \  },\n   \"end\": {\n    \"dateTime\": \"2026-05-10T06:30:00-04:00\",\n    \"timeZone\":
+        \"UTC\"\n   },\n   \"iCalUID\": \"4u05g6e7e6mcfdl13pa4dj1ha8@google.com\",\n
+        \  \"sequence\": 0,\n   \"reminders\": {\n    \"useDefault\": true\n   },\n
+        \  \"eventType\": \"default\"\n  }\n ]\n}\n"
+    headers:
+      Alt-Svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      Cache-Control:
+      - private, max-age=0, must-revalidate, no-transform
+      Content-Type:
+      - application/json; charset=UTF-8
+      Date:
+      - Sun, 03 May 2026 00:57:56 GMT
+      Expires:
+      - Sun, 03 May 2026 00:57:56 GMT
+      Server:
+      - ESF
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      - X-Origin
+      - Referer
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-XSS-Protection:
+      - '0'
+      content-length:
+      - '1337'
+      x-l2-request-path:
+      - l2-managed-14
+    status:
+      code: 200
+      message: OK
 version: 1
