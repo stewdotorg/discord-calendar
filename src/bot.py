@@ -32,7 +32,8 @@ class DiscalClient(discord.Client):
 
     def __init__(self, db_path: str = "data/discal.db") -> None:
         intents = discord.Intents.default()
-        super().__init__(intents=intents)
+        app_id = os.environ.get("DISCORD_APPLICATION_ID", "")
+        super().__init__(intents=intents, application_id=app_id)
         self.tree = app_commands.CommandTree(self)
         self.settings = SettingsStore(db_path)
 
