@@ -10,7 +10,6 @@ the Google Calendar API — creating events, listing them, and deleting them.
 
 import datetime
 import os
-import uuid
 
 import pytest
 
@@ -43,8 +42,15 @@ def _build_service(key_path: str, calendar_id: str) -> CalendarService:
 
 
 def _unique_title() -> str:
-    """Generate a unique event title for test isolation."""
-    return f"VCR-Test-{uuid.uuid4().hex[:8]}"
+    """Generate a unique, deterministic title for VCR test isolation.
+
+    Uses a seed based on the day so cassettes remain valid for ~24 hours
+    before needing re-record for a different value.
+    """
+    import hashlib
+    today = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d")
+    suffix = hashlib.md5(today.encode()).hexdigest()[:8]
+    return f"VCR-Test-{suffix}"
 
 
 # ── create_event → list_events → delete_event round-trip ─────────────────────
