@@ -49,12 +49,12 @@ def vcr(request):
     record_mode = _vcr_record_mode(request)
 
     cassette_path = os.path.join(
-        "tests", "cassettes", f"{cassette_name}.yaml"
+        "tests", "cassettes", cassette_name
     )
 
     if record_mode == "none" and not os.path.exists(cassette_path):
         pytest.skip(
-            f"Cassette '{cassette_name}.yaml' not found. "
+            f"Cassette '{cassette_name}' not found. "
             "Run with --record to create it."
         )
 
