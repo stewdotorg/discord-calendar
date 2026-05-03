@@ -99,6 +99,7 @@ class DiscalClient(discord.Client):
 
 def main() -> None:
     """Start the bot using the DISCORD_TOKEN environment variable."""
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
     token = os.environ["DISCORD_TOKEN"]
     client = DiscalClient()
     client.run(token)
