@@ -1,7 +1,5 @@
 """Pytest configuration — VCR integration tests and custom options."""
 
-import os
-
 import pytest
 
 
@@ -39,24 +37,10 @@ def vcr(request):
 
     Cassettes are stored in tests/cassettes/ with the test function name.
     Authorization headers are stripped before recording.
-
-    When a cassette file does not exist and --record is not set, the test
-    is skipped so the full suite can run without live credentials.
     """
     import vcr as vcr_lib
 
-    cassette_name = request.node.name
     record_mode = _vcr_record_mode(request)
-
-    cassette_path = os.path.join(
-        "tests", "cassettes", cassette_name
-    )
-
-    if record_mode == "none" and not os.path.exists(cassette_path):
-        pytest.skip(
-            f"Cassette '{cassette_name}' not found. "
-            "Run with --record to create it."
-        )
 
     my_vcr = vcr_lib.VCR(
         cassette_library_dir="tests/cassettes",
