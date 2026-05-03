@@ -71,11 +71,21 @@ fi
 # ── 2. Unit + command tests (no credentials needed) ───────────────────────────
 
 log_section "2. Unit & Command Tests"
-# Exclude VCR tests — they get their own step
-if python -m pytest tests/ -v \
-    --ignore=tests/test_calendar_vcr.py \
-    --tb=short \
-    2>&1; then
+# Exclude VCR tests — they get their own step.
+# Run test files individually to avoid OOM on 512MB droplets.
+UNIT_FAILED=0
+for test_file in tests/test_bot.py tests/test_calendar.py tests/test_commands.py \
+    tests/test_create.py tests/test_db.py tests/test_delete.py \
+    tests/test_edit.py tests/test_reminders.py tests/test_rsvp.py \
+    tests/test_utils.py; do
+    if python -m pytest "$test_file" -v --tb=short 2>&1; then
+        log_pass "$(basename "$test_file")"
+    else
+        log_fail "$(basename "$test_file")"
+        UNIT_FAILED=1
+    fi
+done
+if [ "$UNIT_FAILED" -eq 0 ]; then
     log_pass "unit + command tests pass"
 else
     log_fail "unit + command tests failed"
