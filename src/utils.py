@@ -79,8 +79,30 @@ def resolve_mentions(
 EASTERN = ZoneInfo("America/New_York")
 DEFAULT_TIMEZONE = EASTERN  # Canonical default for per-user timezone lookups
 
+
+def get_user_timezone(interaction: discord.Interaction) -> ZoneInfo:
+    """Resolve a user's configured timezone from settings.
+
+    Falls back to DEFAULT_TIMEZONE if no timezone is stored or the stored
+    value is invalid.
+
+    Args:
+        interaction: The Discord interaction (used to access the settings store).
+
+    Returns:
+        A ZoneInfo for the user's configured timezone, or DEFAULT_TIMEZONE.
+    """
+    user_id = str(interaction.user.id)
+    settings = interaction.client.settings  # type: ignore[attr-defined]
+    tz_str = settings.get(user_id, "timezone")
+    try:
+        return ZoneInfo(tz_str) if tz_str else DEFAULT_TIMEZONE
+    except (KeyError, ValueError, TypeError):
+        return DEFAULT_TIMEZONE
+
 def format_datetime_eastern(
-    dt: datetime.datetime, tz: ZoneInfo = EASTERN
+    dt: datetime.datetime,
+    tz: ZoneInfo = EASTERN,
 ) -> str:
     """Format a timezone-aware datetime in the given timezone 12-hour style.
 

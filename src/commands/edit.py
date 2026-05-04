@@ -11,10 +11,10 @@ from googleapiclient.errors import HttpError
 from src.commands.autocomplete import event_autocomplete
 from src.commands.list_events import cal
 from src.utils import (
-    DEFAULT_TIMEZONE,
     EASTERN,
     format_datetime_eastern,
     format_edit_error,
+    get_user_timezone,
     parse_when,
 )
 
@@ -53,14 +53,7 @@ async def edit(
     # Defer — API calls may exceed Discord's 3-second interaction timeout.
     await interaction.response.defer()
 
-    # ── Resolve per-user timezone ────────────────────────────────────────
-    user_id = str(interaction.user.id)
-    settings = interaction.client.settings  # type: ignore[attr-defined]
-    tz_str = settings.get(user_id, "timezone")
-    try:
-        user_tz = ZoneInfo(tz_str) if tz_str else DEFAULT_TIMEZONE
-    except Exception:
-        user_tz = DEFAULT_TIMEZONE
+    user_tz = get_user_timezone(interaction)
 
     # Fetch the current event first
     try:

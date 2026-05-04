@@ -2,7 +2,6 @@
 
 import datetime
 import logging
-from zoneinfo import ZoneInfo
 
 import discord
 from discord import app_commands
@@ -10,9 +9,9 @@ from googleapiclient.errors import HttpError
 
 from src.commands.autocomplete import event_autocomplete
 from src.utils import (
-    DEFAULT_TIMEZONE,
     format_datetime_eastern,
     format_delete_error,
+    get_user_timezone,
 )
 
 logger = logging.getLogger(__name__)
@@ -45,14 +44,7 @@ async def delete(interaction: discord.Interaction, event_id: str) -> None:
         await interaction.response.send_message(error_msg, ephemeral=True)
         return
 
-    # ── Resolve per-user timezone for confirmation display ───────────────
-    user_id = str(interaction.user.id)
-    settings = interaction.client.settings  # type: ignore[attr-defined]
-    tz_str = settings.get(user_id, "timezone")
-    try:
-        user_tz = ZoneInfo(tz_str) if tz_str else DEFAULT_TIMEZONE
-    except Exception:
-        user_tz = DEFAULT_TIMEZONE
+    user_tz = get_user_timezone(interaction)
 
     # Format event date for the confirmation message
     summary = event_info["summary"]

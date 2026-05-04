@@ -8,10 +8,10 @@ import discord
 from discord import app_commands
 
 from src.utils import (
-    DEFAULT_TIMEZONE,
     EASTERN,
     format_events_embed,
     get_today_eastern_range,
+    get_user_timezone,
     parse_date_eastern,
 )
 
@@ -23,17 +23,6 @@ _NOT_CONFIGURED_MSG = (
     "Calendar is not configured. Ask an admin to set "
     "GOOGLE_SERVICE_ACCOUNT_FILE and GOOGLE_CALENDAR_ID."
 )
-
-
-def _get_user_tz(interaction: discord.Interaction) -> ZoneInfo:
-    """Resolve a user's timezone from settings, falling back to DEFAULT_TIMEZONE."""
-    user_id = str(interaction.user.id)
-    settings = interaction.client.settings  # type: ignore[attr-defined]
-    tz_str = settings.get(user_id, "timezone")
-    try:
-        return ZoneInfo(tz_str) if tz_str else DEFAULT_TIMEZONE
-    except Exception:
-        return DEFAULT_TIMEZONE
 
 
 def _fetch_events_embed(
@@ -90,7 +79,7 @@ class _FetchFailed(Exception):
 async def today(interaction: discord.Interaction) -> None:
     """List all events scheduled for today in the shared calendar."""
     try:
-        user_tz = _get_user_tz(interaction)
+        user_tz = get_user_timezone(interaction)
         time_min, time_max = get_today_eastern_range(tz=user_tz)
         now_local = time_min.astimezone(user_tz)
         date_title = now_local.strftime("%B %d, %Y")
@@ -113,7 +102,7 @@ async def today(interaction: discord.Interaction) -> None:
 async def week(interaction: discord.Interaction) -> None:
     """List all events from today through the next 7 days."""
     try:
-        user_tz = _get_user_tz(interaction)
+        user_tz = get_user_timezone(interaction)
         time_min, _today_end = get_today_eastern_range(tz=user_tz)
         time_max = time_min + datetime.timedelta(days=7)
 
@@ -156,7 +145,7 @@ async def list_events(
     Dates are interpreted in the user's timezone at midnight.
     """
     try:
-        user_tz = _get_user_tz(interaction)
+        user_tz = get_user_timezone(interaction)
         time_min = parse_date_eastern(from_, tz=user_tz)
         time_max = parse_date_eastern(to, tz=user_tz)
     except ValueError as exc:

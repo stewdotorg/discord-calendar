@@ -1,7 +1,6 @@
 """create — create a Google Calendar event from a Discord slash command."""
 
 import logging
-from zoneinfo import ZoneInfo
 
 import discord
 from discord import app_commands
@@ -9,10 +8,10 @@ from googleapiclient.errors import HttpError
 
 from src.commands.list_events import cal
 from src.utils import (
-    DEFAULT_TIMEZONE,
     format_create_error,
     format_datetime_eastern,
     format_invite_error,
+    get_user_timezone,
     parse_minutes,
     parse_when,
     resolve_mentions,
@@ -72,14 +71,7 @@ async def create(
                 validated_emails.append(email)
         invite_emails = validated_emails
 
-    # ── Resolve per-user timezone ─────────────────────────────────────────
-    user_id = str(interaction.user.id)
-    settings = interaction.client.settings  # type: ignore[attr-defined]
-    tz_str = settings.get(user_id, "timezone")
-    try:
-        user_tz = ZoneInfo(tz_str) if tz_str else DEFAULT_TIMEZONE
-    except Exception:
-        user_tz = DEFAULT_TIMEZONE
+    user_tz = get_user_timezone(interaction)
 
     try:
         start = parse_when(when, tz=user_tz)

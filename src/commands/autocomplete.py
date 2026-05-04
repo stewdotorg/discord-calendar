@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 import discord
 from discord import app_commands
 
-from src.utils import DEFAULT_TIMEZONE, EASTERN
+from src.utils import EASTERN, get_user_timezone
 
 logger = logging.getLogger(__name__)
 
@@ -92,14 +92,7 @@ async def event_autocomplete(
 
     calendar_id = getattr(calendar_service, "_calendar_id", "default")
 
-    # ── Resolve per-user timezone for label formatting ────────────────────
-    user_id = str(interaction.user.id)
-    settings = interaction.client.settings  # type: ignore[attr-defined]
-    tz_str = settings.get(user_id, "timezone")
-    try:
-        user_tz = ZoneInfo(tz_str) if tz_str else DEFAULT_TIMEZONE
-    except Exception:
-        user_tz = DEFAULT_TIMEZONE
+    user_tz = get_user_timezone(interaction)
 
     now_ts = time.time()
     cached = _event_cache.get(calendar_id)
@@ -108,15 +101,14 @@ async def event_autocomplete(
         if now_ts - cached_ts < _CACHE_TTL:
             return _filter_and_format_choices(cached_events, current, user_tz)
 
-    # Start-of-day UTC — ensures ongoing events still appear for all timezones
     utc_now = datetime.datetime.now(datetime.timezone.utc)
     time_min = utc_now.replace(hour=0, minute=0, second=0, microsecond=0)
     time_max = time_min + datetime.timedelta(days=14)
 
     try:
         events = calendar_service.list_events(
-            time_min=time_min.astimezone(datetime.timezone.utc),
-            time_max=time_max.astimezone(datetime.timezone.utc),
+            time_min=time_min,
+            time_max=time_max,
             max_results=25,
         )
     except RuntimeError:
