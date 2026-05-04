@@ -1,6 +1,5 @@
 """Discal Discord bot — main entry point and client setup."""
 
-import asyncio
 import logging
 import os
 import sys
@@ -46,8 +45,6 @@ class DiscalClient(discord.Client):
         if guild_id:
             guild = discord.Object(id=int(guild_id))
             logger.info("Syncing commands to guild %s...", guild_id)
-            self.tree.clear_commands(guild=guild)
-            await asyncio.sleep(1.5)  # let Discord API process deletions
             await self.tree.sync(guild=guild)
         else:
             logger.info("Syncing commands globally...")
