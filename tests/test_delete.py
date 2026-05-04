@@ -5,7 +5,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from googleapiclient.errors import HttpError
 
-from src.commands.delete import delete_event_autocomplete, delete
+from src.commands.autocomplete import event_autocomplete
+from src.commands.delete import delete
 
 
 # ── Autocomplete callback ────────────────────────────────────────────────────
@@ -22,13 +23,13 @@ async def test_autocomplete_filters_by_substring():
         {"id": "evt3", "summary": "Standup Notes"},
     ]
 
-    choices = await delete_event_autocomplete(interaction, "standup")
+    choices = await event_autocomplete(interaction, "standup")
 
     assert len(choices) == 2
-    summaries = [c.name for c in choices]
-    assert "Team Standup" in summaries
-    assert "Standup Notes" in summaries
-    assert "Design Review" not in summaries
+    names = [c.name for c in choices]
+    assert any("Team Standup" in n for n in names)
+    assert any("Standup Notes" in n for n in names)
+    assert not any("Design Review" in n for n in names)
 
 
 @pytest.mark.asyncio
@@ -41,7 +42,7 @@ async def test_autocomplete_empty_query_returns_all():
         {"id": "evt2", "summary": "Design Review"},
     ]
 
-    choices = await delete_event_autocomplete(interaction, "")
+    choices = await event_autocomplete(interaction, "")
 
     assert len(choices) == 2
 
@@ -52,7 +53,7 @@ async def test_autocomplete_no_calendar_returns_empty():
     interaction = MagicMock()
     interaction.client.calendar = None
 
-    choices = await delete_event_autocomplete(interaction, "test")
+    choices = await event_autocomplete(interaction, "test")
 
     assert choices == []
 
@@ -67,7 +68,7 @@ async def test_autocomplete_truncates_long_titles():
         {"id": "evt1", "summary": long_title},
     ]
 
-    choices = await delete_event_autocomplete(interaction, "")
+    choices = await event_autocomplete(interaction, "")
 
     assert len(choices) == 1
     assert len(choices[0].name) == 100
@@ -84,10 +85,10 @@ async def test_autocomplete_strips_whitespace_and_lowercases_query():
         {"id": "evt2", "summary": "Design Review"},
     ]
 
-    choices = await delete_event_autocomplete(interaction, "  TEAM  ")
+    choices = await event_autocomplete(interaction, "  TEAM  ")
 
     assert len(choices) == 1
-    assert choices[0].name == "Team Standup"
+    assert "Team Standup" in choices[0].name
 
 
 # ── /cal delete command handler ──────────────────────────────────────────────

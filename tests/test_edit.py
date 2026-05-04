@@ -564,7 +564,7 @@ async def test_edit_formats_generic_error_on_update():
 @pytest.mark.asyncio
 async def test_edit_command_has_autocomplete():
     """The edit command uses autocomplete on the event_id parameter."""
-    from src.commands.delete import delete_event_autocomplete
+    from src.commands.autocomplete import event_autocomplete
 
     # Check that the autocomplete callback is registered on the command
     param = [
@@ -572,4 +572,4 @@ async def test_edit_command_has_autocomplete():
         if p.name == "event_id"  # pyright: ignore[reportAttributeAccessIssue]
     ][0]
     assert param.autocomplete is not None  # pyright: ignore[reportAttributeAccessIssue]
-    assert param.autocomplete is delete_event_autocomplete  # pyright: ignore[reportAttributeAccessIssue]
+    assert param.autocomplete is event_autocomplete  # pyright: ignore[reportAttributeAccessIssue]

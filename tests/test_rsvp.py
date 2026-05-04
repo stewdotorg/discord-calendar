@@ -357,7 +357,7 @@ async def test_invite_command_metadata():
 @pytest.mark.asyncio
 async def test_invite_has_autocomplete():
     """The invite command uses autocomplete on the event_id parameter."""
-    from src.commands.delete import delete_event_autocomplete
+    from src.commands.autocomplete import event_autocomplete
     from src.commands.rsvp import invite
 
     param = [
@@ -365,4 +365,4 @@ async def test_invite_has_autocomplete():
         if p.name == "event_id"
     ][0]
     assert param.autocomplete is not None
-    assert param.autocomplete is delete_event_autocomplete
+    assert param.autocomplete is event_autocomplete
