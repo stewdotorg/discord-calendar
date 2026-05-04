@@ -67,7 +67,7 @@ def resolve_mentions(
             else:
                 warnings.append(
                     f"⚠️ Could not invite {item}: no email stored. "
-                    "Ask them to run `/cal settings email-set`"
+                    "Ask them to run `/cal settings set email`"
                 )
         else:
             # Treat as raw email/text — validation happens upstream.

@@ -1,6 +1,5 @@
 """Tests for DiscalClient command tree setup — guards against silent sync failure."""
 
-import os
 from unittest.mock import AsyncMock, patch
 
 import discord
