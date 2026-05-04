@@ -12,6 +12,7 @@ from src.utils import (
     get_today_eastern_range,
     parse_date_eastern,
     parse_when,
+    resolve_mentions,
 )
 
 
@@ -442,3 +443,126 @@ class TestParseDateEastern:
         """parse_date_eastern raises ValueError for invalid date strings."""
         with pytest.raises(ValueError):
             parse_date_eastern(invalid)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  resolve_mentions — Issue #22
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class TestResolveMentions:
+    """Tests for resolve_mentions."""
+
+    def test_extracts_discord_id_and_resolves_email(self):
+        """resolve_mentions extracts Discord ID from <@id> and looks up stored email."""
+        from unittest.mock import MagicMock
+
+        settings = MagicMock()
+        settings.get.return_value = "bob@example.com"
+
+        resolved, warnings = resolve_mentions(["<@123456789>"], settings)
+
+        settings.get.assert_called_once_with("123456789", "email")
+        assert resolved == ["bob@example.com"]
+        assert warnings == []
+
+    def test_passes_raw_emails_through(self):
+        """resolve_mentions passes raw email addresses through unchanged."""
+        from unittest.mock import MagicMock
+
+        settings = MagicMock()
+        settings.get.return_value = None
+
+        resolved, warnings = resolve_mentions(
+            ["alice@example.com"], settings
+        )
+
+        assert resolved == ["alice@example.com"]
+        assert warnings == []
+
+    def test_warns_when_mention_has_no_stored_email(self):
+        """resolve_mentions returns a warning when a mentioned user has no stored email."""
+        from unittest.mock import MagicMock
+
+        settings = MagicMock()
+        settings.get.return_value = None
+
+        resolved, warnings = resolve_mentions(["<@999999>"], settings)
+
+        assert resolved == []
+        assert len(warnings) == 1
+        assert "no email stored" in warnings[0].lower()
+        assert "<@999999>" in warnings[0]
+
+    def test_resolves_mixed_mentions_and_emails(self):
+        """resolve_mentions handles a mix of @mentions and raw emails."""
+        from unittest.mock import MagicMock
+
+        def mock_get(discord_id, key):
+            if discord_id == "111111":
+                return "bob@example.com"
+            if discord_id == "222222":
+                return "carol@example.com"
+            return None
+
+        settings = MagicMock()
+        settings.get = mock_get
+
+        resolved, warnings = resolve_mentions(
+            ["<@111111>", "alice@example.com", "<@222222>"],
+            settings,
+        )
+
+        assert resolved == [
+            "bob@example.com",
+            "alice@example.com",
+            "carol@example.com",
+        ]
+        assert warnings == []
+
+    def test_mixed_resolved_and_unresolved_mentions(self):
+        """resolve_mentions resolves what it can and warns about the rest."""
+        from unittest.mock import MagicMock
+
+        def mock_get(discord_id, key):
+            if discord_id == "111111":
+                return "bob@example.com"
+            return None
+
+        settings = MagicMock()
+        settings.get = mock_get
+
+        resolved, warnings = resolve_mentions(
+            ["<@111111>", "<@999999>", "alice@example.com"],
+            settings,
+        )
+
+        assert resolved == ["bob@example.com", "alice@example.com"]
+        assert len(warnings) == 1
+        assert "<@999999>" in warnings[0]
+
+    def test_handles_whitespace_around_items(self):
+        """resolve_mentions strips whitespace around each item."""
+        from unittest.mock import MagicMock
+
+        settings = MagicMock()
+        settings.get.return_value = "bob@example.com"
+
+        resolved, warnings = resolve_mentions(
+            ["  <@123456789>  ", "  alice@example.com  "],
+            settings,
+        )
+
+        assert resolved == ["bob@example.com", "alice@example.com"]
+        assert warnings == []
+
+    def test_empty_list_returns_empty(self):
+        """resolve_mentions returns empty results for an empty list."""
+        from unittest.mock import MagicMock
+
+        settings = MagicMock()
+
+        resolved, warnings = resolve_mentions([], settings)
+
+        assert resolved == []
+        assert warnings == []

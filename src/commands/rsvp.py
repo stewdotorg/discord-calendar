@@ -8,9 +8,13 @@ from googleapiclient.errors import HttpError
 
 from src.commands.delete import delete_event_autocomplete
 from src.commands.list_events import cal
-from src.utils import format_rsvp_error, validate_email
+from src.utils import format_rsvp_error, resolve_mentions, validate_email
 
 logger = logging.getLogger(__name__)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Helpers
+# ═══════════════════════════════════════════════════════════════════════════════
 
 
 async def _require_calendar(interaction: discord.Interaction) -> bool:
@@ -27,6 +31,11 @@ async def _require_calendar(interaction: discord.Interaction) -> bool:
         )
         return False
     return True
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  /cal rsvp
+# ═══════════════════════════════════════════════════════════════════════════════
 
 
 @cal.command(name="rsvp", description="RSVP to an event using your stored email")
@@ -78,47 +87,147 @@ async def rsvp(
     )
 
 
-@cal.command(name="invite", description="Invite others to an event by email")
+# ═══════════════════════════════════════════════════════════════════════════════
+#  /cal invite group
+# ═══════════════════════════════════════════════════════════════════════════════
+
+invite_group = app_commands.Group(
+    name="invite",
+    description="Invite attendees to an event",
+)
+cal.add_command(invite_group)
+
+
+# ── /cal invite add ─────────────────────────────────────────────────────────
+
+
+@invite_group.command(
+    name="add",
+    description="Invite others to an event by email or @mention",
+)
 @app_commands.describe(
     event_id="Event to invite others to",
-    emails="Comma-separated email addresses (e.g. alice@example.com, bob@example.com)",
+    emails="Comma-separated email addresses or @mentions "
+           "(e.g. alice@example.com, @bob)",
 )
 @app_commands.autocomplete(event_id=delete_event_autocomplete)
-async def invite(
+async def invite_add(
     interaction: discord.Interaction,
     event_id: str,
     emails: str,
 ) -> None:
-    """Handle invite — add comma-separated emails as attendees."""
+    """Handle invite add — parse emails/@mentions and add attendees."""
     if not await _require_calendar(interaction):
         return
 
     calendar = interaction.client.calendar  # type: ignore[attr-defined]
+    settings = interaction.client.settings  # type: ignore[attr-defined]
     await interaction.response.defer()
 
-    recipients = [e.strip() for e in emails.split(",") if e.strip()]
-    if not recipients:
+    # Split comma-separated input
+    raw = [e.strip() for e in emails.split(",") if e.strip()]
+    if not raw:
         await interaction.edit_original_response(
             content="❌ No email addresses provided."
         )
         return
 
-    for recipient in recipients:
+    # Resolve @mentions to stored emails
+    resolved, warnings = resolve_mentions(raw, settings)
+
+    # Validate resolved emails (only after mention resolution so raw emails
+    # pass through and mentions are already resolved to valid emails).
+    for recipient in resolved:
         error = validate_email(recipient)
         if error:
             await interaction.edit_original_response(content=error)
             return
 
+    if not resolved and not warnings:
+        await interaction.edit_original_response(
+            content="❌ No valid recipients to invite."
+        )
+        return
+
+    if not resolved:
+        # All mentions were unresolvable — show warnings but no invite
+        await interaction.edit_original_response(
+            content="\n".join(warnings)
+        )
+        return
+
     try:
-        calendar.add_attendees(event_id, recipients)
+        calendar.add_attendees(event_id, resolved)
     except HttpError as exc:
         logger.error("Failed to invite to event %s: %s", event_id, exc)
         error_msg = format_rsvp_error(exc)
         await interaction.edit_original_response(content=error_msg)
         return
 
-    count = len(recipients)
+    count = len(resolved)
     attendee_word = "attendee" if count == 1 else "attendees"
+
+    response = f"✅ Invited {count} {attendee_word}: {', '.join(resolved)}"
+    if warnings:
+        response += "\n\n" + "\n".join(warnings)
+
+    await interaction.edit_original_response(content=response)
+
+
+# ── /cal invite me ──────────────────────────────────────────────────────────
+
+
+@invite_group.command(
+    name="me",
+    description="Add yourself to an event using your stored email",
+)
+@app_commands.describe(
+    event_id="Event to add yourself to",
+    email="Email address (optional — uses stored email if omitted)",
+)
+@app_commands.autocomplete(event_id=delete_event_autocomplete)
+async def invite_me(
+    interaction: discord.Interaction,
+    event_id: str,
+    email: str | None = None,
+) -> None:
+    """Handle invite me — add the calling user as an attendee.
+
+    Uses the user's stored email, or the optional *email* override.
+    """
+    if not await _require_calendar(interaction):
+        return
+
+    calendar = interaction.client.calendar  # type: ignore[attr-defined]
+    await interaction.response.defer()
+
+    if email is not None:
+        error = validate_email(email)
+        if error:
+            await interaction.edit_original_response(content=error)
+            return
+    else:
+        discord_id = str(interaction.user.id)
+        email = interaction.client.settings.get(discord_id, "email")
+        if not email:
+            await interaction.edit_original_response(
+                content=(
+                    "❌ No email set. Use `/cal settings email-set` "
+                    "or pass it with "
+                    "`/cal invite add event_id:... emails:you@example.com`"
+                )
+            )
+            return
+
+    try:
+        calendar.add_attendees(event_id, [email])
+    except HttpError as exc:
+        logger.error("Failed to invite self to event %s: %s", event_id, exc)
+        error_msg = format_rsvp_error(exc)
+        await interaction.edit_original_response(content=error_msg)
+        return
+
     await interaction.edit_original_response(
-        content=f"✅ Invited {count} {attendee_word}: {', '.join(recipients)}"
+        content=f"✅ Added as attendee: {email} — "
+        "Google Calendar will send an invitation"
     )

@@ -46,9 +46,14 @@ _COMMANDS = [
         "example": "RSVP to an event: /cal rsvp event:<pick> or with email: /cal rsvp event:<pick> email:me@example.com",
     },
     {
-        "name": "/cal invite",
-        "description": "Invite others to an event by email",
-        "example": "Invite others: /cal invite event:<pick> emails:alice@example.com, bob@example.com",
+        "name": "/cal invite add",
+        "description": "Invite others to an event by email or @mention",
+        "example": "Invite others: /cal invite add event:<pick> emails:alice@example.com, @bob",
+    },
+    {
+        "name": "/cal invite me",
+        "description": "Add yourself to an event using your stored email",
+        "example": "Add yourself: /cal invite me event:<pick>",
     },
     {
         "name": "/cal reminders set",

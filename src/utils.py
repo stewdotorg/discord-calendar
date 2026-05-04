@@ -26,6 +26,56 @@ def validate_email(email: str) -> str | None:
         return _INVALID_EMAIL_MSG.format(reason="domain missing '.'")
     return None
 
+# ── Mention resolution ─────────────────────────────────────────────────────
+
+_MENTION_PATTERN = re.compile(r"^<@(\d+)>$")
+
+
+def resolve_mentions(
+    items: list[str],
+    settings_store,
+) -> tuple[list[str], list[str]]:
+    """Resolve Discord @mentions to stored emails.
+
+    Items that match the ``<@discord_id>`` pattern are looked up via
+    ``settings_store.get(discord_id, "email")``.  Items that do not
+    match are treated as raw email addresses and passed through unchanged.
+
+    Args:
+        items: List of strings — raw emails or Discord mentions.
+        settings_store: A ``SettingsStore`` instance for email lookup.
+
+    Returns:
+        ``(resolved, warnings)`` tuple:
+
+        * **resolved** — List of email addresses (resolved + passed-through).
+          Unresolvable mentions with no stored email are omitted.
+        * **warnings** — Warning messages for unresolvable mentions, suitable
+          for display to the calling user.
+    """
+    resolved: list[str] = []
+    warnings: list[str] = []
+
+    for item in items:
+        item = item.strip()
+        match = _MENTION_PATTERN.match(item)
+        if match:
+            discord_id = match.group(1)
+            email = settings_store.get(discord_id, "email")
+            if email:
+                resolved.append(email)
+            else:
+                warnings.append(
+                    f"⚠️ Could not invite {item}: no email stored. "
+                    "Ask them to run `/cal settings email-set`"
+                )
+        else:
+            # Treat as raw email/text — validation happens upstream.
+            resolved.append(item)
+
+    return resolved, warnings
+
+
 EASTERN = ZoneInfo("America/New_York")
 
 def format_datetime_eastern(dt: datetime.datetime) -> str:
