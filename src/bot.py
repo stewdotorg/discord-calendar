@@ -16,7 +16,7 @@ from src.commands.create import create  # noqa: F401  # side-effect: registers o
 from src.commands.help import help_cmd  # noqa: F401  # side-effect: registers on cal group
 import src.commands.settings  # noqa: F401  # side-effect: registers settings subgroup on cal
 from src.commands.edit import edit  # noqa: F401  # side-effect: registers on cal group
-from src.commands.rsvp import rsvp, invite  # noqa: F401  # side-effect: registers on cal group
+from src.commands.rsvp import invite_me, invite_by_email, invite_group  # noqa: F401  # side-effect: registers on cal group
 from src.commands.reminders import reminders_group, reminders_defaults_group  # noqa: F401
 from src.db.queries import SettingsStore
 

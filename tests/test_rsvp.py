@@ -1,4 +1,4 @@
-"""Tests for the /cal rsvp and /cal invite commands."""
+"""Tests for the /cal invite me and /cal invite by-email commands."""
 
 from unittest.mock import AsyncMock, MagicMock
 
@@ -6,12 +6,12 @@ import pytest
 from googleapiclient.errors import HttpError
 
 
-# ── /cal rsvp command ───────────────────────────────────────────────────────
+# ── /cal invite me command ──────────────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_rsvp_with_stored_email():
-    """RSVP uses the stored email when no email param is provided."""
-    from src.commands.rsvp import rsvp
+async def test_invite_me_with_stored_email():
+    """invite me uses the stored email when no email param is provided."""
+    from src.commands.rsvp import invite_me
 
     interaction = MagicMock()
     interaction.response = MagicMock()
@@ -29,7 +29,7 @@ async def test_rsvp_with_stored_email():
     mock_settings.get.return_value = "me@example.com"
     interaction.client.settings = mock_settings
 
-    await rsvp.callback(interaction, event_id="evt1", email=None)
+    await invite_me.callback(interaction, event_id="evt1", email=None)
 
     mock_settings.get.assert_called_once_with("12345", "email")
     mock_calendar.add_attendees.assert_called_once_with(
@@ -43,9 +43,9 @@ async def test_rsvp_with_stored_email():
 
 
 @pytest.mark.asyncio
-async def test_rsvp_with_inline_email():
-    """RSVP uses the inline email param when provided, overriding stored email."""
-    from src.commands.rsvp import rsvp
+async def test_invite_me_with_inline_email():
+    """invite me uses the inline email param when provided, overriding stored email."""
+    from src.commands.rsvp import invite_me
 
     interaction = MagicMock()
     interaction.response = MagicMock()
@@ -62,7 +62,7 @@ async def test_rsvp_with_inline_email():
     mock_settings = MagicMock()
     interaction.client.settings = mock_settings
 
-    await rsvp.callback(interaction, event_id="evt1", email="override@example.com")
+    await invite_me.callback(interaction, event_id="evt1", email="override@example.com")
 
     mock_settings.get.assert_not_called()
     mock_calendar.add_attendees.assert_called_once_with(
@@ -74,9 +74,9 @@ async def test_rsvp_with_inline_email():
 
 
 @pytest.mark.asyncio
-async def test_rsvp_no_email_and_no_stored_email():
-    """RSVP returns an error when no email is provided and none is stored."""
-    from src.commands.rsvp import rsvp
+async def test_invite_me_no_email_and_no_stored_email():
+    """invite me returns an error when no email is provided and none is stored."""
+    from src.commands.rsvp import invite_me
 
     interaction = MagicMock()
     interaction.response = MagicMock()
@@ -91,18 +91,18 @@ async def test_rsvp_no_email_and_no_stored_email():
     mock_settings.get.return_value = None
     interaction.client.settings = mock_settings
 
-    await rsvp.callback(interaction, event_id="evt1", email=None)
+    await invite_me.callback(interaction, event_id="evt1", email=None)
 
     mock_calendar.add_attendees.assert_not_called()
     content = interaction.edit_original_response.call_args.kwargs["content"]
     assert "No email" in content
-    assert "email set" in content.lower() or "/cal email" in content.lower()
+    assert "email set" in content.lower() or "/cal settings email-set" in content.lower()
 
 
 @pytest.mark.asyncio
-async def test_rsvp_invalid_inline_email():
-    """RSVP returns an error message for invalid inline email format."""
-    from src.commands.rsvp import rsvp
+async def test_invite_me_invalid_inline_email():
+    """invite me returns an error message for invalid inline email format."""
+    from src.commands.rsvp import invite_me
 
     interaction = MagicMock()
     interaction.response = MagicMock()
@@ -116,7 +116,7 @@ async def test_rsvp_invalid_inline_email():
     mock_settings = MagicMock()
     interaction.client.settings = mock_settings
 
-    await rsvp.callback(interaction, event_id="evt1", email="not-an-email")
+    await invite_me.callback(interaction, event_id="evt1", email="not-an-email")
 
     mock_calendar.add_attendees.assert_not_called()
     content = interaction.edit_original_response.call_args.kwargs["content"]
@@ -124,16 +124,16 @@ async def test_rsvp_invalid_inline_email():
 
 
 @pytest.mark.asyncio
-async def test_rsvp_calendar_not_configured():
-    """RSVP responds with an error when calendar is not configured."""
-    from src.commands.rsvp import rsvp
+async def test_invite_me_calendar_not_configured():
+    """invite me responds with an error when calendar is not configured."""
+    from src.commands.rsvp import invite_me
 
     interaction = MagicMock()
     interaction.response = MagicMock()
     interaction.response.send_message = AsyncMock()
     interaction.client.calendar = None
 
-    await rsvp.callback(interaction, event_id="evt1", email="me@example.com")
+    await invite_me.callback(interaction, event_id="evt1", email="me@example.com")
 
     interaction.response.send_message.assert_called_once()
     msg = interaction.response.send_message.call_args.args[0]
@@ -141,9 +141,9 @@ async def test_rsvp_calendar_not_configured():
 
 
 @pytest.mark.asyncio
-async def test_rsvp_handles_api_error():
-    """RSVP returns a user-friendly message on API errors."""
-    from src.commands.rsvp import rsvp
+async def test_invite_me_handles_api_error():
+    """invite me returns a user-friendly message on API errors."""
+    from src.commands.rsvp import invite_me
 
     interaction = MagicMock()
     interaction.response = MagicMock()
@@ -163,28 +163,28 @@ async def test_rsvp_handles_api_error():
     mock_settings.get.return_value = "me@example.com"
     interaction.client.settings = mock_settings
 
-    await rsvp.callback(interaction, event_id="evt1", email=None)
+    await invite_me.callback(interaction, event_id="evt1", email=None)
 
     content = interaction.edit_original_response.call_args.kwargs["content"]
     assert "not found" in content.lower() or "event not found" in content.lower()
 
 
 @pytest.mark.asyncio
-async def test_rsvp_command_metadata():
-    """The rsvp command has correct metadata."""
-    from src.commands.rsvp import rsvp
+async def test_invite_me_command_metadata():
+    """The invite me command has correct metadata."""
+    from src.commands.rsvp import invite_me
 
-    assert rsvp.name == "rsvp"
-    assert "RSVP" in rsvp.description or "rsvp" in rsvp.description.lower()
+    assert invite_me.name == "me"
+    assert "Add yourself" in invite_me.description or "add yourself" in invite_me.description.lower()
 
 
-# ── /cal invite command ─────────────────────────────────────────────────────
+# ── /cal invite by-email command ─────────────────────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_invite_with_multiple_emails():
-    """Invite adds multiple comma-separated emails as attendees."""
-    from src.commands.rsvp import invite
+async def test_invite_by_email_with_multiple_emails():
+    """invite by-email adds multiple comma-separated emails as attendees."""
+    from src.commands.rsvp import invite_by_email
 
     interaction = MagicMock()
     interaction.response = MagicMock()
@@ -199,7 +199,7 @@ async def test_invite_with_multiple_emails():
     ]
     interaction.client.calendar = mock_calendar
 
-    await invite.callback(
+    await invite_by_email.callback(
         interaction,
         event_id="evt1",
         emails="alice@example.com, bob@example.com, carol@example.com",
@@ -215,9 +215,9 @@ async def test_invite_with_multiple_emails():
 
 
 @pytest.mark.asyncio
-async def test_invite_with_single_email():
-    """Invite works with a single email."""
-    from src.commands.rsvp import invite
+async def test_invite_by_email_with_single_email():
+    """invite by-email works with a single email."""
+    from src.commands.rsvp import invite_by_email
 
     interaction = MagicMock()
     interaction.response = MagicMock()
@@ -230,7 +230,7 @@ async def test_invite_with_single_email():
     ]
     interaction.client.calendar = mock_calendar
 
-    await invite.callback(
+    await invite_by_email.callback(
         interaction,
         event_id="evt1",
         emails="alice@example.com",
@@ -245,9 +245,9 @@ async def test_invite_with_single_email():
 
 
 @pytest.mark.asyncio
-async def test_invite_invalid_email():
-    """Invite returns an error message when any email is invalid."""
-    from src.commands.rsvp import invite
+async def test_invite_by_email_invalid_email():
+    """invite by-email returns an error message when any email is invalid."""
+    from src.commands.rsvp import invite_by_email
 
     interaction = MagicMock()
     interaction.response = MagicMock()
@@ -257,7 +257,7 @@ async def test_invite_invalid_email():
     mock_calendar = MagicMock()
     interaction.client.calendar = mock_calendar
 
-    await invite.callback(
+    await invite_by_email.callback(
         interaction,
         event_id="evt1",
         emails="good@example.com, not-an-email",
@@ -269,16 +269,16 @@ async def test_invite_invalid_email():
 
 
 @pytest.mark.asyncio
-async def test_invite_calendar_not_configured():
-    """Invite responds with an error when calendar is not configured."""
-    from src.commands.rsvp import invite
+async def test_invite_by_email_calendar_not_configured():
+    """invite by-email responds with an error when calendar is not configured."""
+    from src.commands.rsvp import invite_by_email
 
     interaction = MagicMock()
     interaction.response = MagicMock()
     interaction.response.send_message = AsyncMock()
     interaction.client.calendar = None
 
-    await invite.callback(interaction, event_id="evt1", emails="alice@example.com")
+    await invite_by_email.callback(interaction, event_id="evt1", emails="alice@example.com")
 
     interaction.response.send_message.assert_called_once()
     msg = interaction.response.send_message.call_args.args[0]
@@ -286,9 +286,9 @@ async def test_invite_calendar_not_configured():
 
 
 @pytest.mark.asyncio
-async def test_invite_handles_api_error():
-    """Invite returns a user-friendly message on API errors."""
-    from src.commands.rsvp import invite
+async def test_invite_by_email_handles_api_error():
+    """invite by-email returns a user-friendly message on API errors."""
+    from src.commands.rsvp import invite_by_email
 
     interaction = MagicMock()
     interaction.response = MagicMock()
@@ -303,32 +303,32 @@ async def test_invite_handles_api_error():
     )
     interaction.client.calendar = mock_calendar
 
-    await invite.callback(interaction, event_id="evt1", emails="alice@example.com")
+    await invite_by_email.callback(interaction, event_id="evt1", emails="alice@example.com")
 
     content = interaction.edit_original_response.call_args.kwargs["content"]
     assert "cannot add attendees" in content.lower()
 
 
 @pytest.mark.asyncio
-async def test_invite_command_metadata():
-    """The invite command has correct metadata."""
-    from src.commands.rsvp import invite
+async def test_invite_by_email_command_metadata():
+    """The invite by-email command has correct metadata."""
+    from src.commands.rsvp import invite_by_email
 
-    assert invite.name == "invite"
-    assert "Invite" in invite.description or "invite" in invite.description.lower()
+    assert invite_by_email.name == "by-email"
+    assert "Invite" in invite_by_email.description or "invite" in invite_by_email.description.lower()
 
 
 # ── autocomplete ─────────────────────────────────────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_rsvp_has_autocomplete():
-    """The rsvp command uses autocomplete on the event_id parameter."""
+async def test_invite_me_has_autocomplete():
+    """The invite me command uses autocomplete on the event_id parameter."""
     from src.commands.delete import delete_event_autocomplete
-    from src.commands.rsvp import rsvp
+    from src.commands.rsvp import invite_me
 
     param = [
-        p for p in rsvp._params.values()
+        p for p in invite_me._params.values()
         if p.name == "event_id"
     ][0]
     assert param.autocomplete is not None
@@ -336,13 +336,13 @@ async def test_rsvp_has_autocomplete():
 
 
 @pytest.mark.asyncio
-async def test_invite_has_autocomplete():
-    """The invite command uses autocomplete on the event_id parameter."""
+async def test_invite_by_email_has_autocomplete():
+    """The invite by-email command uses autocomplete on the event_id parameter."""
     from src.commands.delete import delete_event_autocomplete
-    from src.commands.rsvp import invite
+    from src.commands.rsvp import invite_by_email
 
     param = [
-        p for p in invite._params.values()
+        p for p in invite_by_email._params.values()
         if p.name == "event_id"
     ][0]
     assert param.autocomplete is not None

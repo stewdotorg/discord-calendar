@@ -1,4 +1,4 @@
-"""/cal rsvp and /cal invite — RSVP and invite others to events."""
+"""/cal invite group — invite yourself or others to events."""
 
 import logging
 
@@ -11,6 +11,12 @@ from src.commands.list_events import cal
 from src.utils import format_rsvp_error, validate_email
 
 logger = logging.getLogger(__name__)
+
+invite_group = app_commands.Group(
+    name="invite",
+    description="Invite yourself or others to an event",
+    parent=cal,
+)
 
 
 async def _require_calendar(interaction: discord.Interaction) -> bool:
@@ -29,18 +35,18 @@ async def _require_calendar(interaction: discord.Interaction) -> bool:
     return True
 
 
-@cal.command(name="rsvp", description="RSVP to an event using your stored email")
+@invite_group.command(name="me", description="Add yourself as an attendee")
 @app_commands.describe(
-    event_id="Event to RSVP to",
+    event_id="Event to add yourself to",
     email="Email address (optional — uses stored email if omitted)",
 )
 @app_commands.autocomplete(event_id=delete_event_autocomplete)
-async def rsvp(
+async def invite_me(
     interaction: discord.Interaction,
     event_id: str,
     email: str | None = None,
 ) -> None:
-    """Handle RSVP — add user (or specified email) as an attendee."""
+    """Handle invite me — add the calling user (or specified email) as an attendee."""
     if not await _require_calendar(interaction):
         return
 
@@ -58,7 +64,7 @@ async def rsvp(
         if not email:
             await interaction.edit_original_response(
                 content=(
-                    "❌ No email set. Store one with `/cal email set` "
+                    "❌ No email set. Store one with `/cal settings email-set` "
                     "or pass it inline."
                 )
             )
@@ -67,7 +73,7 @@ async def rsvp(
     try:
         calendar.add_attendees(event_id, [email])
     except HttpError as exc:
-        logger.error("Failed to RSVP to event %s: %s", event_id, exc)
+        logger.error("Failed to add attendee to event %s: %s", event_id, exc)
         error_msg = format_rsvp_error(exc)
         await interaction.edit_original_response(content=error_msg)
         return
@@ -78,18 +84,18 @@ async def rsvp(
     )
 
 
-@cal.command(name="invite", description="Invite others to an event by email")
+@invite_group.command(name="by-email", description="Invite others to an event by email")
 @app_commands.describe(
     event_id="Event to invite others to",
     emails="Comma-separated email addresses (e.g. alice@example.com, bob@example.com)",
 )
 @app_commands.autocomplete(event_id=delete_event_autocomplete)
-async def invite(
+async def invite_by_email(
     interaction: discord.Interaction,
     event_id: str,
     emails: str,
 ) -> None:
-    """Handle invite — add comma-separated emails as attendees."""
+    """Handle invite by-email — add comma-separated emails as attendees."""
     if not await _require_calendar(interaction):
         return
 
@@ -122,3 +128,4 @@ async def invite(
     await interaction.edit_original_response(
         content=f"✅ Invited {count} {attendee_word}: {', '.join(recipients)}"
     )
+
