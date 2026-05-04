@@ -147,10 +147,10 @@ async def test_help_embed_contains_all_commands():
     assert "/cal invite me" in field_names
     assert "/cal invite by-email" in field_names
     assert "/cal help" in field_names
-    assert "/cal settings email-set" in field_names
-    assert "/cal settings email-show" in field_names
-    assert "/cal settings timezone-set" in field_names
-    assert "/cal settings timezone-show" in field_names
+    assert "/cal settings email set" in field_names
+    assert "/cal settings email show" in field_names
+    assert "/cal settings timezone set" in field_names
+    assert "/cal settings timezone show" in field_names
     assert len(embed.fields) >= 10
 
 
@@ -410,13 +410,13 @@ async def test_list_command_no_search_passes_none():
             assert call_kwargs["q"] is None
 
 
-# ── /cal email ─────────────────────────────────────────────────────────
+# ── /cal settings email ────────────────────────────────────────────────
 
 
 @pytest.mark.asyncio
 async def test_email_set_stores_and_confirms():
-    """The /cal email set command stores the email and confirms."""
-    from src.commands.settings import email_set
+    """The /cal settings email set command stores the email and confirms."""
+    from src.commands.settings import email_settings
 
     interaction = MagicMock()
     interaction.response = MagicMock()
@@ -426,7 +426,7 @@ async def test_email_set_stores_and_confirms():
     mock_settings = MagicMock()
     interaction.client.settings = mock_settings
 
-    await email_set.callback(interaction, email="me@example.com")
+    await email_settings.callback(interaction, action="set", value="me@example.com")
 
     mock_settings.set.assert_called_once_with("12345", "email", "me@example.com")
     interaction.response.send_message.assert_called_once()
@@ -437,8 +437,8 @@ async def test_email_set_stores_and_confirms():
 
 @pytest.mark.asyncio
 async def test_email_set_invalid_email_returns_error():
-    """The /cal email set command rejects invalid email formats."""
-    from src.commands.settings import email_set
+    """The /cal settings email set command rejects invalid email formats."""
+    from src.commands.settings import email_settings
 
     interaction = MagicMock()
     interaction.response = MagicMock()
@@ -448,7 +448,7 @@ async def test_email_set_invalid_email_returns_error():
     mock_settings = MagicMock()
     interaction.client.settings = mock_settings
 
-    await email_set.callback(interaction, email="not-an-email")
+    await email_settings.callback(interaction, action="set", value="not-an-email")
 
     mock_settings.set.assert_not_called()
     interaction.response.send_message.assert_called_once()
@@ -459,8 +459,8 @@ async def test_email_set_invalid_email_returns_error():
 
 @pytest.mark.asyncio
 async def test_email_set_rejects_email_without_at():
-    """The /cal email set rejects emails missing @."""
-    from src.commands.settings import email_set
+    """The /cal settings email set rejects emails missing @."""
+    from src.commands.settings import email_settings
 
     interaction = MagicMock()
     interaction.response = MagicMock()
@@ -470,7 +470,7 @@ async def test_email_set_rejects_email_without_at():
     mock_settings = MagicMock()
     interaction.client.settings = mock_settings
 
-    await email_set.callback(interaction, email="noatsign.example.com")
+    await email_settings.callback(interaction, action="set", value="noatsign.example.com")
 
     mock_settings.set.assert_not_called()
     call_args = interaction.response.send_message.call_args
@@ -480,8 +480,8 @@ async def test_email_set_rejects_email_without_at():
 
 @pytest.mark.asyncio
 async def test_email_set_rejects_email_without_dot():
-    """The /cal email set rejects emails missing a dot in the domain."""
-    from src.commands.settings import email_set
+    """The /cal settings email set rejects emails missing a dot in the domain."""
+    from src.commands.settings import email_settings
 
     interaction = MagicMock()
     interaction.response = MagicMock()
@@ -491,7 +491,7 @@ async def test_email_set_rejects_email_without_dot():
     mock_settings = MagicMock()
     interaction.client.settings = mock_settings
 
-    await email_set.callback(interaction, email="user@nodot")
+    await email_settings.callback(interaction, action="set", value="user@nodot")
 
     mock_settings.set.assert_not_called()
     call_args = interaction.response.send_message.call_args
@@ -500,9 +500,32 @@ async def test_email_set_rejects_email_without_dot():
 
 
 @pytest.mark.asyncio
+async def test_email_set_missing_value_returns_error():
+    """The /cal settings email set returns error when value is missing."""
+    from src.commands.settings import email_settings
+
+    interaction = MagicMock()
+    interaction.response = MagicMock()
+    interaction.response.send_message = AsyncMock()
+    interaction.user.id = 12345
+
+    mock_settings = MagicMock()
+    interaction.client.settings = mock_settings
+
+    await email_settings.callback(interaction, action="set", value=None)
+
+    mock_settings.set.assert_not_called()
+    mock_settings.get.assert_not_called()
+    interaction.response.send_message.assert_called_once()
+    call_args = interaction.response.send_message.call_args
+    assert "email address" in call_args[0][0].lower()
+    assert call_args[1]["ephemeral"] is True
+
+
+@pytest.mark.asyncio
 async def test_email_show_displays_stored_email():
-    """The /cal email show command displays the stored email."""
-    from src.commands.settings import email_show
+    """The /cal settings email show command displays the stored email."""
+    from src.commands.settings import email_settings
 
     interaction = MagicMock()
     interaction.response = MagicMock()
@@ -513,7 +536,7 @@ async def test_email_show_displays_stored_email():
     mock_settings.get.return_value = "me@example.com"
     interaction.client.settings = mock_settings
 
-    await email_show.callback(interaction)
+    await email_settings.callback(interaction, action="show")
 
     mock_settings.get.assert_called_once_with("12345", "email")
     interaction.response.send_message.assert_called_once()
@@ -524,8 +547,8 @@ async def test_email_show_displays_stored_email():
 
 @pytest.mark.asyncio
 async def test_email_show_no_email():
-    """The /cal email show command shows a message when no email is set."""
-    from src.commands.settings import email_show
+    """The /cal settings email show command shows a message when no email is set."""
+    from src.commands.settings import email_settings
 
     interaction = MagicMock()
     interaction.response = MagicMock()
@@ -536,7 +559,7 @@ async def test_email_show_no_email():
     mock_settings.get.return_value = None
     interaction.client.settings = mock_settings
 
-    await email_show.callback(interaction)
+    await email_settings.callback(interaction, action="show")
 
     interaction.response.send_message.assert_called_once()
     call_args = interaction.response.send_message.call_args
@@ -544,13 +567,10 @@ async def test_email_show_no_email():
     assert call_args[1]["ephemeral"] is True
 
 
-# ── /cal timezone ──────────────────────────────────────────────────────
-
-
 @pytest.mark.asyncio
-async def test_timezone_set_stores_and_confirms():
-    """The /cal timezone set command stores the timezone and confirms."""
-    from src.commands.settings import timezone_set
+async def test_email_unknown_action_returns_error():
+    """The /cal settings email returns error for unknown action."""
+    from src.commands.settings import email_settings
 
     interaction = MagicMock()
     interaction.response = MagicMock()
@@ -560,7 +580,32 @@ async def test_timezone_set_stores_and_confirms():
     mock_settings = MagicMock()
     interaction.client.settings = mock_settings
 
-    await timezone_set.callback(interaction, timezone="America/Chicago")
+    await email_settings.callback(interaction, action="delete")
+
+    mock_settings.set.assert_not_called()
+    interaction.response.send_message.assert_called_once()
+    call_args = interaction.response.send_message.call_args
+    assert "Unknown action" in call_args[0][0]
+    assert call_args[1]["ephemeral"] is True
+
+
+# ── /cal settings timezone ─────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_timezone_set_stores_and_confirms():
+    """The /cal settings timezone set command stores the timezone and confirms."""
+    from src.commands.settings import timezone_settings
+
+    interaction = MagicMock()
+    interaction.response = MagicMock()
+    interaction.response.send_message = AsyncMock()
+    interaction.user.id = 12345
+
+    mock_settings = MagicMock()
+    interaction.client.settings = mock_settings
+
+    await timezone_settings.callback(interaction, action="set", value="America/Chicago")
 
     mock_settings.set.assert_called_once_with("12345", "timezone", "America/Chicago")
     interaction.response.send_message.assert_called_once()
@@ -571,8 +616,8 @@ async def test_timezone_set_stores_and_confirms():
 
 @pytest.mark.asyncio
 async def test_timezone_set_rejects_invalid_timezone():
-    """The /cal timezone set command rejects invalid timezone strings."""
-    from src.commands.settings import timezone_set
+    """The /cal settings timezone set command rejects invalid timezone strings."""
+    from src.commands.settings import timezone_settings
 
     interaction = MagicMock()
     interaction.response = MagicMock()
@@ -582,7 +627,7 @@ async def test_timezone_set_rejects_invalid_timezone():
     mock_settings = MagicMock()
     interaction.client.settings = mock_settings
 
-    await timezone_set.callback(interaction, timezone="Not/A_Real_Zone")
+    await timezone_settings.callback(interaction, action="set", value="Not/A_Real_Zone")
 
     mock_settings.set.assert_not_called()
     interaction.response.send_message.assert_called_once()
@@ -592,9 +637,31 @@ async def test_timezone_set_rejects_invalid_timezone():
 
 
 @pytest.mark.asyncio
+async def test_timezone_set_missing_value_returns_error():
+    """The /cal settings timezone set returns error when value is missing."""
+    from src.commands.settings import timezone_settings
+
+    interaction = MagicMock()
+    interaction.response = MagicMock()
+    interaction.response.send_message = AsyncMock()
+    interaction.user.id = 12345
+
+    mock_settings = MagicMock()
+    interaction.client.settings = mock_settings
+
+    await timezone_settings.callback(interaction, action="set", value=None)
+
+    mock_settings.set.assert_not_called()
+    interaction.response.send_message.assert_called_once()
+    call_args = interaction.response.send_message.call_args
+    assert "timezone" in call_args[0][0].lower()
+    assert call_args[1]["ephemeral"] is True
+
+
+@pytest.mark.asyncio
 async def test_timezone_show_displays_stored_timezone():
-    """The /cal timezone show command displays the stored timezone."""
-    from src.commands.settings import timezone_show
+    """The /cal settings timezone show command displays the stored timezone."""
+    from src.commands.settings import timezone_settings
 
     interaction = MagicMock()
     interaction.response = MagicMock()
@@ -605,7 +672,7 @@ async def test_timezone_show_displays_stored_timezone():
     mock_settings.get.return_value = "America/Chicago"
     interaction.client.settings = mock_settings
 
-    await timezone_show.callback(interaction)
+    await timezone_settings.callback(interaction, action="show")
 
     mock_settings.get.assert_called_once_with("12345", "timezone")
     interaction.response.send_message.assert_called_once()
@@ -616,8 +683,8 @@ async def test_timezone_show_displays_stored_timezone():
 
 @pytest.mark.asyncio
 async def test_timezone_show_default():
-    """The /cal timezone show command shows default when none is set."""
-    from src.commands.settings import timezone_show
+    """The /cal settings timezone show command shows default when none is set."""
+    from src.commands.settings import timezone_settings
 
     interaction = MagicMock()
     interaction.response = MagicMock()
@@ -628,7 +695,7 @@ async def test_timezone_show_default():
     mock_settings.get.return_value = None
     interaction.client.settings = mock_settings
 
-    await timezone_show.callback(interaction)
+    await timezone_settings.callback(interaction, action="show")
 
     interaction.response.send_message.assert_called_once()
     call_args = interaction.response.send_message.call_args
@@ -636,38 +703,44 @@ async def test_timezone_show_default():
     assert call_args[1]["ephemeral"] is True
 
 
+@pytest.mark.asyncio
+async def test_timezone_unknown_action_returns_error():
+    """The /cal settings timezone returns error for unknown action."""
+    from src.commands.settings import timezone_settings
+
+    interaction = MagicMock()
+    interaction.response = MagicMock()
+    interaction.response.send_message = AsyncMock()
+    interaction.user.id = 12345
+
+    mock_settings = MagicMock()
+    interaction.client.settings = mock_settings
+
+    await timezone_settings.callback(interaction, action="delete")
+
+    mock_settings.set.assert_not_called()
+    interaction.response.send_message.assert_called_once()
+    call_args = interaction.response.send_message.call_args
+    assert "Unknown action" in call_args[0][0]
+    assert call_args[1]["ephemeral"] is True
+
+
 # ── metadata for email/timezone commands ───────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_email_set_has_correct_metadata():
-    """The email set command has correct metadata."""
-    from src.commands.settings import email_set
+async def test_email_settings_has_correct_metadata():
+    """The email settings command has correct metadata."""
+    from src.commands.settings import email_settings
 
-    assert email_set.name == "email-set"
-    assert "email" in email_set.description.lower()
-
-
-@pytest.mark.asyncio
-async def test_email_show_has_correct_metadata():
-    """The email show command has correct metadata."""
-    from src.commands.settings import email_show
-
-    assert email_show.name == "email-show"
+    assert email_settings.name == "email"
+    assert "email" in email_settings.description.lower()
 
 
 @pytest.mark.asyncio
-async def test_timezone_set_has_correct_metadata():
-    """The timezone set command has correct metadata."""
-    from src.commands.settings import timezone_set
+async def test_timezone_settings_has_correct_metadata():
+    """The timezone settings command has correct metadata."""
+    from src.commands.settings import timezone_settings
 
-    assert timezone_set.name == "timezone-set"
-    assert "timezone" in timezone_set.description.lower()
-
-
-@pytest.mark.asyncio
-async def test_timezone_show_has_correct_metadata():
-    """The timezone show command has correct metadata."""
-    from src.commands.settings import timezone_show
-
-    assert timezone_show.name == "timezone-show"
+    assert timezone_settings.name == "timezone"
+    assert "timezone" in timezone_settings.description.lower()

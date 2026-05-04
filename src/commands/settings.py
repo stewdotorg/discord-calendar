@@ -1,4 +1,9 @@
-"""Commands for per-user email and timezone preferences under /cal."""
+"""Commands for per-user email and timezone preferences under /cal.
+
+Refactored to <param> <verb> pattern so new settings (reminders,
+subgroups, …) can be added as ``settings <param> <verb>`` without
+name collisions.
+"""
 
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 
@@ -11,10 +16,8 @@ from src.utils import validate_email
 settings_group = app_commands.Group(
     name="settings",
     description="Manage your calendar settings",
+    parent=cal,
 )
-
-# discord.py only supports one nesting level, so attach to cal manually.
-cal.add_command(settings_group)
 
 
 def _validate_timezone(tz_str: str) -> str | None:
@@ -34,65 +37,111 @@ def _validate_timezone(tz_str: str) -> str | None:
     return None
 
 
-@settings_group.command(name="email-set", description="Store your email for event invitations")
-@app_commands.describe(email="Your email address (e.g. me@example.com)")
-async def email_set(interaction: discord.Interaction, email: str) -> None:
-    """Store the user's email address after basic format validation."""
-    error = validate_email(email)
-    if error:
-        await interaction.response.send_message(error, ephemeral=True)
-        return
+# ── shared verb choices ──────────────────────────────────────────────────────
 
+_VERB_CHOICES = [
+    app_commands.Choice(name="set", value="set"),
+    app_commands.Choice(name="show", value="show"),
+]
+
+_UNKNOWN_ACTION_MSG = "❌ Unknown action: {action}. Try: set, show"
+
+
+# ── /cal settings email ──────────────────────────────────────────────────────
+
+
+@settings_group.command(name="email", description="Manage your email address")
+@app_commands.describe(
+    action="What to do with your email (set or show)",
+    value="Your email address (required for 'set')",
+)
+@app_commands.choices(action=_VERB_CHOICES)
+async def email_settings(
+    interaction: discord.Interaction,
+    action: str,
+    value: str | None = None,
+) -> None:
+    """Handle email set and show."""
     discord_id = str(interaction.user.id)
-    interaction.client.settings.set(discord_id, "email", email)
-    await interaction.response.send_message(
-        f"✅ Email stored: {email}", ephemeral=True
-    )
 
-
-@settings_group.command(name="email-show", description="Show your stored email")
-async def email_show(interaction: discord.Interaction) -> None:
-    """Display the user's stored email, or a message if none is set."""
-    discord_id = str(interaction.user.id)
-    email = interaction.client.settings.get(discord_id, "email")
-    if email:
+    if action == "set":
+        if not value:
+            await interaction.response.send_message(
+                "❌ Please provide an email address. "
+                "Usage: `/cal settings email set me@example.com`",
+                ephemeral=True,
+            )
+            return
+        error = validate_email(value)
+        if error:
+            await interaction.response.send_message(error, ephemeral=True)
+            return
+        interaction.client.settings.set(discord_id, "email", value)
         await interaction.response.send_message(
-            f"📧 Your stored email: {email}", ephemeral=True
+            f"✅ Email stored: {value}", ephemeral=True
         )
+    elif action == "show":
+        email = interaction.client.settings.get(discord_id, "email")
+        if email:
+            await interaction.response.send_message(
+                f"📧 Your stored email: {email}", ephemeral=True
+            )
+        else:
+            await interaction.response.send_message(
+                "📧 No email set. Use `/cal settings email set` to store one.",
+                ephemeral=True,
+            )
     else:
         await interaction.response.send_message(
-            "📧 No email set. Use `/cal settings email-set` to store one.",
-            ephemeral=True,
+            _UNKNOWN_ACTION_MSG.format(action=action), ephemeral=True
         )
 
 
-@settings_group.command(name="timezone-set", description="Store your timezone")
-@app_commands.describe(timezone="An IANA timezone (e.g. America/Chicago)")
-async def timezone_set(interaction: discord.Interaction, timezone: str) -> None:
-    """Store the user's timezone after validating against the IANA database."""
-    error = _validate_timezone(timezone)
-    if error:
-        await interaction.response.send_message(error, ephemeral=True)
-        return
+# ── /cal settings timezone ───────────────────────────────────────────────────
 
+
+@settings_group.command(name="timezone", description="Manage your timezone")
+@app_commands.describe(
+    action="What to do with your timezone (set or show)",
+    value="An IANA timezone (required for 'set', e.g. America/Chicago)",
+)
+@app_commands.choices(action=_VERB_CHOICES)
+async def timezone_settings(
+    interaction: discord.Interaction,
+    action: str,
+    value: str | None = None,
+) -> None:
+    """Handle timezone set and show."""
     discord_id = str(interaction.user.id)
-    interaction.client.settings.set(discord_id, "timezone", timezone)
-    await interaction.response.send_message(
-        f"✅ Timezone stored: {timezone}", ephemeral=True
-    )
 
-
-@settings_group.command(name="timezone-show", description="Show your stored timezone")
-async def timezone_show(interaction: discord.Interaction) -> None:
-    """Display the user's stored timezone, or the default (US Eastern)."""
-    discord_id = str(interaction.user.id)
-    timezone = interaction.client.settings.get(discord_id, "timezone")
-    if timezone:
+    if action == "set":
+        if not value:
+            await interaction.response.send_message(
+                "❌ Please provide a timezone. "
+                "Usage: `/cal settings timezone set America/Chicago`",
+                ephemeral=True,
+            )
+            return
+        error = _validate_timezone(value)
+        if error:
+            await interaction.response.send_message(error, ephemeral=True)
+            return
+        interaction.client.settings.set(discord_id, "timezone", value)
         await interaction.response.send_message(
-            f"🕐 Your timezone: {timezone}", ephemeral=True
+            f"✅ Timezone stored: {value}", ephemeral=True
         )
+    elif action == "show":
+        timezone = interaction.client.settings.get(discord_id, "timezone")
+        if timezone:
+            await interaction.response.send_message(
+                f"🕐 Your timezone: {timezone}", ephemeral=True
+            )
+        else:
+            await interaction.response.send_message(
+                "🕐 No timezone set. Defaulting to US Eastern.",
+                ephemeral=True,
+            )
     else:
         await interaction.response.send_message(
-            "🕐 No timezone set. Defaulting to US Eastern.",
-            ephemeral=True,
+            _UNKNOWN_ACTION_MSG.format(action=action), ephemeral=True
         )
