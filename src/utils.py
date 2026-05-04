@@ -28,7 +28,7 @@ def validate_email(email: str) -> str | None:
 
 # ── Mention resolution ─────────────────────────────────────────────────────
 
-_MENTION_PATTERN = re.compile(r"^<@(\d+)>$")
+_MENTION_PATTERN = re.compile(r"^<@!?(\d+)>$")
 
 
 def resolve_mentions(
