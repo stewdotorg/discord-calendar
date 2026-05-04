@@ -27,8 +27,9 @@ def test_bot_has_no_message_content_intent():
 
 
 @pytest.mark.asyncio
-async def test_setup_hook_registers_commands_and_syncs():
-    """setup_hook registers the cal command group, syncs, and initialises the calendar."""
+async def test_setup_hook_registers_commands_and_syncs(monkeypatch):
+    """setup_hook registers cal on guild tree, syncs guild + global purge, inits calendar."""
+    monkeypatch.setenv("DISCORD_GUILD_ID", "999999999999999999")
     client = DiscalClient()
 
     client.tree.add_command = MagicMock()
@@ -37,9 +38,22 @@ async def test_setup_hook_registers_commands_and_syncs():
 
     await client.setup_hook()
 
+    # add_command called once with guild= and override=True kwargs
     assert client.tree.add_command.call_count == 1
-    client.tree.add_command.assert_any_call(cal)
-    client.tree.sync.assert_called_once()
+    call_kwargs = client.tree.add_command.call_args.kwargs
+    assert call_kwargs.get("guild") is not None
+    assert call_kwargs.get("override") is True
+    client.tree.add_command.assert_any_call(cal, **call_kwargs)
+
+    # sync called twice: guild sync then global purge
+    assert client.tree.sync.call_count == 2
+    # first call: guild sync
+    first_call = client.tree.sync.call_args_list[0]
+    assert first_call.kwargs.get("guild") is not None
+    # second call: global purge (no guild kwarg)
+    second_call = client.tree.sync.call_args_list[1]
+    assert second_call.kwargs.get("guild") is None
+
     client._init_calendar.assert_called_once()
 
 

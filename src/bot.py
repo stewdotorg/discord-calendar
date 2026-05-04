@@ -38,18 +38,24 @@ class DiscalClient(discord.Client):
         self.settings = SettingsStore(db_path)
 
     async def setup_hook(self) -> None:
-        """Register commands, verify calendar access, and sync with Discord on startup."""
+        """Register commands, verify calendar access, and sync with Discord on startup.
+
+        The bot is guild-only — DISCORD_GUILD_ID is required, and commands are
+        registered directly on the guild tree.  After the guild sync, an empty
+        global sync purges any stale global /cal commands from prior deploys.
+        """
         logger.info("Setting up bot...")
-        self.tree.add_command(cal)
         guild_id = os.environ.get("DISCORD_GUILD_ID", "")
-        if guild_id:
-            guild = discord.Object(id=int(guild_id))
-            self.tree.copy_global_to(guild=guild)
-            logger.info("Syncing commands to guild %s...", guild_id)
-            await self.tree.sync(guild=guild)
-        else:
-            logger.info("Syncing commands globally...")
-            await self.tree.sync()
+        if not guild_id:
+            logger.critical("DISCORD_GUILD_ID is not set — guild-only mode requires a guild ID.")
+            sys.exit(1)
+
+        guild = discord.Object(id=int(guild_id))
+        self.tree.add_command(cal, guild=guild, override=True)
+        logger.info("Syncing commands to guild %s...", guild_id)
+        await self.tree.sync(guild=guild)
+        # Purge any stale global /cal commands left from prior deployments.
+        await self.tree.sync()
 
         logger.info("Commands synced. Pre-warming dateparser...")
         # Pre-warm dateparser (slow first import loads language data)
