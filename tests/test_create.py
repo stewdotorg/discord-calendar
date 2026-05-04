@@ -494,3 +494,231 @@ async def test_create_command_formats_generic_error():
 
     response_text = interaction.edit_original_response.call_args.kwargs["content"]
     assert "failed" in response_text.lower() or "unexpected" in response_text.lower()
+
+
+# ── /cal create invite param ────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_create_with_invite_single_email():
+    """/cal create with invite: adds a single attendee and confirms."""
+    interaction = MagicMock()
+    interaction.response = MagicMock()
+    interaction.response.defer = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
+    # Prevent default-reminders path from being entered
+    interaction.client.settings.get.return_value = None
+
+    mock_calendar = MagicMock()
+    mock_calendar.create_event.return_value = {
+        "id": "evt_inv1",
+        "htmlLink": "https://calendar.google.com/event?eid=evt_inv1",
+    }
+    interaction.client.calendar = mock_calendar
+
+    await create.callback(
+        interaction,
+        title="Team Sync",
+        when="2026-05-01 14:00",
+        duration=30,
+        description="Weekly standup",
+        invite="alice@example.com",
+    )
+
+    # Event must be created first
+    mock_calendar.create_event.assert_called_once()
+    # Then add_attendees called with the event id and email list
+    mock_calendar.add_attendees.assert_called_once_with(
+        "evt_inv1", ["alice@example.com"]
+    )
+    # Confirmation includes invite info
+    response_text = interaction.edit_original_response.call_args.kwargs["content"]
+    assert "✅ Invited 1 attendee: alice@example.com" in response_text
+    assert "Team Sync" in response_text
+
+
+@pytest.mark.asyncio
+async def test_create_with_invite_multiple_emails():
+    """/cal create with invite: adds multiple attendees and confirms."""
+    interaction = MagicMock()
+    interaction.response = MagicMock()
+    interaction.response.defer = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
+    interaction.client.settings.get.return_value = None
+
+    mock_calendar = MagicMock()
+    mock_calendar.create_event.return_value = {
+        "id": "evt_inv2",
+        "htmlLink": "https://calendar.google.com/event?eid=evt_inv2",
+    }
+    interaction.client.calendar = mock_calendar
+
+    await create.callback(
+        interaction,
+        title="Team Sync",
+        when="2026-05-01 14:00",
+        duration=30,
+        invite="alice@example.com, bob@example.com",
+    )
+
+    mock_calendar.add_attendees.assert_called_once_with(
+        "evt_inv2", ["alice@example.com", "bob@example.com"]
+    )
+    response_text = interaction.edit_original_response.call_args.kwargs["content"]
+    assert "✅ Invited 2 attendees: alice@example.com, bob@example.com" in response_text
+
+
+@pytest.mark.asyncio
+async def test_create_without_invite_preserves_behavior():
+    """/cal create without invite: add_attendees is never called."""
+    interaction = MagicMock()
+    interaction.response = MagicMock()
+    interaction.response.defer = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
+    interaction.client.settings.get.return_value = None
+
+    mock_calendar = MagicMock()
+    mock_calendar.create_event.return_value = {
+        "id": "evt_no_inv",
+        "htmlLink": "https://calendar.google.com/event?eid=evt_no_inv",
+    }
+    interaction.client.calendar = mock_calendar
+
+    await create.callback(
+        interaction,
+        title="Team Sync",
+        when="2026-05-01 14:00",
+        duration=30,
+    )
+
+    mock_calendar.create_event.assert_called_once()
+    mock_calendar.add_attendees.assert_not_called()
+    response_text = interaction.edit_original_response.call_args.kwargs["content"]
+    assert "Invited" not in response_text
+    assert "✅ **Event created!**" in response_text
+
+
+@pytest.mark.asyncio
+async def test_create_with_invite_invalid_email_before_create():
+    """/cal create with invite: invalid email errors before event creation."""
+    interaction = MagicMock()
+    interaction.response = MagicMock()
+    interaction.response.defer = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
+    interaction.client.settings.get.return_value = None
+
+    mock_calendar = MagicMock()
+    interaction.client.calendar = mock_calendar
+
+    await create.callback(
+        interaction,
+        title="Team Sync",
+        when="2026-05-01 14:00",
+        duration=30,
+        invite="not-an-email",
+    )
+
+    # Event must NOT be created
+    mock_calendar.create_event.assert_not_called()
+    # User sees invalid email error
+    response_text = interaction.edit_original_response.call_args.kwargs["content"]
+    assert "Invalid email" in response_text
+
+
+@pytest.mark.asyncio
+async def test_create_with_invite_api_failure_warns_but_event_exists():
+    """/cal create with invite: add_attendees failure warns user, event exists."""
+    from googleapiclient.errors import HttpError
+
+    interaction = MagicMock()
+    interaction.response = MagicMock()
+    interaction.response.defer = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
+    interaction.client.settings.get.return_value = None
+
+    mock_calendar = MagicMock()
+    mock_calendar.create_event.return_value = {
+        "id": "evt_fail",
+        "htmlLink": "https://calendar.google.com/event?eid=evt_fail",
+    }
+    http_resp = MagicMock()
+    http_resp.status = 403
+    http_resp.reason = "Forbidden"
+    mock_calendar.add_attendees.side_effect = HttpError(
+        http_resp, b'{"error": {"message": "Forbidden"}}'
+    )
+    interaction.client.calendar = mock_calendar
+
+    await create.callback(
+        interaction,
+        title="Team Sync",
+        when="2026-05-01 14:00",
+        duration=30,
+        invite="alice@example.com",
+    )
+
+    # Event is created
+    mock_calendar.create_event.assert_called_once()
+    # add_attendees was attempted
+    mock_calendar.add_attendees.assert_called_once()
+    # User sees warning that invites failed but event exists
+    response_text = interaction.edit_original_response.call_args.kwargs["content"]
+    assert "✅ **Event created!**" in response_text
+    assert "⚠️" in response_text or "invite" in response_text.lower()
+
+
+@pytest.mark.asyncio
+async def test_create_with_invite_blank_skips():
+    """/cal create with invite="" is treated as if invite was omitted."""
+    interaction = MagicMock()
+    interaction.response = MagicMock()
+    interaction.response.defer = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
+    interaction.client.settings.get.return_value = None
+
+    mock_calendar = MagicMock()
+    mock_calendar.create_event.return_value = {
+        "id": "evt_blank",
+        "htmlLink": "https://calendar.google.com/event?eid=evt_blank",
+    }
+    interaction.client.calendar = mock_calendar
+
+    await create.callback(
+        interaction,
+        title="Team Sync",
+        when="2026-05-01 14:00",
+        duration=30,
+        invite="",
+    )
+
+    mock_calendar.create_event.assert_called_once()
+    mock_calendar.add_attendees.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_create_with_invite_strips_whitespace():
+    """/cal create with invite strips whitespace from each email."""
+    interaction = MagicMock()
+    interaction.response = MagicMock()
+    interaction.response.defer = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
+    interaction.client.settings.get.return_value = None
+
+    mock_calendar = MagicMock()
+    mock_calendar.create_event.return_value = {
+        "id": "evt_strip",
+        "htmlLink": "https://calendar.google.com/event?eid=evt_strip",
+    }
+    interaction.client.calendar = mock_calendar
+
+    await create.callback(
+        interaction,
+        title="Team Sync",
+        when="2026-05-01 14:00",
+        duration=30,
+        invite="  alice@example.com ,  bob@example.com  ",
+    )
+
+    mock_calendar.add_attendees.assert_called_once_with(
+        "evt_strip", ["alice@example.com", "bob@example.com"]
+    )

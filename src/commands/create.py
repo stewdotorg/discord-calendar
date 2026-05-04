@@ -7,7 +7,14 @@ from discord import app_commands
 from googleapiclient.errors import HttpError
 
 from src.commands.list_events import cal
-from src.utils import format_create_error, format_datetime_eastern, parse_minutes, parse_when
+from src.utils import (
+    format_create_error,
+    format_datetime_eastern,
+    format_rsvp_error,
+    parse_minutes,
+    parse_when,
+    validate_email,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +26,7 @@ logger = logging.getLogger(__name__)
          '"tomorrow 2pm", "2026-05-01 14:00"',
     duration="Duration in minutes (default: 60)",
     description="Optional event description",
+    invite="Optional comma-separated emails to invite (e.g. alice@example.com, bob@example.com)",
 )
 async def create(
     interaction: discord.Interaction,
@@ -26,6 +34,7 @@ async def create(
     when: str,
     duration: int = 60,
     description: str | None = None,
+    invite: str | None = None,
 ) -> None:
     """Handle create — parse arguments, call CalendarService, respond."""
     calendar = interaction.client.calendar  # type: ignore[attr-defined]  # set in DiscalClient.setup_hook
@@ -41,6 +50,17 @@ async def create(
     # Defer response — dateparser and Google Calendar API calls may exceed
     # Discord's 3-second interaction timeout.
     await interaction.response.defer()
+
+    # ── Validate invite emails before creating the event ───────────────────
+    invite_emails: list[str] = []
+    if invite and invite.strip():
+        raw = [e.strip() for e in invite.split(",") if e.strip()]
+        for email in raw:
+            error = validate_email(email)
+            if error:
+                await interaction.edit_original_response(content=error)
+                return
+        invite_emails = raw
 
     try:
         start = parse_when(when)
@@ -80,6 +100,18 @@ async def create(
                 creator_discord_id, exc,
             )
 
+    # ── Add attendees if invite emails were provided ───────────────────
+    invite_error: str | None = None
+    if invite_emails:
+        try:
+            calendar.add_attendees(result["id"], invite_emails)
+        except HttpError as exc:
+            logger.error(
+                "Failed to invite attendees to event %s: %s",
+                result["id"], exc,
+            )
+            invite_error = format_rsvp_error(exc)
+
     # Display confirmation in US Eastern
     start_fmt = format_datetime_eastern(start)
 
@@ -92,5 +124,19 @@ async def create(
     )
     if description:
         response += f"\n📝 {description}"
+
+    # Append invite confirmation or warning
+    if invite_error:
+        response += (
+            f"\n\n⚠️ Invites failed — the event exists but attendees "
+            f"could not be added:\n{invite_error}"
+        )
+    elif invite_emails:
+        count = len(invite_emails)
+        word = "attendee" if count == 1 else "attendees"
+        response += (
+            f"\n\n✅ Invited {count} {word}: "
+            f"{', '.join(invite_emails)}"
+        )
 
     await interaction.edit_original_response(content=response)
