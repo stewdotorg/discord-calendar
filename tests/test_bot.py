@@ -11,15 +11,17 @@ from src.commands.list_events import cal
 from tests import VALID_KEY_JSON
 
 
-def test_bot_has_command_tree():
+def test_bot_has_command_tree(monkeypatch):
     """The DiscalClient initializes with an app_commands.CommandTree."""
+    monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
     client = DiscalClient()
     assert client.tree is not None
     assert isinstance(client.tree, discord.app_commands.CommandTree)
 
 
-def test_bot_has_no_message_content_intent():
+def test_bot_has_no_message_content_intent(monkeypatch):
     """The bot uses default intents only — no privileged intents needed."""
+    monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
     client = DiscalClient()
     assert not client.intents.message_content
     assert not client.intents.members
@@ -29,6 +31,7 @@ def test_bot_has_no_message_content_intent():
 @pytest.mark.asyncio
 async def test_setup_hook_registers_commands_and_syncs(monkeypatch):
     """setup_hook registers cal on guild tree, syncs guild + global purge, inits calendar."""
+    monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
     monkeypatch.setenv("DISCORD_GUILD_ID", "999999999999999999")
     client = DiscalClient()
 
@@ -65,6 +68,7 @@ class TestInitCalendar:
 
     def test_returns_none_when_env_vars_unset(self, monkeypatch):
         """_init_calendar returns None when calendar env vars are empty."""
+        monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
         monkeypatch.delenv("GOOGLE_SERVICE_ACCOUNT_FILE", raising=False)
         monkeypatch.delenv("GOOGLE_CALENDAR_ID", raising=False)
 
@@ -75,6 +79,7 @@ class TestInitCalendar:
 
     def test_returns_service_on_success(self, monkeypatch, tmp_path):
         """_init_calendar returns a CalendarService when auth succeeds."""
+        monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
         key_file = tmp_path / "key.json"
         key_file.write_text(VALID_KEY_JSON)
 
@@ -94,6 +99,7 @@ class TestInitCalendar:
 
     def test_exits_on_credential_error(self, monkeypatch):
         """_init_calendar calls sys.exit(1) when credentials cannot be loaded."""
+        monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
         monkeypatch.setenv("GOOGLE_SERVICE_ACCOUNT_FILE", "/nonexistent/key.json")
         monkeypatch.setenv("GOOGLE_CALENDAR_ID", "test-cal")
 
@@ -106,6 +112,7 @@ class TestInitCalendar:
 
     def test_exits_on_verify_failure(self, monkeypatch, tmp_path):
         """_init_calendar calls sys.exit(1) when verify_access raises RuntimeError."""
+        monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
         key_file = tmp_path / "key.json"
         key_file.write_text(VALID_KEY_JSON)
 
@@ -126,8 +133,9 @@ class TestInitCalendar:
 
 
 @pytest.mark.asyncio
-async def test_on_ready_logs_ready():
+async def test_on_ready_logs_ready(monkeypatch):
     """on_ready logs 'Ready' with the bot's username."""
+    monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
     client = DiscalClient()
 
     mock_user = MagicMock()
