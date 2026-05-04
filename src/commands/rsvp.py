@@ -6,7 +6,7 @@ import discord
 from discord import app_commands
 from googleapiclient.errors import HttpError
 
-from src.commands.delete import delete_event_autocomplete
+from src.commands.autocomplete import event_autocomplete
 from src.commands.list_events import cal
 from src.utils import _MENTION_PATTERN, format_invite_error, validate_email
 
@@ -30,11 +30,12 @@ async def _require_calendar(interaction: discord.Interaction) -> bool:
 
 
 @cal.command(name="invite", description="Invite people to an event")
+@app_commands.rename(event_id="event")
 @app_commands.describe(
     event_id="Event to invite people to",
     people="Comma-separated: 'me', @mentions, or emails (e.g. me, @chaz, alice@example.com)",
 )
-@app_commands.autocomplete(event_id=delete_event_autocomplete)
+@app_commands.autocomplete(event_id=event_autocomplete)
 async def invite(
     interaction: discord.Interaction,
     event_id: str,

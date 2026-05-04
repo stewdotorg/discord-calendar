@@ -6,7 +6,7 @@ import discord
 from discord import app_commands
 from googleapiclient.errors import HttpError
 
-from src.commands.delete import delete_event_autocomplete
+from src.commands.autocomplete import event_autocomplete
 from src.commands.list_events import cal
 from src.utils import format_edit_error, parse_minutes
 
@@ -47,11 +47,12 @@ reminders_group = app_commands.Group(
 @reminders_group.command(
     name="set", description="Set reminders on a Google Calendar event"
 )
+@app_commands.rename(event_id="event")
 @app_commands.describe(
     event_id="Event to set reminders on",
     minutes='Comma-separated minutes before start, e.g. "10,30"',
 )
-@app_commands.autocomplete(event_id=delete_event_autocomplete)
+@app_commands.autocomplete(event_id=event_autocomplete)
 async def reminders_set(
     interaction: discord.Interaction,
     event_id: str,
@@ -93,8 +94,9 @@ async def reminders_set(
 @reminders_group.command(
     name="show", description="Show current reminders on an event"
 )
+@app_commands.rename(event_id="event")
 @app_commands.describe(event_id="Event to check reminders for")
-@app_commands.autocomplete(event_id=delete_event_autocomplete)
+@app_commands.autocomplete(event_id=event_autocomplete)
 async def reminders_show(
     interaction: discord.Interaction,
     event_id: str,

@@ -7,7 +7,7 @@ import discord
 from discord import app_commands
 from googleapiclient.errors import HttpError
 
-from src.commands.delete import delete_event_autocomplete
+from src.commands.autocomplete import event_autocomplete
 from src.commands.list_events import cal
 from src.utils import format_datetime_eastern, format_edit_error, parse_when
 
@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 @cal.command(name="edit", description="Edit a Google Calendar event")
+@app_commands.rename(event_id="event")
 @app_commands.describe(
     event_id="Event to edit",
     title="New event title",
@@ -22,7 +23,7 @@ logger = logging.getLogger(__name__)
     duration="New duration in minutes",
     description="New event description",
 )
-@app_commands.autocomplete(event_id=delete_event_autocomplete)
+@app_commands.autocomplete(event_id=event_autocomplete)
 async def edit(
     interaction: discord.Interaction,
     event_id: str,
