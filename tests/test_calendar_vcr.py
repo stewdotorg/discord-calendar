@@ -40,7 +40,7 @@ def _get_calendar_ids() -> tuple[str, str]:
     if not calendar_id:
         pytest.skip("VCR test requires GOOGLE_CALENDAR_ID environment variable.")
 
-    # OAuth2 is preferred — skip only the file check when it's available
+    # OAuth2 is preferred — skip service account validation when it's available
     if refresh_token:
         return key_path, calendar_id
 

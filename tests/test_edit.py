@@ -361,8 +361,8 @@ async def test_edit_updates_description_only():
     assert "📝 New agenda items" in content
 
 
-@pytest.mark.asyncio
 @patch("src.utils._dateparser_now", return_value=datetime.datetime(2026, 5, 1, 12, 0, tzinfo=datetime.timezone.utc))
+@pytest.mark.asyncio
 async def test_edit_updates_all_fields(_mock_now):
     """When all optional params are provided, all fields are sent in the patch."""
     interaction = MagicMock()
