@@ -44,8 +44,11 @@ class DiscalClient(discord.Client):
         guild_id = os.environ.get("DISCORD_GUILD_ID", "")
         if guild_id:
             guild = discord.Object(id=int(guild_id))
+            cmds = self.tree.get_commands(guild=guild)
+            logger.info("Tree has %d commands: %s", len(cmds), [c.name for c in cmds])
             logger.info("Syncing commands to guild %s...", guild_id)
-            await self.tree.sync(guild=guild)
+            result = await self.tree.sync(guild=guild)
+            logger.info("Sync returned %d commands", len(result))
         else:
             logger.info("Syncing commands globally...")
             await self.tree.sync()
