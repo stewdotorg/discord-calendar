@@ -8,7 +8,7 @@ from googleapiclient.errors import HttpError
 
 from src.commands.delete import delete_event_autocomplete
 from src.commands.list_events import cal
-from src.utils import format_rsvp_error, validate_email
+from src.utils import format_invite_error, validate_email
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +74,7 @@ async def invite_me(
         calendar.add_attendees(event_id, [email])
     except HttpError as exc:
         logger.error("Failed to add attendee to event %s: %s", event_id, exc)
-        error_msg = format_rsvp_error(exc)
+        error_msg = format_invite_error(exc)
         await interaction.edit_original_response(content=error_msg)
         return
 
@@ -119,7 +119,7 @@ async def invite_by_email(
         calendar.add_attendees(event_id, recipients)
     except HttpError as exc:
         logger.error("Failed to invite to event %s: %s", event_id, exc)
-        error_msg = format_rsvp_error(exc)
+        error_msg = format_invite_error(exc)
         await interaction.edit_original_response(content=error_msg)
         return
 

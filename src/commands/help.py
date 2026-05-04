@@ -77,7 +77,7 @@ _COMMANDS = [
     },
     {
         "name": "/cal settings email-set",
-        "description": "Store your email for RSVPs",
+        "description": "Store your email for event invitations",
         "example": '/cal settings email-set me@example.com',
     },
     {
