@@ -14,6 +14,7 @@ from src.utils import (
     parse_minutes,
     parse_when,
     resolve_mentions,
+    validate_email,
 )
 
 logger = logging.getLogger(__name__)
@@ -57,9 +58,17 @@ async def create(
 
     if invite:
         settings = interaction.client.settings  # type: ignore[attr-defined]
-        invite_emails, invite_warnings = resolve_mentions(
-            invite, lambda discord_id: settings.get(discord_id, "email")
-        )
+        items = [item.strip() for item in invite.split(",") if item.strip()]
+        invite_emails, invite_warnings = resolve_mentions(items, settings)
+        # Validate raw emails that were not @mentions
+        validated_emails: list[str] = []
+        for email in invite_emails:
+            error = validate_email(email)
+            if error:
+                invite_warnings.append(error)
+            else:
+                validated_emails.append(email)
+        invite_emails = validated_emails
 
     try:
         start = parse_when(when)

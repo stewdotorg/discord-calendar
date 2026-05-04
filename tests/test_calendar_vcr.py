@@ -67,9 +67,13 @@ def _build_service(key_path: str, calendar_id: str) -> CalendarService:
     return CalendarService(credentials, calendar_id)
 
 
+# Fixed reference date so VCR cassettes remain deterministic across runs.
+_REFERENCE_DATE = datetime.datetime(2026, 5, 3, tzinfo=datetime.timezone.utc)
+
+
 def _make_future_start(days: int, hour: int = 10) -> datetime.datetime:
-    """Return a timezone-aware datetime *days* days ahead at *hour* UTC."""
-    dt = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=days)
+    """Return a timezone-aware datetime relative to a fixed reference date."""
+    dt = _REFERENCE_DATE + datetime.timedelta(days=days)
     return dt.replace(hour=hour, minute=0, second=0, microsecond=0)
 
 
@@ -80,8 +84,7 @@ def _unique_title(suffix: str = "") -> str:
     before needing re-record for a different value.  An optional *suffix*
     distinguishes titles across different tests within the same day.
     """
-    today = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d")
-    seed = today + suffix
+    seed = _REFERENCE_DATE.strftime("%Y%m%d") + suffix
     digest = hashlib.md5(seed.encode()).hexdigest()[:8]
     return f"VCR-Test-{digest}"
 

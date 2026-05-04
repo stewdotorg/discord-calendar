@@ -47,6 +47,7 @@ def vcr(request):
         record_mode=record_mode,
         match_on=["method", "scheme", "host", "port", "path", "query"],
         before_record_request=_strip_auth_headers,
+        ignore_hosts=["oauth2.googleapis.com"],
         decode_compressed_response=True,
     )
 

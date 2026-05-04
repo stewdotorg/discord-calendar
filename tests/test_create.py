@@ -904,7 +904,7 @@ async def test_create_with_invite_invalid_email_shows_warning():
     mock_calendar.add_attendees.assert_not_called()
     # Warning in the response
     response_text = interaction.edit_original_response.call_args.kwargs["content"]
-    assert "⚠️" in response_text
+    assert "❌" in response_text
 
 
 @pytest.mark.asyncio
