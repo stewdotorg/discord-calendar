@@ -178,7 +178,7 @@ def test_add_attendees_success(vcr):
     """add_attendees successfully adds an attendee via CalendarService.
 
     Uses the CalendarService.add_attendees() helper which sends
-    ``sendUpdates="none"`` to avoid 403 errors on group calendars.
+    ``sendUpdates="all"`` to deliver invitation emails.
     Works with both OAuth2 user credentials and service accounts.
     """
     key_path, calendar_id = _get_calendar_ids()

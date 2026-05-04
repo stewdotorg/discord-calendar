@@ -540,7 +540,7 @@ def test_add_attendees_appends_to_existing_and_patches(mock_events):
             {"email": "alice@example.com", "responseStatus": "accepted"},
             {"email": "bob@example.com"},
         ]},
-        sendUpdates="none",
+        sendUpdates="all",
     )
 
 
@@ -566,7 +566,7 @@ def test_add_attendees_handles_no_existing_attendees(mock_events):
         calendarId="primary",
         eventId="evt1",
         body={"attendees": [{"email": "bob@example.com"}]},
-        sendUpdates="none",
+        sendUpdates="all",
     )
 
 
