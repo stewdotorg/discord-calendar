@@ -2,6 +2,7 @@
 
 import datetime
 import re
+from collections.abc import Callable
 from zoneinfo import ZoneInfo
 
 import dateparser
@@ -563,7 +564,9 @@ def _format_time_range_eastern(start_str: str, end_str: str) -> str:
 _MENTION_PATTERN = re.compile(r"^<@!?(\d+)>$")
 
 
-def resolve_mentions(invite_str: str, email_lookup) -> tuple[list[str], list[str]]:
+def resolve_mentions(
+    invite_str: str, email_lookup: Callable[[str], str | None]
+) -> tuple[list[str], list[str]]:
     """Resolve Discord mentions in a comma-separated invite string to emails.
 
     Splits *invite_str* on commas, trims whitespace, and processes each item:

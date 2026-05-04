@@ -81,10 +81,9 @@ async def create(
 
     if invite:
         settings = interaction.client.settings  # type: ignore[attr-defined]
-        def _email_lookup(discord_id: str) -> str | None:
-            return settings.get(discord_id, "email")
-
-        invite_emails, invite_warnings = resolve_mentions(invite, _email_lookup)
+        invite_emails, invite_warnings = resolve_mentions(
+            invite, lambda discord_id: settings.get(discord_id, "email")
+        )
 
         if invite_emails:
             try:

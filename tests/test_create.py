@@ -766,15 +766,15 @@ async def test_create_default_reminders_still_applied_with_invite():
     mock_calendar.add_attendees.return_value = []
     interaction.client.calendar = mock_calendar
 
-    # Settings: email for invite + default reminders
-    def _lookup(uid):
-        return {"123456789": "stew@example.com"}.get(uid)
+    def _settings_lookup(uid: str, key: str) -> str | None:
+        if key == "email":
+            return "stew@example.com"
+        if key == "default_reminders":
+            return "10,5"
+        return None
 
     mock_settings = MagicMock()
-    mock_settings.get.side_effect = lambda uid, key: (
-        "stew@example.com" if key == "email"
-        else ("10,5" if key == "default_reminders" else None)
-    )
+    mock_settings.get.side_effect = _settings_lookup
     interaction.client.settings = mock_settings
 
     await create.callback(
