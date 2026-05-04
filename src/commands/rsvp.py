@@ -58,7 +58,7 @@ async def rsvp(
         if not email:
             await interaction.edit_original_response(
                 content=(
-                    "❌ No email set. Store one with `/cal email set` "
+                    "❌ No email set. Store one with `/cal settings email set` "
                     "or pass it inline."
                 )
             )

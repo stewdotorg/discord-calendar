@@ -96,7 +96,7 @@ async def test_rsvp_no_email_and_no_stored_email():
     mock_calendar.add_attendees.assert_not_called()
     content = interaction.edit_original_response.call_args.kwargs["content"]
     assert "No email" in content
-    assert "email set" in content.lower() or "/cal email" in content.lower()
+    assert "/cal settings email set" in content.lower() or "email set" in content.lower()
 
 
 @pytest.mark.asyncio
