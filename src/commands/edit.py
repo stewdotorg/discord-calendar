@@ -9,7 +9,7 @@ from googleapiclient.errors import HttpError
 
 from src.commands.autocomplete import event_autocomplete
 from src.commands.list_events import cal
-from src.utils import format_datetime_eastern, format_edit_error, parse_when
+from src.utils import EASTERN, format_datetime_eastern, format_edit_error, parse_when
 
 logger = logging.getLogger(__name__)
 
@@ -129,7 +129,7 @@ def _compute_start_end(
     current_end = datetime.datetime.fromisoformat(current_end_str)
 
     if when is not None:
-        new_start = parse_when(when)
+        new_start = parse_when(when, tz=EASTERN)
     else:
         new_start = current_start
 

@@ -8,6 +8,7 @@ from googleapiclient.errors import HttpError
 
 from src.commands.list_events import cal
 from src.utils import (
+    EASTERN,
     format_create_error,
     format_datetime_eastern,
     format_invite_error,
@@ -71,7 +72,7 @@ async def create(
         invite_emails = validated_emails
 
     try:
-        start = parse_when(when)
+        start = parse_when(when, tz=EASTERN)
     except ValueError as exc:
         await interaction.edit_original_response(
             content=f"❌ Cannot parse '{when}': {exc}"

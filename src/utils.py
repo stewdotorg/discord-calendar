@@ -97,23 +97,6 @@ def format_datetime_eastern(dt: datetime.datetime) -> str:
 
 # ── when-param parsing ──────────────────────────────────────────────────────
 
-_MONTH_NAMES = {
-    "january": 1, "february": 2, "march": 3, "april": 4,
-    "may": 5, "june": 6, "july": 7, "august": 8,
-    "september": 9, "october": 10, "november": 11, "december": 12,
-    "jan": 1, "feb": 2, "mar": 3, "apr": 4,
-    "jun": 6, "jul": 7, "aug": 8,
-    "sep": 9, "sept": 9, "oct": 10, "nov": 11, "dec": 12,
-}
-
-# Words stripped before dateparser ("tuesday" already means next tuesday).
-_DATEWORDS_TO_STRIP = {"next", "this", "at", "on"}
-
-# Pattern for relative time offsets like "in 5 hours" or "in 30 minutes".
-_RELATIVE_TIME_PATTERN = re.compile(
-    r"\bin\s+(\d+)\s*(hours?|hrs?|h|minutes?|mins?)\b"
-)
-
 # Time-of-day words → specific times for NLP expansion.
 _TIME_OF_DAY_MAP = {
     "morning": "9am",
@@ -133,17 +116,18 @@ def _dateparser_now() -> datetime.datetime:
     return datetime.datetime.now(datetime.timezone.utc)
 
 
-def parse_when(when: str) -> datetime.datetime:
+def parse_when(when: str, tz: ZoneInfo = EASTERN) -> datetime.datetime:
     """Parse a `when` string into a timezone-aware UTC datetime.
 
-    Uses dateparser for NLP date parsing (e.g. "next tuesday at 3pm",
-    "friday at noon", "in 2 hours"), falling back to manual patterns
-    (e.g. "2026-05-01 14:00", "5/1 3pm", "May 1 3pm", "today 9am").
+    Uses dateparser for NLP date parsing (e.g. "tuesday at 3pm",
+    "friday at noon", "in 2 hours", "May 1 3pm").
 
-    All times are interpreted as US Eastern, returned as UTC.
+    All times are interpreted in *tz* (defaults to US Eastern),
+    returned as UTC.
 
     Args:
         when: A natural-language or structured date/time string.
+        tz: The timezone to interpret the input in (default: US Eastern).
 
     Returns:
         A timezone-aware UTC datetime.
@@ -157,237 +141,27 @@ def parse_when(when: str) -> datetime.datetime:
             "Expected date and time, e.g. 'May 1 3pm' or '2026-05-01 14:00'."
         )
 
-    # ── Strip filler words and expand time-of-day words ─────────────────────
+    # ── Expand time-of-day words (morning→9am, etc.) ─────────────────────
     tokens = when_stripped.lower().split()
-    filtered = [t for t in tokens if t not in _DATEWORDS_TO_STRIP]
-    expanded = [_TIME_OF_DAY_MAP.get(t, t) for t in filtered]
+    expanded = [_TIME_OF_DAY_MAP.get(t, t) for t in tokens]
     processed = " ".join(expanded)
 
-    # ── Short-circuit: "today" / "tomorrow" go to manual parser ────────────
-    # dateparser can misinterpret the hour when RELATIVE_BASE is tz-aware
-    # UTC and the time expression has no explicit zone (e.g. "today 9:00").
-    # The manual parser always treats times as US Eastern, so route these
-    # unambiguous patterns there directly (after time-of-day expansion).
-    first_word = processed.split()[0] if processed.split() else ""
-    if first_word in ("today", "tomorrow"):
-        return _parse_when_manual(processed)
-
-    # ── Try NLP dateparser ──────────────────────────────────────────────────
+    # ── NLP dateparser ────────────────────────────────────────────────────
     dateparser_settings = {
         "PREFER_DATES_FROM": "future",
-        "TIMEZONE": "US/Eastern",
+        "TIMEZONE": str(tz),
         "PREFER_DAY_OF_MONTH": "first",
-        "RELATIVE_BASE": _dateparser_now(),
+        "RELATIVE_BASE": _dateparser_now().astimezone(tz),
         "RETURN_AS_TIMEZONE_AWARE": True,
     }
     parsed = dateparser.parse(processed, settings=dateparser_settings)
     if parsed is not None:
         return parsed.astimezone(datetime.timezone.utc)
 
-    # ── Try stripping "in X hours/minutes" and reparsing ──────────────────
-    # Relative-offset extraction also exists at the top of _parse_when_manual
-    # (needed for the "today"/"tomorrow" short-circuit path above).  Both
-    # sites feed into the same manual parser, just from different entry points.
-    remainder, offset = _extract_relative_offset(processed)
-    if offset is not None:
-        if not remainder:
-            # Standalone relative: "in 2 hours" → now + offset
-            return _dateparser_now() + offset
-
-        # Try dateparser on the remainder, then manual parser
-        parsed = dateparser.parse(remainder, settings=dateparser_settings)
-        if parsed is not None:
-            return (parsed + offset).astimezone(datetime.timezone.utc)
-
-        try:
-            return _parse_when_manual(remainder) + offset
-        except ValueError:
-            pass
-
-    # ── Fall back to manual patterns ────────────────────────────────────────
-    return _parse_when_manual(when_stripped)
-
-
-def _extract_relative_offset(when_str: str) -> tuple[str, datetime.timedelta | None]:
-    """Extract 'in X hours/minutes' from *when_str*.
-
-    Returns (remainder_without_offset, timedelta) or (original, None)
-    if no relative time pattern is found.
-    """
-    m = _RELATIVE_TIME_PATTERN.search(when_str)
-    if not m:
-        return when_str, None
-
-    amount = int(m.group(1))
-    unit = m.group(2)
-
-    if unit[0] == "h":
-        delta = datetime.timedelta(hours=amount)
-    else:
-        delta = datetime.timedelta(minutes=amount)
-
-    remainder = (when_str[: m.start()] + when_str[m.end() :]).strip()
-    remainder = " ".join(remainder.split())  # collapse whitespace
-
-    return remainder, delta
-
-
-def _parse_when_manual(when_stripped: str) -> datetime.datetime:
-    """Fallback manual parser for structured date/time patterns.
-
-    Supports:
-      - "YYYY-MM-DD HH:MM"        (24-hour time)
-      - "MM/DD HH:MM[am|pm]"      (US date, 12-hour optional suffix)
-      - "Month DD HH:MM[am|pm]"   (e.g. "May 1 3pm" or "May 1 15:00")
-      - "today HH:MM[am|pm]"
-      - "tomorrow HH:MM[am|pm]"
-      - "<date> in X hours/minutes" (relative time offset)
-      - "in X hours/minutes" (standalone relative from now)
-    """
-    now_eastern = _dateparser_now().astimezone(EASTERN)
-
-    # ── Extract relative time offset ("in X hours/minutes") ──────────────
-    remainder, offset = _extract_relative_offset(when_stripped.lower())
-    if offset is not None:
-        if not remainder:
-            # Standalone relative: "in 2 hours" → now + offset
-            dt_eastern = now_eastern + offset
-            return dt_eastern.astimezone(datetime.timezone.utc)
-        # Combined: "today in 5 hours" → parse "today", add offset
-        return _parse_when_manual(remainder) + offset
-
-    # Try ISO-like: YYYY-MM-DD HH:MM
-    iso_match = re.match(
-        r"^(\d{4})-(\d{2})-(\d{2})\s+(\d{1,2}):(\d{2})",
-        when_stripped,
-    )
-    if iso_match:
-        year, month, day, hour, minute = [int(g) for g in iso_match.groups()]
-        dt_eastern = datetime.datetime(year, month, day, hour, minute,
-                                       tzinfo=EASTERN)
-        return dt_eastern.astimezone(datetime.timezone.utc)
-
-    parts = when_stripped.split()
-    if len(parts) < 2:
-        # Bare date keywords — reached by recursive calls after stripping a
-        # relative offset (e.g. "today in 5 hours" → _parse_when_manual("today")).
-        joined = when_stripped.strip().lower()
-        if joined == "today":
-            dt_eastern = now_eastern.replace(hour=0, minute=0, second=0, microsecond=0)
-            return dt_eastern.astimezone(datetime.timezone.utc)
-        if joined == "tomorrow":
-            tomorrow = now_eastern + datetime.timedelta(days=1)
-            dt_eastern = tomorrow.replace(hour=0, minute=0, second=0, microsecond=0)
-            return dt_eastern.astimezone(datetime.timezone.utc)
-        raise ValueError(
-            "Expected date and time, e.g. 'May 1 3pm' or '2026-05-01 14:00'."
-        )
-
-    # Time is in the last 1-2 tokens (e.g. "3pm" or "3:00 pm")
-    parsed_time = _parse_time_eastern(tuple(parts[-2:]))
-    if parsed_time is not None:
-        day_date_parts = parts[:-2]
-    else:
-        parsed_time = _parse_time_eastern((parts[-1],))
-        if parsed_time is not None:
-            day_date_parts = parts[:-1]
-        else:
-            raise ValueError(
-                f"Cannot parse time from '{' '.join(parts[-2:])}'. "
-                "Use HH:MM (24h) or H:MMam/pm (12h)."
-            )
-
-    # Parse the date part (skip filler words like "at", "on")
-    day_date_parts = [p for p in day_date_parts if p.lower() not in ("at", "on")]
-    year, month, day = _parse_date_part(day_date_parts, now_eastern)
-
-    hour, minute = parsed_time
-    dt_eastern = datetime.datetime(year, month, day, hour, minute,
-                                   tzinfo=EASTERN)
-    return dt_eastern.astimezone(datetime.timezone.utc)
-
-
-def _parse_time_eastern(parts: tuple[str, ...]) -> tuple[int, int] | None:
-    """Parse time tokens like ("3pm",) or ("3:00", "pm") into (hour, minute).
-
-    Returns None if the tokens don't look like a time.
-    """
-    joined = " ".join(parts).strip().lower()
-
-    # Try HH:MM (24-hour)
-    m = re.match(r"^(\d{1,2}):(\d{2})$", joined)
-    if m:
-        hour = int(m.group(1))
-        minute = int(m.group(2))
-        if 0 <= hour <= 23 and 0 <= minute <= 59:
-            return (hour, minute)
-        return None
-
-    # Try H:MMam or H:MMpm or Ham or Hpm
-    m = re.match(r"^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$", joined)
-    if m:
-        hour = int(m.group(1))
-        minute = int(m.group(2)) if m.group(2) else 0
-        ampm = m.group(3)
-        if hour < 1 or hour > 12 or minute > 59:
-            return None
-        if ampm == "pm" and hour != 12:
-            hour += 12
-        elif ampm == "am" and hour == 12:
-            hour = 0
-        return (hour, minute)
-
-    return None
-
-
-def _parse_date_part(parts: list[str],
-                     now_eastern: datetime.datetime) -> tuple[int, int, int]:
-    """Parse date tokens into (year, month, day).
-
-    Supports:
-      - "today" / "tomorrow"
-      - "MM/DD" (US format)
-      - "Month DD" (e.g. "May 1")
-    """
-    if not parts:
-        raise ValueError("Missing date. Use 'today', 'tomorrow', 'MM/DD', "
-                         "or 'Month DD'.")
-
-    joined = " ".join(parts).strip().lower()
-
-    if joined == "today":
-        return (now_eastern.year, now_eastern.month, now_eastern.day)
-
-    if joined == "tomorrow":
-        tomorrow = now_eastern + datetime.timedelta(days=1)
-        return (tomorrow.year, tomorrow.month, tomorrow.day)
-
-    # Try MM/DD
-    m = re.match(r"^(\d{1,2})/(\d{1,2})$", joined)
-    if m:
-        month, day = int(m.group(1)), int(m.group(2))
-        if 1 <= month <= 12 and 1 <= day <= 31:
-            return (now_eastern.year, month, day)
-        raise ValueError(f"Invalid date: {joined}")
-
-    # Try Month DD
-    if len(parts) == 2:
-        month_name = parts[0].lower()
-        month = _MONTH_NAMES.get(month_name)
-        if month is None:
-            raise ValueError(f"Unknown month '{parts[0]}'. "
-                             "Use full or abbreviated month name.")
-        try:
-            day = int(parts[1])
-        except ValueError:
-            raise ValueError(f"Invalid day '{parts[1]}'.")
-        if day < 1 or day > 31:
-            raise ValueError(f"Invalid day {day}.")
-        return (now_eastern.year, month, day)
-
     raise ValueError(
-        f"Cannot parse date '{joined}'. "
-        "Use 'today', 'tomorrow', 'MM/DD', or 'Month DD'."
+        f"Cannot parse '{when_stripped}'. "
+        "Try 'May 1 3pm', 'tuesday 9am', '2026-05-01 14:00', "
+        "or 'in 2 hours'."
     )
 
 
