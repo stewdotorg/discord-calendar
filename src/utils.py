@@ -77,21 +77,25 @@ def resolve_mentions(
 
 
 EASTERN = ZoneInfo("America/New_York")
+DEFAULT_TIMEZONE = EASTERN  # Canonical default for per-user timezone lookups
 
-def format_datetime_eastern(dt: datetime.datetime) -> str:
-    """Format a timezone-aware datetime in US Eastern 12-hour style.
+def format_datetime_eastern(
+    dt: datetime.datetime, tz: ZoneInfo = EASTERN
+) -> str:
+    """Format a timezone-aware datetime in the given timezone 12-hour style.
 
     Args:
         dt: A timezone-aware datetime (any timezone).
+        tz: The timezone to display in (default US Eastern).
 
     Returns:
         A string like 'May 1, 2026 at 2:00 PM'.
     """
-    dt_eastern = dt.astimezone(EASTERN)
-    month = dt_eastern.strftime("%B")
-    day = dt_eastern.strftime("%d").lstrip("0")
-    year = dt_eastern.strftime("%Y")
-    time_str = dt_eastern.strftime("%I:%M %p").lstrip("0")
+    dt_local = dt.astimezone(tz)
+    month = dt_local.strftime("%B")
+    day = dt_local.strftime("%d").lstrip("0")
+    year = dt_local.strftime("%Y")
+    time_str = dt_local.strftime("%I:%M %p").lstrip("0")
     return f"{month} {day}, {year} at {time_str}"
 
 
@@ -307,53 +311,61 @@ def parse_minutes(minutes_str: str) -> list[int]:
     return result
 
 
-def parse_date_eastern(date_str: str) -> datetime.datetime:
-    """Parse a YYYY-MM-DD date string in US Eastern as a UTC datetime.
+def parse_date_eastern(date_str: str, tz: ZoneInfo = EASTERN) -> datetime.datetime:
+    """Parse a YYYY-MM-DD date string in the given timezone as a UTC datetime.
 
-    Interprets the date at midnight US Eastern time and converts to UTC.
+    Interprets the date at midnight in the given timezone and converts to UTC.
     Used by /cal list for from/to date range parameters.
 
     Args:
         date_str: A date string in YYYY-MM-DD format (e.g. '2026-05-15').
+        tz: The timezone to interpret the date in (default US Eastern).
 
     Returns:
-        A timezone-aware UTC datetime at midnight Eastern for that date.
+        A timezone-aware UTC datetime at midnight in the given timezone for
+        that date.
 
     Raises:
         ValueError: If the string is not in YYYY-MM-DD format or the
             date is invalid.
     """
     try:
-        dt_eastern = datetime.datetime.strptime(date_str.strip(), "%Y-%m-%d")
+        dt_parsed = datetime.datetime.strptime(date_str.strip(), "%Y-%m-%d")
     except ValueError:
         raise ValueError(
             f"Invalid date '{date_str}'. Expected YYYY-MM-DD format."
         ) from None
-    dt_eastern = dt_eastern.replace(tzinfo=EASTERN)
-    return dt_eastern.astimezone(datetime.timezone.utc)
+    dt_parsed = dt_parsed.replace(tzinfo=tz)
+    return dt_parsed.astimezone(datetime.timezone.utc)
 
 
-def get_today_eastern_range() -> tuple[datetime.datetime, datetime.datetime]:
-    """Return (start_of_today_utc, end_of_today_utc) covering today in US Eastern.
+def get_today_eastern_range(
+    tz: ZoneInfo = EASTERN,
+) -> tuple[datetime.datetime, datetime.datetime]:
+    """Return (start_of_today_utc, end_of_today_utc) covering today in the given
+    timezone.
 
     Returns timezone-aware UTC datetimes.
     """
-    now_eastern = _dateparser_now().astimezone(EASTERN)
-    start_eastern = now_eastern.replace(hour=0, minute=0, second=0, microsecond=0)
-    end_eastern = start_eastern + datetime.timedelta(days=1)
+    now_local = _dateparser_now().astimezone(tz)
+    start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+    end_local = start_local + datetime.timedelta(days=1)
 
-    start_utc = start_eastern.astimezone(datetime.timezone.utc)
-    end_utc = end_eastern.astimezone(datetime.timezone.utc)
+    start_utc = start_local.astimezone(datetime.timezone.utc)
+    end_utc = end_local.astimezone(datetime.timezone.utc)
 
     return start_utc, end_utc
 
 
-def _format_time_range_eastern(start_str: str, end_str: str) -> str:
-    """Format a time range in US Eastern 12-hour time.
+def _format_time_range_eastern(
+    start_str: str, end_str: str, tz: ZoneInfo = EASTERN
+) -> str:
+    """Format a time range in the given timezone 12-hour time.
 
     Args:
         start_str: ISO 8601 start datetime string.
         end_str: ISO 8601 end datetime string.
+        tz: The timezone to display in (default US Eastern).
 
     Returns:
         A string like '3:00–4:30 PM ET' or '?' when times are missing.
@@ -364,16 +376,16 @@ def _format_time_range_eastern(start_str: str, end_str: str) -> str:
     dt_start = datetime.datetime.fromisoformat(start_str)
     dt_end = datetime.datetime.fromisoformat(end_str)
 
-    start_eastern = dt_start.astimezone(EASTERN)
-    end_eastern = dt_end.astimezone(EASTERN)
+    start_local = dt_start.astimezone(tz)
+    end_local = dt_end.astimezone(tz)
 
     fmt = "%I:%M"
-    start_fmt = start_eastern.strftime(fmt).lstrip("0")
-    end_fmt = end_eastern.strftime(fmt).lstrip("0")
+    start_fmt = start_local.strftime(fmt).lstrip("0")
+    end_fmt = end_local.strftime(fmt).lstrip("0")
 
     # Show AM/PM once if both are the same, otherwise on each
-    start_ampm = start_eastern.strftime("%p")
-    end_ampm = end_eastern.strftime("%p")
+    start_ampm = start_local.strftime("%p")
+    end_ampm = end_local.strftime("%p")
 
     if start_ampm == end_ampm:
         return f"{start_fmt}–{end_fmt} {start_ampm} ET"
@@ -382,7 +394,9 @@ def _format_time_range_eastern(start_str: str, end_str: str) -> str:
 
 
 def format_events_embed(
-    events: list[dict], date_title: str = "Today"
+    events: list[dict],
+    date_title: str = "Today",
+    tz: ZoneInfo = EASTERN,
 ) -> discord.Embed:
     """Build a Discord embed that lists calendar events.
 
@@ -390,6 +404,7 @@ def format_events_embed(
         events: List of Google Calendar event dicts.
         date_title: Human-readable date for the embed title
                     (e.g. 'April 28, 2026'). Defaults to 'Today'.
+        tz: The timezone to display event times in (default US Eastern).
 
     Returns:
         A discord.Embed with events formatted as fields.
@@ -409,7 +424,7 @@ def format_events_embed(
         end_str = event.get("end", {}).get("dateTime", "")
         html_link = event.get("htmlLink", "")
 
-        time_range = _format_time_range_eastern(start_str, end_str)
+        time_range = _format_time_range_eastern(start_str, end_str, tz=tz)
 
         value_lines = [f"**When:** {time_range}"]
         if html_link:

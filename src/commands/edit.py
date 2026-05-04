@@ -2,6 +2,7 @@
 
 import datetime
 import logging
+from zoneinfo import ZoneInfo
 
 import discord
 from discord import app_commands
@@ -9,7 +10,13 @@ from googleapiclient.errors import HttpError
 
 from src.commands.autocomplete import event_autocomplete
 from src.commands.list_events import cal
-from src.utils import EASTERN, format_datetime_eastern, format_edit_error, parse_when
+from src.utils import (
+    DEFAULT_TIMEZONE,
+    EASTERN,
+    format_datetime_eastern,
+    format_edit_error,
+    parse_when,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +53,15 @@ async def edit(
     # Defer — API calls may exceed Discord's 3-second interaction timeout.
     await interaction.response.defer()
 
+    # ── Resolve per-user timezone ────────────────────────────────────────
+    user_id = str(interaction.user.id)
+    settings = interaction.client.settings  # type: ignore[attr-defined]
+    tz_str = settings.get(user_id, "timezone")
+    try:
+        user_tz = ZoneInfo(tz_str) if tz_str else DEFAULT_TIMEZONE
+    except Exception:
+        user_tz = DEFAULT_TIMEZONE
+
     # Fetch the current event first
     try:
         current = calendar.get_event(event_id)
@@ -61,7 +77,7 @@ async def edit(
 
     if not has_changes:
         # Show current event details with "No changes specified"
-        await _respond_no_changes(interaction, current)
+        await _respond_no_changes(interaction, current, user_tz)
         return
 
     # Parse when and build patch body
@@ -76,7 +92,7 @@ async def edit(
     if when is not None or duration is not None:
         try:
             new_start, new_end = _compute_start_end(
-                current, when, duration
+                current, when, duration, user_tz
             )
         except ValueError as exc:
             await interaction.edit_original_response(
@@ -101,7 +117,7 @@ async def edit(
         return
 
     # Build confirmation message
-    response = _format_confirmation(current, patch_body, result["htmlLink"])
+    response = _format_confirmation(current, patch_body, result["htmlLink"], user_tz)
     await interaction.edit_original_response(content=response)
 
 
@@ -109,6 +125,7 @@ def _compute_start_end(
     current: dict,
     when: str | None,
     duration: int | None,
+    tz: ZoneInfo = EASTERN,
 ) -> tuple[datetime.datetime, datetime.datetime]:
     """Compute new start and end datetimes from the current event and user input.
 
@@ -116,6 +133,7 @@ def _compute_start_end(
         current: The current event dict (must have start.dateTime and end.dateTime).
         when: Optional new start time string (parsed via parse_when).
         duration: Optional new duration in minutes.
+        tz: The timezone to interpret when in (default US Eastern).
 
     Returns:
         A tuple of (new_start, new_end) as timezone-aware UTC datetimes.
@@ -129,7 +147,7 @@ def _compute_start_end(
     current_end = datetime.datetime.fromisoformat(current_end_str)
 
     if when is not None:
-        new_start = parse_when(when, tz=EASTERN)
+        new_start = parse_when(when, tz=tz)
     else:
         new_start = current_start
 
@@ -147,6 +165,7 @@ def _compute_start_end(
 async def _respond_no_changes(
     interaction: discord.Interaction,
     current: dict,
+    tz: ZoneInfo = EASTERN,
 ) -> None:
     """Respond with current event details and a 'No changes specified' message."""
     summary = current.get("summary", "Untitled Event")
@@ -163,7 +182,7 @@ async def _respond_no_changes(
             duration_min = int(
                 (end_dt - start_dt).total_seconds() / 60
             )
-            start_fmt = format_datetime_eastern(start_dt)
+            start_fmt = format_datetime_eastern(start_dt, tz=tz)
             time_line = f"📅 {start_fmt} ET  ({duration_min} min)"
         except (ValueError, OverflowError):
             pass
@@ -186,6 +205,7 @@ def _format_confirmation(
     current: dict,
     patch_body: dict,
     html_link: str,
+    tz: ZoneInfo = EASTERN,
 ) -> str:
     """Build the confirmation message showing updated event details.
 
@@ -218,7 +238,7 @@ def _format_confirmation(
         end_dt = datetime.datetime.fromisoformat(end_str)
 
     duration_min = int((end_dt - start_dt).total_seconds() / 60)
-    start_fmt = format_datetime_eastern(start_dt)
+    start_fmt = format_datetime_eastern(start_dt, tz=tz)
 
     response = "✅ **Event updated!**\n"
     if new_title != old_title:

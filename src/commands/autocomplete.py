@@ -10,11 +10,12 @@ Calendar API on every keystroke.
 import datetime
 import logging
 import time
+from zoneinfo import ZoneInfo
 
 import discord
 from discord import app_commands
 
-from src.utils import EASTERN
+from src.utils import DEFAULT_TIMEZONE, EASTERN
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ def _truncate_for_autocomplete(title: str) -> str:
     return title[: TRUNCATE_AT - 1] + "…"
 
 
-def _format_autocomplete_label(event: dict) -> str:
+def _format_autocomplete_label(event: dict, tz: ZoneInfo = EASTERN) -> str:
     """Format an event as a choice label: 'May 2, 4pm — BBQ'.
 
     Includes minutes only when not :00, e.g. 'May 2, 4:30pm — Standup'.
@@ -47,11 +48,11 @@ def _format_autocomplete_label(event: dict) -> str:
     if start_str:
         try:
             dt = datetime.datetime.fromisoformat(start_str)
-            dt_eastern = dt.astimezone(EASTERN)
-            month = dt_eastern.strftime("%b")
-            day = dt_eastern.strftime("%d").lstrip("0")
-            minute = dt_eastern.minute
-            hour = dt_eastern.hour
+            dt_local = dt.astimezone(tz)
+            month = dt_local.strftime("%b")
+            day = dt_local.strftime("%d").lstrip("0")
+            minute = dt_local.minute
+            hour = dt_local.hour
             ampm = "am" if hour < 12 else "pm"
             display_hour = hour % 12
             if display_hour == 0:
@@ -80,8 +81,9 @@ async def event_autocomplete(
     and filters by the user's typed substring.
 
     Uses a 30-second TTL cache to avoid API calls on every keystroke.
-    ``time_min`` is set to the start of today in US Eastern, so ongoing
+    ``time_min`` is set to the start of today in UTC, so ongoing
     events still appear in the autocomplete dropdown.
+    Event labels are formatted in the user's timezone.
     """
     calendar_service = interaction.client.calendar  # type: ignore[attr-defined]
 
@@ -90,16 +92,25 @@ async def event_autocomplete(
 
     calendar_id = getattr(calendar_service, "_calendar_id", "default")
 
+    # ── Resolve per-user timezone for label formatting ────────────────────
+    user_id = str(interaction.user.id)
+    settings = interaction.client.settings  # type: ignore[attr-defined]
+    tz_str = settings.get(user_id, "timezone")
+    try:
+        user_tz = ZoneInfo(tz_str) if tz_str else DEFAULT_TIMEZONE
+    except Exception:
+        user_tz = DEFAULT_TIMEZONE
+
     now_ts = time.time()
     cached = _event_cache.get(calendar_id)
     if cached is not None:
         cached_ts, cached_events = cached
         if now_ts - cached_ts < _CACHE_TTL:
-            return _filter_and_format_choices(cached_events, current)
+            return _filter_and_format_choices(cached_events, current, user_tz)
 
-    # Start-of-day Eastern — ensures ongoing events still appear
-    eastern_now = datetime.datetime.now(EASTERN)
-    time_min = eastern_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    # Start-of-day UTC — ensures ongoing events still appear for all timezones
+    utc_now = datetime.datetime.now(datetime.timezone.utc)
+    time_min = utc_now.replace(hour=0, minute=0, second=0, microsecond=0)
     time_max = time_min + datetime.timedelta(days=14)
 
     try:
@@ -114,12 +125,13 @@ async def event_autocomplete(
 
     _event_cache[calendar_id] = (now_ts, events)
 
-    return _filter_and_format_choices(events, current)
+    return _filter_and_format_choices(events, current, user_tz)
 
 
 def _filter_and_format_choices(
     events: list[dict],
     current: str,
+    tz: ZoneInfo = EASTERN,
 ) -> list[app_commands.Choice[str]]:
     """Filter events by query substring and format as Discord choices.
 
@@ -132,7 +144,7 @@ def _filter_and_format_choices(
         summary = event.get("summary", "Untitled Event")
         if query and query not in summary.lower():
             continue
-        label = _format_autocomplete_label(event)
+        label = _format_autocomplete_label(event, tz=tz)
         choices.append(app_commands.Choice(name=label, value=event["id"]))
 
     return choices[:25]

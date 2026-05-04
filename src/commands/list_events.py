@@ -2,11 +2,13 @@
 
 import datetime
 import logging
+from zoneinfo import ZoneInfo
 
 import discord
 from discord import app_commands
 
 from src.utils import (
+    DEFAULT_TIMEZONE,
     EASTERN,
     format_events_embed,
     get_today_eastern_range,
@@ -23,12 +25,24 @@ _NOT_CONFIGURED_MSG = (
 )
 
 
+def _get_user_tz(interaction: discord.Interaction) -> ZoneInfo:
+    """Resolve a user's timezone from settings, falling back to DEFAULT_TIMEZONE."""
+    user_id = str(interaction.user.id)
+    settings = interaction.client.settings  # type: ignore[attr-defined]
+    tz_str = settings.get(user_id, "timezone")
+    try:
+        return ZoneInfo(tz_str) if tz_str else DEFAULT_TIMEZONE
+    except Exception:
+        return DEFAULT_TIMEZONE
+
+
 def _fetch_events_embed(
     interaction: discord.Interaction,
     time_min: datetime.datetime,
     time_max: datetime.datetime,
     date_title: str,
     q: str | None = None,
+    tz: ZoneInfo = EASTERN,
 ) -> discord.Embed:
     """Fetch events and build a formatted embed.
 
@@ -38,6 +52,7 @@ def _fetch_events_embed(
         time_max: End of the time range (timezone-aware UTC datetime).
         date_title: Human-readable date title for the embed.
         q: Optional search keyword.
+        tz: The timezone to display event times in (default US Eastern).
 
     Returns:
         A discord.Embed with the formatted event list.
@@ -59,7 +74,7 @@ def _fetch_events_embed(
         logger.error("Failed to list events: %s", exc)
         raise _FetchFailed() from exc
 
-    embed = format_events_embed(events, date_title=date_title)
+    embed = format_events_embed(events, date_title=date_title, tz=tz)
     return embed
 
 
@@ -75,10 +90,13 @@ class _FetchFailed(Exception):
 async def today(interaction: discord.Interaction) -> None:
     """List all events scheduled for today in the shared calendar."""
     try:
-        time_min, time_max = get_today_eastern_range()
-        now_eastern = time_min.astimezone(EASTERN)
-        date_title = now_eastern.strftime("%B %d, %Y")
-        embed = _fetch_events_embed(interaction, time_min, time_max, date_title)
+        user_tz = _get_user_tz(interaction)
+        time_min, time_max = get_today_eastern_range(tz=user_tz)
+        now_local = time_min.astimezone(user_tz)
+        date_title = now_local.strftime("%B %d, %Y")
+        embed = _fetch_events_embed(
+            interaction, time_min, time_max, date_title, tz=user_tz
+        )
         await interaction.response.send_message(embed=embed)
     except _CalendarNotConfigured:
         await interaction.response.send_message(
@@ -95,16 +113,19 @@ async def today(interaction: discord.Interaction) -> None:
 async def week(interaction: discord.Interaction) -> None:
     """List all events from today through the next 7 days."""
     try:
-        time_min, _today_end = get_today_eastern_range()
+        user_tz = _get_user_tz(interaction)
+        time_min, _today_end = get_today_eastern_range(tz=user_tz)
         time_max = time_min + datetime.timedelta(days=7)
 
-        now_eastern = time_min.astimezone(EASTERN)
-        end_eastern = time_max.astimezone(EASTERN)
+        start_local = time_min.astimezone(user_tz)
+        end_local = time_max.astimezone(user_tz)
         date_title = (
-            f"{now_eastern.strftime('%B %d')}–{end_eastern.strftime('%B %d, %Y')}"
+            f"{start_local.strftime('%B %d')}–{end_local.strftime('%B %d, %Y')}"
         )
 
-        embed = _fetch_events_embed(interaction, time_min, time_max, date_title)
+        embed = _fetch_events_embed(
+            interaction, time_min, time_max, date_title, tz=user_tz
+        )
         await interaction.response.send_message(embed=embed)
     except _CalendarNotConfigured:
         await interaction.response.send_message(
@@ -132,11 +153,12 @@ async def list_events(
 ) -> None:
     """List events in a custom date range.
 
-    Dates are interpreted as US Eastern midnight.
+    Dates are interpreted in the user's timezone at midnight.
     """
     try:
-        time_min = parse_date_eastern(from_)
-        time_max = parse_date_eastern(to)
+        user_tz = _get_user_tz(interaction)
+        time_min = parse_date_eastern(from_, tz=user_tz)
+        time_max = parse_date_eastern(to, tz=user_tz)
     except ValueError as exc:
         await interaction.response.send_message(
             f"❌ Invalid date: {exc}", ephemeral=True
@@ -144,14 +166,14 @@ async def list_events(
         return
 
     try:
-        dt_min_eastern = time_min.astimezone(EASTERN)
-        dt_max_eastern = time_max.astimezone(EASTERN)
+        dt_min_local = time_min.astimezone(user_tz)
+        dt_max_local = time_max.astimezone(user_tz)
         date_title = (
-            f"{dt_min_eastern.strftime('%B %d')}–"
-            f"{dt_max_eastern.strftime('%B %d, %Y')}"
+            f"{dt_min_local.strftime('%B %d')}–"
+            f"{dt_max_local.strftime('%B %d, %Y')}"
         )
         embed = _fetch_events_embed(
-            interaction, time_min, time_max, date_title, q=search
+            interaction, time_min, time_max, date_title, q=search, tz=user_tz
         )
         await interaction.response.send_message(embed=embed)
     except _CalendarNotConfigured:

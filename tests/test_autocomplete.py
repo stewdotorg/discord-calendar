@@ -165,8 +165,8 @@ async def test_labels_include_minutes_when_not_zero():
 
 
 @pytest.mark.asyncio
-async def test_uses_eastern_start_of_day_for_time_min():
-    """time_min is computed as start of today in US Eastern, not UTC now."""
+async def test_uses_utc_start_of_day_for_time_min():
+    """time_min is computed as start of today in UTC, not current time."""
     _event_cache.clear()
 
     interaction = MagicMock()
@@ -181,16 +181,38 @@ async def test_uses_eastern_start_of_day_for_time_min():
 
     # time_min should be timezone-aware UTC
     assert time_min.tzinfo is not None
-    # time_min should be at the start of a day (midnight border of some timezone)
-    # In US Eastern, start of today Eastern is always an integer UTC hour offset
+    # time_min should be at the start of today in UTC (midnight UTC)
+    assert time_min.hour == 0
     assert time_min.minute == 0
     assert time_min.second == 0
     assert time_min.microsecond == 0
-    # The hour should be either 4 or 5 (UTC offset for Eastern: EDT=4, EST=5)
-    assert time_min.hour in (4, 5)
     # time_max should be exactly 14 days later
     time_max = call_kwargs["time_max"]
     assert time_max == time_min + datetime.timedelta(days=14)
+
+
+@pytest.mark.asyncio
+async def test_labels_reflect_user_timezone():
+    """Choice labels are formatted in the user's configured timezone."""
+    _event_cache.clear()
+
+    interaction = MagicMock()
+    interaction.client.calendar = MagicMock()
+    interaction.client.settings = MagicMock()
+    # User has Pacific timezone stored
+    interaction.client.settings.get.return_value = "America/Los_Angeles"
+    interaction.client.calendar.list_events.return_value = [
+        {
+            "id": "evt1",
+            "summary": "BBQ",
+            "start": {"dateTime": "2026-05-02T20:00:00+00:00"},
+        },
+    ]
+
+    choices = await event_autocomplete(interaction, "BBQ")
+    assert len(choices) == 1
+    # May 2 20:00 UTC = May 2 1:00 PM PDT (UTC-7 in May)
+    assert choices[0].name == "May 2, 1pm — BBQ"
 
 
 @pytest.mark.asyncio

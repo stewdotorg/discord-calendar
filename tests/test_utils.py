@@ -8,7 +8,9 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from src.utils import (
+    DEFAULT_TIMEZONE,
     _format_time_range_eastern,
+    format_datetime_eastern,
     format_events_embed,
     get_today_eastern_range,
     parse_date_eastern,
@@ -599,3 +601,146 @@ class TestResolveMentions:
 
         assert resolved == []
         assert warnings == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Timezone-aware function refactor — Issue #32
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class TestFormatDatetimeEasternTz:
+    """Tests for format_datetime_eastern with custom timezone."""
+
+    def test_defaults_to_eastern(self):
+        """format_datetime_eastern uses Eastern when no tz is provided."""
+        dt = datetime.datetime(2026, 5, 1, 18, 0, tzinfo=datetime.timezone.utc)
+        result = format_datetime_eastern(dt)
+        # 18:00 UTC = 14:00 EDT → "May 1, 2026 at 2:00 PM"
+        assert "May 1, 2026 at 2:00 PM" in result
+
+    def test_custom_timezone_pacific(self):
+        """format_datetime_eastern formats in the given timezone."""
+        pacific = ZoneInfo("America/Los_Angeles")
+        dt = datetime.datetime(2026, 5, 1, 20, 0, tzinfo=datetime.timezone.utc)
+        result = format_datetime_eastern(dt, tz=pacific)
+        # 20:00 UTC = 13:00 PDT → "May 1, 2026 at 1:00 PM"
+        assert "May 1, 2026 at 1:00 PM" in result
+
+    def test_custom_timezone_chicago(self):
+        """format_datetime_eastern works with Central timezone."""
+        chicago = ZoneInfo("America/Chicago")
+        dt = datetime.datetime(2026, 1, 15, 19, 0, tzinfo=datetime.timezone.utc)
+        result = format_datetime_eastern(dt, tz=chicago)
+        # 19:00 UTC = 13:00 CST in January → "January 15, 2026 at 1:00 PM"
+        assert "January 15, 2026 at 1:00 PM" in result
+
+
+class TestGetTodayEasternRangeTz:
+    """Tests for get_today_eastern_range with custom timezone."""
+
+    def test_defaults_to_eastern(self):
+        """get_today_eastern_range defaults to Eastern when no tz provided."""
+        tmin, tmax = get_today_eastern_range()
+        assert tmin.tzinfo == datetime.timezone.utc
+        assert tmax.tzinfo == datetime.timezone.utc
+        delta = tmax - tmin
+        assert datetime.timedelta(hours=23) <= delta <= datetime.timedelta(hours=25)
+
+    def test_custom_timezone_pacific(self):
+        """get_today_eastern_range uses the given timezone."""
+        pacific = ZoneInfo("America/Los_Angeles")
+        tmin, tmax = get_today_eastern_range(tz=pacific)
+        assert tmin.tzinfo == datetime.timezone.utc
+        assert tmax.tzinfo == datetime.timezone.utc
+        delta = tmax - tmin
+        assert datetime.timedelta(hours=23) <= delta <= datetime.timedelta(hours=25)
+
+
+class TestParseDateEasternTz:
+    """Tests for parse_date_eastern with custom timezone."""
+
+    def test_defaults_to_eastern(self):
+        """parse_date_eastern defaults to Eastern when no tz provided."""
+        result = parse_date_eastern("2026-05-15")
+        assert result.tzinfo == datetime.timezone.utc
+        # May midnight EDT = 4:00 UTC
+        assert result.hour == 4
+
+    def test_custom_timezone_pacific(self):
+        """parse_date_eastern interprets date in the given timezone."""
+        pacific = ZoneInfo("America/Los_Angeles")
+        result = parse_date_eastern("2026-05-15", tz=pacific)
+        assert result.tzinfo == datetime.timezone.utc
+        # May midnight PDT = 7:00 UTC
+        assert result.hour == 7
+
+    def test_custom_timezone_chicago(self):
+        """parse_date_eastern works with Central timezone."""
+        chicago = ZoneInfo("America/Chicago")
+        result = parse_date_eastern("2026-01-15", tz=chicago)
+        assert result.tzinfo == datetime.timezone.utc
+        # January midnight CST = 6:00 UTC
+        assert result.hour == 6
+
+
+class TestFormatTimeRangeEasternTz:
+    """Tests for _format_time_range_eastern with custom timezone."""
+
+    def test_defaults_to_eastern(self):
+        """_format_time_range_eastern defaults to Eastern with ET suffix."""
+        result = _format_time_range_eastern(
+            "2026-04-28T09:00:00-04:00",
+            "2026-04-28T09:30:00-04:00",
+        )
+        assert result == "9:00–9:30 AM ET"
+
+    def test_custom_timezone_pacific(self):
+        """_format_time_range_eastern formats in the given timezone."""
+        pacific = ZoneInfo("America/Los_Angeles")
+        # 9:00-9:30 AM EDT = 6:00-6:30 AM PDT
+        result = _format_time_range_eastern(
+            "2026-04-28T09:00:00-04:00",
+            "2026-04-28T09:30:00-04:00",
+            tz=pacific,
+        )
+        assert result == "6:00–6:30 AM ET"
+
+
+class TestFormatEventsEmbedTz:
+    """Tests for format_events_embed with custom timezone."""
+
+    def test_defaults_to_eastern(self):
+        """format_events_embed defaults to Eastern for time range display."""
+        events = [
+            {
+                "summary": "Morning Standup",
+                "start": {"dateTime": "2026-04-28T09:00:00-04:00"},
+                "end": {"dateTime": "2026-04-28T09:30:00-04:00"},
+                "htmlLink": "https://calendar.google.com/event?eid=evt1",
+            },
+        ]
+        embed = format_events_embed(events, "April 28, 2026")
+        assert "9:00–9:30 AM ET" in embed.fields[0].value
+
+    def test_custom_timezone_pacific(self):
+        """format_events_embed formats event times in the given timezone."""
+        pacific = ZoneInfo("America/Los_Angeles")
+        events = [
+            {
+                "summary": "Morning Standup",
+                "start": {"dateTime": "2026-04-28T09:00:00-04:00"},
+                "end": {"dateTime": "2026-04-28T09:30:00-04:00"},
+                "htmlLink": "https://calendar.google.com/event?eid=evt1",
+            },
+        ]
+        embed = format_events_embed(events, "April 28, 2026", tz=pacific)
+        # 9:00 AM EDT = 6:00 AM PDT
+        assert "6:00–6:30 AM ET" in embed.fields[0].value
+
+
+class TestDefaultTimezone:
+    """Tests for DEFAULT_TIMEZONE constant."""
+
+    def test_default_timezone_is_eastern(self):
+        """DEFAULT_TIMEZONE is US Eastern (America/New_York)."""
+        assert str(DEFAULT_TIMEZONE) == "America/New_York"
