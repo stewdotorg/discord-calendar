@@ -13,7 +13,7 @@ from src.utils import (
     format_rsvp_error,
     parse_minutes,
     parse_when,
-    validate_email,
+    resolve_mentions,
 )
 
 logger = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
          '"tomorrow 2pm", "2026-05-01 14:00"',
     duration="Duration in minutes (default: 60)",
     description="Optional event description",
-    invite="Optional comma-separated emails to invite (e.g. alice@example.com, bob@example.com)",
+    invite="Comma-separated list of @mentions and/or email addresses to invite",
 )
 async def create(
     interaction: discord.Interaction,
@@ -51,18 +51,15 @@ async def create(
     # Discord's 3-second interaction timeout.
     await interaction.response.defer()
 
-    # Validate invite emails before creating the event.
+    # ── Resolve @mentions and validate raw emails ──────────────────────────
     invite_emails: list[str] = []
+    invite_warnings: list[str] = []
+
     if invite:
-        for raw_email in invite.split(","):
-            email = raw_email.strip()
-            if not email:
-                continue
-            error = validate_email(email)
-            if error:
-                await interaction.edit_original_response(content=error)
-                return
-            invite_emails.append(email)
+        settings = interaction.client.settings  # type: ignore[attr-defined]
+        invite_emails, invite_warnings = resolve_mentions(
+            invite, lambda discord_id: settings.get(discord_id, "email")
+        )
 
     try:
         start = parse_when(when)
@@ -88,6 +85,15 @@ async def create(
         await interaction.edit_original_response(content=error_msg)
         return
 
+    # ── Add attendees if invite emails were resolved ───────────────────────
+    if invite_emails:
+        try:
+            calendar.add_attendees(result["id"], invite_emails)
+        except HttpError as exc:
+            logger.error("Failed to add attendees: %s", exc)
+            error_msg = format_rsvp_error(exc)
+            invite_warnings.append(error_msg)
+
     # Auto-apply user's default reminders if configured
     default_reminders = interaction.client.settings.get(  # type: ignore[attr-defined]
         creator_discord_id, "default_reminders"
@@ -102,18 +108,6 @@ async def create(
                 creator_discord_id, exc,
             )
 
-    # Add attendees if invite emails were provided.
-    invite_error: str | None = None
-    if invite_emails:
-        try:
-            calendar.add_attendees(result["id"], invite_emails)
-        except HttpError as exc:
-            logger.error(
-                "Failed to invite attendees to event %s: %s",
-                result["id"], exc,
-            )
-            invite_error = format_rsvp_error(exc)
-
     # Display confirmation in US Eastern
     start_fmt = format_datetime_eastern(start)
 
@@ -127,21 +121,7 @@ async def create(
     if description:
         response += f"\n📝 {description}"
 
-    # Append invite confirmation or warning.
-    if invite_error:
-        response += (
-            f"\n\n⚠️ Invites failed — the event exists but "
-            f"attendees could not be added:\n{invite_error}"
-        )
-    elif invite_emails:
-        count = len(invite_emails)
-        if count == 1:
-            word = "attendee"
-        else:
-            word = "attendees"
-        response += (
-            f"\n\n✅ Invited {count} {word}: "
-            f"{', '.join(invite_emails)}"
-        )
+    if invite_warnings:
+        response += "\n" + "\n".join(invite_warnings)
 
     await interaction.edit_original_response(content=response)
