@@ -40,10 +40,22 @@ def _get_calendar_ids() -> tuple[str, str]:
     if not calendar_id:
         pytest.skip("VCR test requires GOOGLE_CALENDAR_ID environment variable.")
 
-    if not refresh_token and not key_path:
+    # OAuth2 is preferred — skip only the file check when it's available
+    if refresh_token:
+        return key_path, calendar_id
+
+    # Service account fallback — validate the key file exists
+    if not key_path:
         pytest.skip(
             "VCR test requires GOOGLE_REFRESH_TOKEN (OAuth2) or "
             "GOOGLE_SERVICE_ACCOUNT_FILE (service account)."
+        )
+
+    if not os.path.isfile(key_path):
+        pytest.skip(
+            f"Service account key file not found: {key_path}. "
+            "Set GOOGLE_REFRESH_TOKEN for OAuth2 or provide a valid "
+            "service account key."
         )
 
     return key_path, calendar_id
@@ -55,9 +67,9 @@ def _build_service(key_path: str, calendar_id: str) -> CalendarService:
     return CalendarService(credentials, calendar_id)
 
 
-def _make_future_start(days_from_now: int, hour: int = 10) -> datetime.datetime:
-    """Return a timezone-aware datetime ``days_from_now`` days ahead at *hour* UTC."""
-    dt = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=days_from_now)
+def _make_future_start(days: int, hour: int = 10) -> datetime.datetime:
+    """Return a timezone-aware datetime *days* days ahead at *hour* UTC."""
+    dt = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=days)
     return dt.replace(hour=hour, minute=0, second=0, microsecond=0)
 
 
