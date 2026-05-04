@@ -41,14 +41,9 @@ _COMMANDS = [
         "example": 'Change an event title: /cal edit event:<pick> title:"New Title"',
     },
     {
-        "name": "/cal invite me",
-        "description": "Add yourself as an attendee",
-        "example": "Add yourself to an event: /cal invite me event:<pick> or with email: /cal invite me event:<pick> email:me@example.com",
-    },
-    {
-        "name": "/cal invite by-email",
-        "description": "Invite others to an event by email",
-        "example": "Invite others: /cal invite by-email event:<pick> emails:alice@example.com, bob@example.com",
+        "name": "/cal invite",
+        "description": "Invite yourself or others to an event",
+        "example": "Invite people: /cal invite event:<pick> people:me, @chaz, alice@example.com",
     },
     {
         "name": "/cal reminders set",
