@@ -78,7 +78,7 @@ interactions:
       x-goog-api-client:
       - gdcl/2.195.0 gl-python/3.12.13 cred-type/u
     method: PATCH
-    uri: https://www.googleapis.com/calendar/v3/calendars/05d4187ed0f51c86a0c422d5a0644f9e4f25e8502b68d2c12277f7a4cf100549%40group.calendar.google.com/events/be7hlisvms02ls50ajtqn0p410?sendUpdates=none&alt=json
+    uri: https://www.googleapis.com/calendar/v3/calendars/05d4187ed0f51c86a0c422d5a0644f9e4f25e8502b68d2c12277f7a4cf100549%40group.calendar.google.com/events/be7hlisvms02ls50ajtqn0p410?sendUpdates=all&alt=json
   response:
     body:
       string: "{\n \"kind\": \"calendar#event\",\n \"etag\": \"\\\"3555564834167198\\\"\",\n
