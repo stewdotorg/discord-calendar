@@ -213,8 +213,8 @@ class TestFormatEventsEmbed:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # Fixed reference point for relative date parsing tests.
-# May 1, 2026 12:00 PM US Eastern (EDT, UTC-4).
-_BASE = datetime.datetime(2026, 5, 1, 12, 0)
+# May 1, 2026 12:00 UTC (8:00 AM EDT, UTC-4).
+_BASE = datetime.datetime(2026, 5, 1, 12, 0, tzinfo=datetime.timezone.utc)
 
 
 class TestParseWhenDateparser:

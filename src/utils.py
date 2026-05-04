@@ -107,11 +107,10 @@ _TIME_OF_DAY_MAP = {
 
 
 def _dateparser_now() -> datetime.datetime:
-    """Return current timezone-aware UTC datetime (extracted for testability).
+    """Return current timezone-aware UTC datetime.
 
-    Tests patch this to pin the reference point for relative dates.
-    Must be timezone-aware so dateparser does not misinterpret the
-    value via TIMEZONE when RELATIVE_BASE is naive.
+    Extracted as a function so tests can patch it to pin the reference
+    point for relative date expressions (e.g. "in 2 hours").
     """
     return datetime.datetime.now(datetime.timezone.utc)
 
