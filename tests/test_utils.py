@@ -442,3 +442,136 @@ class TestParseDateEastern:
         """parse_date_eastern raises ValueError for invalid date strings."""
         with pytest.raises(ValueError):
             parse_date_eastern(invalid)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  resolve_mentions — Issue #21
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class TestResolveMentions:
+    """Tests for resolve_mentions — @mention resolution for invite strings."""
+
+    def test_empty_string_returns_empty_lists(self):
+        """resolve_mentions returns empty emails and warnings for empty input."""
+        from src.utils import resolve_mentions
+
+        emails, warnings = resolve_mentions("", lambda uid: None)
+        assert emails == []
+        assert warnings == []
+
+    def test_whitespace_only_returns_empty_lists(self):
+        """resolve_mentions handles whitespace-only input."""
+        from src.utils import resolve_mentions
+
+        emails, warnings = resolve_mentions("   ", lambda uid: None)
+        assert emails == []
+        assert warnings == []
+
+    def test_resolves_discord_mention_to_email(self):
+        """resolve_mentions resolves <@id> to stored email."""
+        from src.utils import resolve_mentions
+
+        lookup = {"123456789": "stew@example.com"}.get
+        emails, warnings = resolve_mentions("<@123456789>", lookup)
+
+        assert emails == ["stew@example.com"]
+        assert warnings == []
+
+    def test_resolves_nickname_mention_format(self):
+        """resolve_mentions handles <@!id> nickname mention format."""
+        from src.utils import resolve_mentions
+
+        lookup = {"123456789": "stew@example.com"}.get
+        emails, warnings = resolve_mentions("<@!123456789>", lookup)
+
+        assert emails == ["stew@example.com"]
+        assert warnings == []
+
+    def test_unresolvable_mention_returns_warning(self):
+        """resolve_mentions warns when a mentioned user has no stored email."""
+        from src.utils import resolve_mentions
+
+        emails, warnings = resolve_mentions("<@999999999>", lambda uid: None)
+
+        assert emails == []
+        assert len(warnings) == 1
+        assert "999999999" in warnings[0]
+        assert "no email stored" in warnings[0].lower()
+
+    def test_raw_email_passes_through_unchanged(self):
+        """resolve_mentions passes valid raw email addresses through unchanged."""
+        from src.utils import resolve_mentions
+
+        emails, warnings = resolve_mentions(
+            "alice@example.com", lambda uid: None
+        )
+
+        assert emails == ["alice@example.com"]
+        assert warnings == []
+
+    def test_invalid_email_returns_warning(self):
+        """resolve_mentions warns for invalid raw email addresses."""
+        from src.utils import resolve_mentions
+
+        emails, warnings = resolve_mentions("not-an-email", lambda uid: None)
+
+        assert emails == []
+        assert len(warnings) == 1
+        assert "invalid" in warnings[0].lower()
+
+    def test_mixed_mentions_and_emails(self):
+        """resolve_mentions handles mixed list of mentions and raw emails."""
+        from src.utils import resolve_mentions
+
+        lookup = {"111111111": "bob@example.com"}.get
+        emails, warnings = resolve_mentions(
+            "<@111111111>, alice@example.com", lookup
+        )
+
+        assert emails == ["bob@example.com", "alice@example.com"]
+        assert warnings == []
+
+    def test_partial_success_resolvable_and_unresolvable(self):
+        """resolve_mentions returns emails for resolvable users and warnings for the rest."""
+        from src.utils import resolve_mentions
+
+        lookup = {"111111111": "bob@example.com"}.get
+        emails, warnings = resolve_mentions(
+            "<@111111111>, <@222222222>, not-an-email", lookup
+        )
+
+        assert emails == ["bob@example.com"]
+        assert len(warnings) == 2
+        # One warning for unresolved mention, one for invalid email
+        assert any("222222222" in w for w in warnings)
+        assert any("invalid" in w.lower() for w in warnings)
+
+    def test_raw_at_symbol_text_treated_as_email(self):
+        """resolve_mentions treats @name (without <>) as raw email text.
+
+        'invite:\"@nonexistentuser\"' where no <@id> format is present
+        is treated as raw email and validated — error if invalid.
+        """
+        from src.utils import resolve_mentions
+
+        # "@nonexistentuser" — no @ sign after the leading @
+        emails, warnings = resolve_mentions(
+            "@nonexistentuser", lambda uid: None
+        )
+
+        assert emails == []
+        assert len(warnings) == 1
+        # @nonexistentuser has an @ but domain has no '.' → invalid
+
+    def test_multiple_mentions_with_extra_whitespace(self):
+        """resolve_mentions handles extra whitespace around items."""
+        from src.utils import resolve_mentions
+
+        lookup = {"111": "a@x.com", "222": "b@x.com"}.get
+        emails, warnings = resolve_mentions(
+            "  <@111>  ,  <@222>  ", lookup
+        )
+
+        assert emails == ["a@x.com", "b@x.com"]
+        assert warnings == []

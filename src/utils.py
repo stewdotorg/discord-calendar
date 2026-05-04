@@ -558,6 +558,71 @@ def _format_time_range_eastern(start_str: str, end_str: str) -> str:
         return f"{start_fmt} {start_ampm}–{end_fmt} {end_ampm} ET"
 
 
+# ── @mention resolution ─────────────────────────────────────────────────────
+
+_MENTION_PATTERN = re.compile(r"^<@!?(\d+)>$")
+
+
+def resolve_mentions(invite_str: str, email_lookup) -> tuple[list[str], list[str]]:
+    """Resolve Discord mentions in a comma-separated invite string to emails.
+
+    Splits *invite_str* on commas, trims whitespace, and processes each item:
+
+    * ``<@123456789>`` or ``<@!123456789>`` — looked up via *email_lookup*.
+      If an email is found it is added to the resolved list; otherwise a
+      warning is emitted.
+    * Everything else — treated as a raw email address and validated with
+      :func:`validate_email`.  Valid addresses pass through unchanged;
+      invalid items produce a warning.
+
+    Args:
+        invite_str: Comma-separated list of Discord mentions and/or raw
+            email addresses (e.g. ``"<@123>, alice@example.com"``).
+        email_lookup: Callable that takes a Discord user ID string and
+            returns the stored email (``str | None``).
+
+    Returns:
+        ``(emails, warnings)`` tuple:
+
+        * *emails* — list of validated/resolved email addresses ready for
+          :meth:`CalendarService.add_attendees`.
+        * *warnings* — list of human-readable warning messages about
+          unresolvable users or invalid emails.
+    """
+    if not invite_str or not invite_str.strip():
+        return [], []
+
+    items = [item.strip() for item in invite_str.split(",")]
+    emails: list[str] = []
+    warnings: list[str] = []
+
+    for item in items:
+        if not item:
+            continue
+
+        mention_match = _MENTION_PATTERN.match(item)
+        if mention_match:
+            discord_id = mention_match.group(1)
+            email = email_lookup(discord_id)
+            if email:
+                if email not in emails:
+                    emails.append(email)
+            else:
+                warnings.append(
+                    f"⚠️ Could not invite <@{discord_id}>: no email stored. "
+                    "Ask them to run `/cal settings email-set`."
+                )
+        else:
+            error = validate_email(item)
+            if error:
+                warnings.append(error)
+            else:
+                if item not in emails:
+                    emails.append(item)
+
+    return emails, warnings
+
+
 def format_events_embed(
     events: list[dict], date_title: str = "Today"
 ) -> discord.Embed:

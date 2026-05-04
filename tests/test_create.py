@@ -494,3 +494,301 @@ async def test_create_command_formats_generic_error():
 
     response_text = interaction.edit_original_response.call_args.kwargs["content"]
     assert "failed" in response_text.lower() or "unexpected" in response_text.lower()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  /cal create invite: @mention support — Issue #21
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.asyncio
+async def test_create_with_invite_resolves_mention_and_adds_attendees():
+    """invite with a Discord mention resolves the user's email and calls
+    add_attendees with the resolved email."""
+    interaction = MagicMock()
+    interaction.user.id = 999
+    interaction.response = MagicMock()
+    interaction.response.defer = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
+
+    mock_calendar = MagicMock()
+    mock_calendar.create_event.return_value = {
+        "id": "evt_003",
+        "htmlLink": "https://calendar.google.com/event?eid=evt_003",
+    }
+    mock_calendar.add_attendees.return_value = [
+        {"email": "stew@example.com"}
+    ]
+    interaction.client.calendar = mock_calendar
+
+    # Mock settings.store with get returning stew's email
+    mock_settings = MagicMock()
+    mock_settings.get.return_value = "stew@example.com"
+    interaction.client.settings = mock_settings
+
+    await create.callback(
+        interaction,
+        title="Standup",
+        when="2026-05-01 14:00",
+        duration=30,
+        description=None,
+        invite="<@123456789>",
+    )
+
+    # Event must be created
+    mock_calendar.create_event.assert_called_once()
+    # add_attendees must be called with stew's email
+    mock_calendar.add_attendees.assert_called_once_with(
+        "evt_003", ["stew@example.com"]
+    )
+    # Response includes success
+    response = interaction.edit_original_response.call_args.kwargs["content"]
+    assert "Event created" in response
+
+
+@pytest.mark.asyncio
+async def test_create_with_mixed_invite_mentions_and_raw_emails():
+    """Mixed invite list: @mention resolves, raw email passes through,
+    both are invited."""
+    interaction = MagicMock()
+    interaction.user.id = 999
+    interaction.response = MagicMock()
+    interaction.response.defer = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
+
+    mock_calendar = MagicMock()
+    mock_calendar.create_event.return_value = {
+        "id": "evt_004",
+        "htmlLink": "https://calendar.google.com/event?eid=evt_004",
+    }
+    mock_calendar.add_attendees.return_value = []
+    interaction.client.calendar = mock_calendar
+
+    # stew has email, alice is a raw email
+    def _lookup(uid, key):
+        return {"111111111": "stew@example.com"}.get(uid) if key == "email" else None
+
+    mock_settings = MagicMock()
+    mock_settings.get.side_effect = _lookup
+    interaction.client.settings = mock_settings
+
+    await create.callback(
+        interaction,
+        title="Team Sync",
+        when="2026-05-01 14:00",
+        duration=30,
+        description=None,
+        invite="<@111111111>, alice@example.com",
+    )
+
+    mock_calendar.create_event.assert_called_once()
+    # Both stew's resolved email and alice's raw email should be passed
+    mock_calendar.add_attendees.assert_called_once_with(
+        "evt_004", ["stew@example.com", "alice@example.com"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_create_with_mention_no_stored_email_shows_warning():
+    """When a @mentioned user has no stored email, the event is still
+    created and a warning is shown."""
+    interaction = MagicMock()
+    interaction.user.id = 999
+    interaction.response = MagicMock()
+    interaction.response.defer = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
+
+    mock_calendar = MagicMock()
+    mock_calendar.create_event.return_value = {
+        "id": "evt_005",
+        "htmlLink": "https://calendar.google.com/event?eid=evt_005",
+    }
+    interaction.client.calendar = mock_calendar
+
+    # No email stored for any user
+    mock_settings = MagicMock()
+    mock_settings.get.return_value = None
+    interaction.client.settings = mock_settings
+
+    await create.callback(
+        interaction,
+        title="Standup",
+        when="2026-05-01 14:00",
+        duration=30,
+        description=None,
+        invite="<@987654321>",
+    )
+
+    # Event still created
+    mock_calendar.create_event.assert_called_once()
+    # add_attendees should NOT be called (no emails to invite)
+    mock_calendar.add_attendees.assert_not_called()
+    # Warning about unresolvable user
+    response = interaction.edit_original_response.call_args.kwargs["content"]
+    assert "⚠️" in response
+    assert "987654321" in response
+    assert "no email stored" in response.lower()
+
+
+@pytest.mark.asyncio
+async def test_create_no_invite_does_not_call_add_attendees():
+    """When invite is not provided, add_attendees is never called."""
+    interaction = MagicMock()
+    interaction.user.id = 999
+    interaction.response = MagicMock()
+    interaction.response.defer = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
+
+    mock_calendar = MagicMock()
+    mock_calendar.create_event.return_value = {
+        "id": "evt_006",
+        "htmlLink": "https://calendar.google.com/event?eid=evt_006",
+    }
+    interaction.client.calendar = mock_calendar
+
+    mock_settings = MagicMock()
+    interaction.client.settings = mock_settings
+
+    await create.callback(
+        interaction,
+        title="Standup",
+        when="2026-05-01 14:00",
+        duration=30,
+        description=None,
+    )
+
+    mock_calendar.create_event.assert_called_once()
+    mock_calendar.add_attendees.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_create_invite_all_unresolvable_still_creates_event():
+    """When all invite items are unresolvable, the event is still created
+    and warnings are shown."""
+    interaction = MagicMock()
+    interaction.user.id = 999
+    interaction.response = MagicMock()
+    interaction.response.defer = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
+
+    mock_calendar = MagicMock()
+    mock_calendar.create_event.return_value = {
+        "id": "evt_007",
+        "htmlLink": "https://calendar.google.com/event?eid=evt_007",
+    }
+    interaction.client.calendar = mock_calendar
+
+    mock_settings = MagicMock()
+    mock_settings.get.return_value = None  # no emails stored
+    interaction.client.settings = mock_settings
+
+    await create.callback(
+        interaction,
+        title="Standup",
+        when="2026-05-01 14:00",
+        duration=30,
+        description=None,
+        invite="<@111>, <@222>",
+    )
+
+    # Event still created
+    mock_calendar.create_event.assert_called_once()
+    # No attendees to add
+    mock_calendar.add_attendees.assert_not_called()
+    # Warnings in response
+    response = interaction.edit_original_response.call_args.kwargs["content"]
+    assert "⚠️" in response
+    assert "111" in response
+    assert "222" in response
+
+
+@pytest.mark.asyncio
+async def test_create_invite_add_attendees_error_is_handled():
+    """When add_attendees fails with an HttpError, the error is caught
+    and the event creation is still reported as successful with a warning."""
+    from googleapiclient.errors import HttpError
+
+    interaction = MagicMock()
+    interaction.user.id = 999
+    interaction.response = MagicMock()
+    interaction.response.defer = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
+
+    mock_calendar = MagicMock()
+    mock_calendar.create_event.return_value = {
+        "id": "evt_008",
+        "htmlLink": "https://calendar.google.com/event?eid=evt_008",
+    }
+    http_resp = MagicMock()
+    http_resp.status = 403
+    mock_calendar.add_attendees.side_effect = HttpError(
+        http_resp, b'{"error": {"message": "Forbidden"}}'
+    )
+    interaction.client.calendar = mock_calendar
+
+    mock_settings = MagicMock()
+    mock_settings.get.return_value = "stew@example.com"
+    interaction.client.settings = mock_settings
+
+    await create.callback(
+        interaction,
+        title="Standup",
+        when="2026-05-01 14:00",
+        duration=30,
+        description=None,
+        invite="<@123456789>",
+    )
+
+    # Event created, add_attendees attempted
+    mock_calendar.create_event.assert_called_once()
+    mock_calendar.add_attendees.assert_called_once()
+    # Response includes event success + invite error
+    response = interaction.edit_original_response.call_args.kwargs["content"]
+    assert "Event created" in response
+    assert "❌" in response
+    assert "attendees" in response.lower()
+
+
+@pytest.mark.asyncio
+async def test_create_default_reminders_still_applied_with_invite():
+    """When invite is present and user has default reminders, both are applied."""
+    interaction = MagicMock()
+    interaction.user.id = 999
+    interaction.response = MagicMock()
+    interaction.response.defer = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
+
+    mock_calendar = MagicMock()
+    mock_calendar.create_event.return_value = {
+        "id": "evt_009",
+        "htmlLink": "https://calendar.google.com/event?eid=evt_009",
+    }
+    mock_calendar.add_attendees.return_value = []
+    interaction.client.calendar = mock_calendar
+
+    # Settings: email for invite + default reminders
+    def _lookup(uid):
+        return {"123456789": "stew@example.com"}.get(uid)
+
+    mock_settings = MagicMock()
+    mock_settings.get.side_effect = lambda uid, key: (
+        "stew@example.com" if key == "email"
+        else ("10,5" if key == "default_reminders" else None)
+    )
+    interaction.client.settings = mock_settings
+
+    await create.callback(
+        interaction,
+        title="Standup",
+        when="2026-05-01 14:00",
+        duration=30,
+        description=None,
+        invite="<@123456789>",
+    )
+
+    mock_calendar.create_event.assert_called_once()
+    mock_calendar.add_attendees.assert_called_once_with(
+        "evt_009", ["stew@example.com"]
+    )
+    # Default reminders should also be applied
+    mock_calendar.add_reminders.assert_called_once_with("evt_009", [10, 5])

@@ -7,7 +7,14 @@ from discord import app_commands
 from googleapiclient.errors import HttpError
 
 from src.commands.list_events import cal
-from src.utils import format_create_error, format_datetime_eastern, parse_minutes, parse_when
+from src.utils import (
+    format_create_error,
+    format_datetime_eastern,
+    format_rsvp_error,
+    parse_minutes,
+    parse_when,
+    resolve_mentions,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +26,7 @@ logger = logging.getLogger(__name__)
          '"tomorrow 2pm", "2026-05-01 14:00"',
     duration="Duration in minutes (default: 60)",
     description="Optional event description",
+    invite="Comma-separated list of @mentions and/or email addresses to invite",
 )
 async def create(
     interaction: discord.Interaction,
@@ -26,6 +34,7 @@ async def create(
     when: str,
     duration: int = 60,
     description: str | None = None,
+    invite: str | None = None,
 ) -> None:
     """Handle create — parse arguments, call CalendarService, respond."""
     calendar = interaction.client.calendar  # type: ignore[attr-defined]  # set in DiscalClient.setup_hook
@@ -66,6 +75,25 @@ async def create(
         await interaction.edit_original_response(content=error_msg)
         return
 
+    # ── Resolve @mentions in the invite parameter ──────────────────────────
+    invite_emails: list[str] = []
+    invite_warnings: list[str] = []
+
+    if invite:
+        settings = interaction.client.settings  # type: ignore[attr-defined]
+        def _email_lookup(discord_id: str) -> str | None:
+            return settings.get(discord_id, "email")
+
+        invite_emails, invite_warnings = resolve_mentions(invite, _email_lookup)
+
+        if invite_emails:
+            try:
+                calendar.add_attendees(result["id"], invite_emails)
+            except HttpError as exc:
+                logger.error("Failed to add attendees: %s", exc)
+                error_msg = format_rsvp_error(exc)
+                invite_warnings.append(error_msg)
+
     # Auto-apply user's default reminders if configured
     default_reminders = interaction.client.settings.get(  # type: ignore[attr-defined]
         creator_discord_id, "default_reminders"
@@ -92,5 +120,8 @@ async def create(
     )
     if description:
         response += f"\n📝 {description}"
+
+    if invite_warnings:
+        response += "\n" + "\n".join(invite_warnings)
 
     await interaction.edit_original_response(content=response)
