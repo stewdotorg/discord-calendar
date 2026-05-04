@@ -1,7 +1,6 @@
 """/cal invite — invite yourself or others to events with mixed resolution."""
 
 import logging
-import re
 
 import discord
 from discord import app_commands
@@ -9,11 +8,9 @@ from googleapiclient.errors import HttpError
 
 from src.commands.delete import delete_event_autocomplete
 from src.commands.list_events import cal
-from src.utils import format_invite_error, validate_email
+from src.utils import _MENTION_PATTERN, format_invite_error, validate_email
 
 logger = logging.getLogger(__name__)
-
-_MENTION_PATTERN = re.compile(r"^<(?:@!?|@)(\d+)>$")
 
 
 async def _require_calendar(interaction: discord.Interaction) -> bool:
@@ -118,7 +115,7 @@ async def invite(
     attendee_word = "attendee" if count == 1 else "attendees"
     lines = [
         f"✅ Invited {count} {attendee_word}: {', '.join(resolved)}"
-        " — Google Calendar will send invitation emails"
+        f" — Google Calendar will send invitation emails"
     ]
     if warnings:
         lines.extend(warnings)

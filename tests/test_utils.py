@@ -556,6 +556,19 @@ class TestResolveMentions:
         assert resolved == ["bob@example.com", "alice@example.com"]
         assert warnings == []
 
+    def test_handles_nickname_mention_format(self):
+        """resolve_mentions handles <@!id> (nickname) mention format."""
+        from unittest.mock import MagicMock
+
+        settings = MagicMock()
+        settings.get.return_value = "bob@example.com"
+
+        resolved, warnings = resolve_mentions(["<@!123456789>"], settings)
+
+        settings.get.assert_called_once_with("123456789", "email")
+        assert resolved == ["bob@example.com"]
+        assert warnings == []
+
     def test_empty_list_returns_empty(self):
         """resolve_mentions returns empty results for an empty list."""
         from unittest.mock import MagicMock
