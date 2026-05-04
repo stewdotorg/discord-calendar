@@ -51,16 +51,18 @@ async def create(
     # Discord's 3-second interaction timeout.
     await interaction.response.defer()
 
-    # ── Validate invite emails before creating the event ───────────────────
+    # Validate invite emails before creating the event.
     invite_emails: list[str] = []
-    if invite and invite.strip():
-        raw = [e.strip() for e in invite.split(",") if e.strip()]
-        for email in raw:
+    if invite:
+        for raw_email in invite.split(","):
+            email = raw_email.strip()
+            if not email:
+                continue
             error = validate_email(email)
             if error:
                 await interaction.edit_original_response(content=error)
                 return
-        invite_emails = raw
+            invite_emails.append(email)
 
     try:
         start = parse_when(when)
@@ -100,7 +102,7 @@ async def create(
                 creator_discord_id, exc,
             )
 
-    # ── Add attendees if invite emails were provided ───────────────────
+    # Add attendees if invite emails were provided.
     invite_error: str | None = None
     if invite_emails:
         try:
@@ -125,15 +127,18 @@ async def create(
     if description:
         response += f"\n📝 {description}"
 
-    # Append invite confirmation or warning
+    # Append invite confirmation or warning.
     if invite_error:
         response += (
-            f"\n\n⚠️ Invites failed — the event exists but attendees "
-            f"could not be added:\n{invite_error}"
+            f"\n\n⚠️ Invites failed — the event exists but "
+            f"attendees could not be added:\n{invite_error}"
         )
     elif invite_emails:
         count = len(invite_emails)
-        word = "attendee" if count == 1 else "attendees"
+        if count == 1:
+            word = "attendee"
+        else:
+            word = "attendees"
         response += (
             f"\n\n✅ Invited {count} {word}: "
             f"{', '.join(invite_emails)}"
