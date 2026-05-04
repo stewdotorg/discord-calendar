@@ -21,8 +21,8 @@ logger = logging.getLogger(__name__)
 TRUNCATE_AT = 100
 _CACHE_TTL = 30.0  # seconds
 
-# Module-level cache: dict keyed on (calendar_id,) → (timestamp, event_list)
-_event_cache: dict[tuple[str, ...], tuple[float, list[dict]]] = {}
+# Module-level cache: dict keyed on calendar_id → (timestamp, event_list)
+_event_cache: dict[str, tuple[float, list[dict]]] = {}
 
 
 def _truncate_for_autocomplete(title: str) -> str:
@@ -89,17 +89,14 @@ async def event_autocomplete(
         return []
 
     calendar_id = getattr(calendar_service, "_calendar_id", "default")
-    cache_key = (calendar_id,)
 
-    # ── Check cache ──────────────────────────────────────────────────────
     now_ts = time.time()
-    cached = _event_cache.get(cache_key)
+    cached = _event_cache.get(calendar_id)
     if cached is not None:
         cached_ts, cached_events = cached
         if now_ts - cached_ts < _CACHE_TTL:
             return _filter_and_format_choices(cached_events, current)
 
-    # ── Fetch from API ───────────────────────────────────────────────────
     # Start-of-day Eastern — ensures ongoing events still appear
     eastern_now = datetime.datetime.now(EASTERN)
     time_min = eastern_now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -115,8 +112,7 @@ async def event_autocomplete(
         logger.warning("Autocomplete list_events failed — returning empty")
         return []
 
-    # ── Store in cache ───────────────────────────────────────────────────
-    _event_cache[cache_key] = (now_ts, events)
+    _event_cache[calendar_id] = (now_ts, events)
 
     return _filter_and_format_choices(events, current)
 
