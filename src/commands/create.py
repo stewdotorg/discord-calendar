@@ -10,7 +10,7 @@ from src.commands.list_events import cal
 from src.utils import (
     format_create_error,
     format_datetime_eastern,
-    format_rsvp_error,
+    format_invite_error,
     parse_minutes,
     parse_when,
     resolve_mentions,
@@ -100,7 +100,7 @@ async def create(
             calendar.add_attendees(result["id"], invite_emails)
         except HttpError as exc:
             logger.error("Failed to add attendees: %s", exc)
-            error_msg = format_rsvp_error(exc)
+            error_msg = format_invite_error(exc)
             invite_warnings.append(error_msg)
 
     # Auto-apply user's default reminders if configured

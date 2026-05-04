@@ -1,4 +1,4 @@
-"""/cal rsvp and /cal invite — RSVP and invite others to events."""
+"""/cal invite group — invite yourself or others to events."""
 
 import logging
 
@@ -8,13 +8,15 @@ from googleapiclient.errors import HttpError
 
 from src.commands.delete import delete_event_autocomplete
 from src.commands.list_events import cal
-from src.utils import format_rsvp_error, resolve_mentions, validate_email
+from src.utils import format_invite_error, validate_email
 
 logger = logging.getLogger(__name__)
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#  Helpers
-# ═══════════════════════════════════════════════════════════════════════════════
+invite_group = app_commands.Group(
+    name="invite",
+    description="Invite yourself or others to an event",
+    parent=cal,
+)
 
 
 async def _require_calendar(interaction: discord.Interaction) -> bool:
@@ -33,30 +35,18 @@ async def _require_calendar(interaction: discord.Interaction) -> bool:
     return True
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#  /cal rsvp  and  /cal invite me
-# ═══════════════════════════════════════════════════════════════════════════════
-
-
-async def _add_self_to_event(
+@invite_group.command(name="me", description="Add yourself as an attendee")
+@app_commands.describe(
+    event_id="Event to add yourself to",
+    email="Email address (optional — uses stored email if omitted)",
+)
+@app_commands.autocomplete(event_id=delete_event_autocomplete)
+async def invite_me(
     interaction: discord.Interaction,
     event_id: str,
-    email: str | None,
-    *,
-    action: str,
-    no_email_msg: str,
+    email: str | None = None,
 ) -> None:
-    """Resolve the calling user's email and add them as an attendee.
-
-    Shared by ``/cal rsvp`` and ``/cal invite me``.
-
-    Args:
-        interaction: The Discord interaction.
-        event_id: The Google Calendar event ID.
-        email: An explicit email override, or ``None`` to use the stored email.
-        action: Label for log messages (e.g. ``"RSVP"``).
-        no_email_msg: Error message to show when no email is available.
-    """
+    """Handle invite me — add the calling user (or specified email) as an attendee."""
     if not await _require_calendar(interaction):
         return
 
@@ -72,14 +62,19 @@ async def _add_self_to_event(
         discord_id = str(interaction.user.id)
         email = interaction.client.settings.get(discord_id, "email")
         if not email:
-            await interaction.edit_original_response(content=no_email_msg)
+            await interaction.edit_original_response(
+                content=(
+                    "❌ No email set. Store one with `/cal settings email-set` "
+                    "or pass it inline."
+                )
+            )
             return
 
     try:
         calendar.add_attendees(event_id, [email])
     except HttpError as exc:
-        logger.error("Failed to %s to event %s: %s", action, event_id, exc)
-        error_msg = format_rsvp_error(exc)
+        logger.error("Failed to add attendee to event %s: %s", event_id, exc)
+        error_msg = format_invite_error(exc)
         await interaction.edit_original_response(content=error_msg)
         return
 
@@ -89,141 +84,47 @@ async def _add_self_to_event(
     )
 
 
-@cal.command(name="rsvp", description="RSVP to an event using your stored email")
-@app_commands.describe(
-    event_id="Event to RSVP to",
-    email="Email address (optional — uses stored email if omitted)",
-)
-@app_commands.autocomplete(event_id=delete_event_autocomplete)
-async def rsvp(
-    interaction: discord.Interaction,
-    event_id: str,
-    email: str | None = None,
-) -> None:
-    """Handle /cal rsvp — add the user as an attendee."""
-    await _add_self_to_event(
-        interaction,
-        event_id,
-        email,
-        action="RSVP",
-        no_email_msg=(
-            "❌ No email set. Use `/cal settings email-set` "
-            "or pass it inline."
-        ),
-    )
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  /cal invite group
-# ═══════════════════════════════════════════════════════════════════════════════
-
-invite_group = app_commands.Group(
-    name="invite",
-    description="Invite attendees to an event",
-)
-cal.add_command(invite_group)
-
-
-# ── /cal invite add ─────────────────────────────────────────────────────────
-
-
-@invite_group.command(
-    name="add",
-    description="Invite others to an event by email or @mention",
-)
+@invite_group.command(name="by-email", description="Invite others to an event by email")
 @app_commands.describe(
     event_id="Event to invite others to",
-    emails="Comma-separated email addresses or @mentions "
-           "(e.g. alice@example.com, @bob)",
+    emails="Comma-separated email addresses (e.g. alice@example.com, bob@example.com)",
 )
 @app_commands.autocomplete(event_id=delete_event_autocomplete)
-async def invite_add(
+async def invite_by_email(
     interaction: discord.Interaction,
     event_id: str,
     emails: str,
 ) -> None:
-    """Handle /cal invite add — parse emails/@mentions and add attendees."""
+    """Handle invite by-email — add comma-separated emails as attendees."""
     if not await _require_calendar(interaction):
         return
 
     calendar = interaction.client.calendar  # type: ignore[attr-defined]
-    settings = interaction.client.settings  # type: ignore[attr-defined]
     await interaction.response.defer()
 
-    raw = [e.strip() for e in emails.split(",") if e.strip()]
-    if not raw:
+    recipients = [e.strip() for e in emails.split(",") if e.strip()]
+    if not recipients:
         await interaction.edit_original_response(
             content="❌ No email addresses provided."
         )
         return
 
-    # Resolve @mentions to stored emails, then validate.
-    # Mentions are resolved first so that stored emails (already validated
-    # during /cal settings email-set) pass through without re-validation.
-    resolved, warnings = resolve_mentions(raw, settings)
-    for recipient in resolved:
+    for recipient in recipients:
         error = validate_email(recipient)
         if error:
             await interaction.edit_original_response(content=error)
             return
 
-    if not resolved and not warnings:
-        await interaction.edit_original_response(
-            content="❌ No valid recipients to invite."
-        )
-        return
-
-    if not resolved:
-        # All mentions were unresolvable — show warnings but no invite
-        await interaction.edit_original_response(
-            content="\n".join(warnings)
-        )
-        return
-
     try:
-        calendar.add_attendees(event_id, resolved)
+        calendar.add_attendees(event_id, recipients)
     except HttpError as exc:
         logger.error("Failed to invite to event %s: %s", event_id, exc)
-        error_msg = format_rsvp_error(exc)
+        error_msg = format_invite_error(exc)
         await interaction.edit_original_response(content=error_msg)
         return
 
-    count = len(resolved)
+    count = len(recipients)
     attendee_word = "attendee" if count == 1 else "attendees"
-
-    response = f"✅ Invited {count} {attendee_word}: {', '.join(resolved)}"
-    if warnings:
-        response += "\n\n" + "\n".join(warnings)
-
-    await interaction.edit_original_response(content=response)
-
-
-# ── /cal invite me ──────────────────────────────────────────────────────────
-
-
-@invite_group.command(
-    name="me",
-    description="Add yourself to an event using your stored email",
-)
-@app_commands.describe(
-    event_id="Event to add yourself to",
-    email="Email address (optional — uses stored email if omitted)",
-)
-@app_commands.autocomplete(event_id=delete_event_autocomplete)
-async def invite_me(
-    interaction: discord.Interaction,
-    event_id: str,
-    email: str | None = None,
-) -> None:
-    """Handle /cal invite me — add the calling user as an attendee."""
-    await _add_self_to_event(
-        interaction,
-        event_id,
-        email,
-        action="invite self",
-        no_email_msg=(
-            "❌ No email set. Use `/cal settings email-set` "
-            "or pass it with "
-            "`/cal invite add event_id:... emails:you@example.com`"
-        ),
+    await interaction.edit_original_response(
+        content=f"✅ Invited {count} {attendee_word}: {', '.join(recipients)}"
     )

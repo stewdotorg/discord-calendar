@@ -442,8 +442,8 @@ def format_edit_error(exc: HttpError) -> str:
     return messages.get(status, f"❌ Failed to edit event. ({status})")
 
 
-def format_rsvp_error(exc: HttpError) -> str:
-    """Return a user-friendly error message for an RSVP/invite API error.
+def format_invite_error(exc: HttpError) -> str:
+    """Return a user-friendly error message for an invite/attendee API error.
 
     Maps specific HTTP status codes to actionable messages.
     """

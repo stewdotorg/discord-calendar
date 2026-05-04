@@ -34,7 +34,7 @@ def _validate_timezone(tz_str: str) -> str | None:
     return None
 
 
-@settings_group.command(name="email-set", description="Store your email for RSVPs")
+@settings_group.command(name="email-set", description="Store your email for event invitations")
 @app_commands.describe(email="Your email address (e.g. me@example.com)")
 async def email_set(interaction: discord.Interaction, email: str) -> None:
     """Store the user's email address after basic format validation."""

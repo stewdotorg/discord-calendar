@@ -41,19 +41,14 @@ _COMMANDS = [
         "example": 'Change an event title: /cal edit event:<pick> title:"New Title"',
     },
     {
-        "name": "/cal rsvp",
-        "description": "RSVP to an event with your stored email",
-        "example": "RSVP to an event: /cal rsvp event:<pick> or with email: /cal rsvp event:<pick> email:me@example.com",
-    },
-    {
-        "name": "/cal invite add",
-        "description": "Invite others to an event by email or @mention",
-        "example": "Invite others: /cal invite add event:<pick> emails:alice@example.com, @bob",
-    },
-    {
         "name": "/cal invite me",
-        "description": "Add yourself to an event using your stored email",
-        "example": "Add yourself: /cal invite me event:<pick>",
+        "description": "Add yourself as an attendee",
+        "example": "Add yourself to an event: /cal invite me event:<pick> or with email: /cal invite me event:<pick> email:me@example.com",
+    },
+    {
+        "name": "/cal invite by-email",
+        "description": "Invite others to an event by email",
+        "example": "Invite others: /cal invite by-email event:<pick> emails:alice@example.com, bob@example.com",
     },
     {
         "name": "/cal reminders set",
@@ -82,7 +77,7 @@ _COMMANDS = [
     },
     {
         "name": "/cal settings email-set",
-        "description": "Store your email for RSVPs",
+        "description": "Store your email for event invitations",
         "example": '/cal settings email-set me@example.com',
     },
     {
