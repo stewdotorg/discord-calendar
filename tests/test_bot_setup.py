@@ -96,8 +96,6 @@ async def test_setup_hook_exits_when_guild_id_missing(monkeypatch):
     """setup_hook logs critical error and exits when DISCORD_GUILD_ID is unset."""
     monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
     monkeypatch.delenv("DISCORD_GUILD_ID", raising=False)
-    monkeypatch.setenv("DISCORD_TOKEN", "fake-token")
-    monkeypatch.delenv("GOOGLE_CALENDAR_ID", raising=False)
 
     client = DiscalClient(db_path=":memory:")
 
@@ -112,15 +110,16 @@ async def test_setup_hook_exits_when_guild_id_missing(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_setup_hook_exits_when_guild_id_empty(monkeypatch):
-    """setup_hook exits when DISCORD_GUILD_ID is set to an empty string."""
+    """setup_hook logs critical error and exits when DISCORD_GUILD_ID is empty."""
     monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
     monkeypatch.setenv("DISCORD_GUILD_ID", "")
-    monkeypatch.setenv("DISCORD_TOKEN", "fake-token")
-    monkeypatch.delenv("GOOGLE_CALENDAR_ID", raising=False)
 
     client = DiscalClient(db_path=":memory:")
 
-    with pytest.raises(SystemExit) as exc_info:
-        await client.setup_hook()
+    with patch.object(logging.getLogger("src.bot"), "critical") as mock_critical:
+        with pytest.raises(SystemExit) as exc_info:
+            await client.setup_hook()
 
     assert exc_info.value.code == 1
+    mock_critical.assert_called_once()
+    assert "DISCORD_GUILD_ID" in mock_critical.call_args[0][0]
