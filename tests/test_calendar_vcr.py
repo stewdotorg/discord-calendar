@@ -13,6 +13,7 @@ service account (GOOGLE_SERVICE_ACCOUNT_FILE).
 """
 
 import datetime
+import hashlib
 import os
 
 import pytest
@@ -39,10 +40,22 @@ def _get_calendar_ids() -> tuple[str, str]:
     if not calendar_id:
         pytest.skip("VCR test requires GOOGLE_CALENDAR_ID environment variable.")
 
-    if not refresh_token and not key_path:
+    # OAuth2 is preferred — skip service account validation when it's available
+    if refresh_token:
+        return key_path, calendar_id
+
+    # Service account fallback — validate the key file exists
+    if not key_path:
         pytest.skip(
             "VCR test requires GOOGLE_REFRESH_TOKEN (OAuth2) or "
             "GOOGLE_SERVICE_ACCOUNT_FILE (service account)."
+        )
+
+    if not os.path.isfile(key_path):
+        pytest.skip(
+            f"Service account key file not found: {key_path}. "
+            "Set GOOGLE_REFRESH_TOKEN for OAuth2 or provide a valid "
+            "service account key."
         )
 
     return key_path, calendar_id
@@ -54,6 +67,12 @@ def _build_service(key_path: str, calendar_id: str) -> CalendarService:
     return CalendarService(credentials, calendar_id)
 
 
+def _make_future_start(days: int, hour: int = 10) -> datetime.datetime:
+    """Return a timezone-aware datetime *days* days ahead at *hour* UTC."""
+    dt = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=days)
+    return dt.replace(hour=hour, minute=0, second=0, microsecond=0)
+
+
 def _unique_title(suffix: str = "") -> str:
     """Generate a unique, deterministic title for VCR test isolation.
 
@@ -61,7 +80,6 @@ def _unique_title(suffix: str = "") -> str:
     before needing re-record for a different value.  An optional *suffix*
     distinguishes titles across different tests within the same day.
     """
-    import hashlib
     today = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d")
     seed = today + suffix
     digest = hashlib.md5(seed.encode()).hexdigest()[:8]
@@ -80,8 +98,7 @@ def test_create_list_delete_roundtrip(vcr):
     key_path, calendar_id = _get_calendar_ids()
 
     title = _unique_title("roundtrip")
-    start = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=7)
-    start = start.replace(hour=10, minute=0, second=0, microsecond=0)
+    start = _make_future_start(days=7, hour=10)
 
     service = _build_service(key_path, calendar_id)
 
@@ -164,8 +181,7 @@ def test_add_attendees_success(vcr):
     key_path, calendar_id = _get_calendar_ids()
 
     title = _unique_title("add-attendees")
-    start = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=8)
-    start = start.replace(hour=10, minute=0, second=0, microsecond=0)
+    start = _make_future_start(days=8, hour=10)
 
     test_email = "nobody@example.com"
 
@@ -217,8 +233,7 @@ def test_add_reminders(vcr):
     key_path, calendar_id = _get_calendar_ids()
 
     title = _unique_title("reminders")
-    start = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=9)
-    start = start.replace(hour=14, minute=0, second=0, microsecond=0)
+    start = _make_future_start(days=9, hour=14)
 
     service = _build_service(key_path, calendar_id)
 
@@ -274,8 +289,7 @@ def test_update_event(vcr):
     key_path, calendar_id = _get_calendar_ids()
 
     title = _unique_title("update")
-    start = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=10)
-    start = start.replace(hour=11, minute=0, second=0, microsecond=0)
+    start = _make_future_start(days=10, hour=11)
 
     service = _build_service(key_path, calendar_id)
 

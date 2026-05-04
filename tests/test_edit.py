@@ -52,7 +52,8 @@ def test_compute_start_end_duration_only_keeps_existing_start():
     )
 
 
-def test_compute_start_end_both_when_and_duration():
+@patch("src.utils._dateparser_now", return_value=datetime.datetime(2026, 5, 1, 12, 0, tzinfo=datetime.timezone.utc))
+def test_compute_start_end_both_when_and_duration(_mock_now):
     """When both 'when' and 'duration' are provided, both are applied."""
     current = {
         "start": {"dateTime": "2026-05-01T14:00:00+00:00"},
@@ -360,8 +361,9 @@ async def test_edit_updates_description_only():
     assert "📝 New agenda items" in content
 
 
+@patch("src.utils._dateparser_now", return_value=datetime.datetime(2026, 5, 1, 12, 0, tzinfo=datetime.timezone.utc))
 @pytest.mark.asyncio
-async def test_edit_updates_all_fields():
+async def test_edit_updates_all_fields(_mock_now):
     """When all optional params are provided, all fields are sent in the patch."""
     interaction = MagicMock()
     interaction.response = MagicMock()
