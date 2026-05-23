@@ -9,6 +9,7 @@ Calendar API on every keystroke.
 
 import datetime
 import logging
+import os
 import time
 from zoneinfo import ZoneInfo
 
@@ -103,7 +104,8 @@ async def event_autocomplete(
 
     utc_now = datetime.datetime.now(datetime.timezone.utc)
     time_min = utc_now.replace(hour=0, minute=0, second=0, microsecond=0)
-    time_max = time_min + datetime.timedelta(days=14)
+    lookahead = int(os.environ.get("AUTOCOMPLETE_LOOKAHEAD_DAYS", "14"))
+    time_max = time_min + datetime.timedelta(days=lookahead)
 
     try:
         events = calendar_service.list_events(
