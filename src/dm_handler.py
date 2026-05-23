@@ -1,11 +1,14 @@
 """DM invite handling — send pending-invite DMs and process DM replies."""
 
+import datetime as dt_mod
 import logging
 from zoneinfo import ZoneInfo
 
 import discord
 from googleapiclient.errors import HttpError
 
+from src.db.queries import SettingsStore
+from src.calendar.service import CalendarService
 from src.utils import DEFAULT_TIMEZONE, format_datetime_eastern, validate_email
 
 logger = logging.getLogger(__name__)
@@ -21,7 +24,7 @@ async def send_pending_invite_dm(
     event_html_link: str,
     inviter_name: str,
     inviter_id: str,
-    settings_store,
+    settings_store: SettingsStore,
 ) -> bool:
     """DM a user to ask for their email to complete an invite.
 
@@ -41,7 +44,6 @@ async def send_pending_invite_dm(
         tz = DEFAULT_TIMEZONE
 
     # Format the event date/time in the receiver's timezone
-    import datetime as dt_mod
     try:
         start_dt = dt_mod.datetime.fromisoformat(event_start)
     except ValueError:
@@ -74,13 +76,54 @@ async def send_pending_invite_dm(
     return True
 
 
+async def send_pending_invites_to_unresolvable(
+    client: discord.Client,
+    unresolvable_ids: set[str],
+    inviter: discord.User,
+    event_id: str,
+    event_title: str,
+    event_start: str,
+    event_html_link: str,
+    settings_store: SettingsStore,
+) -> None:
+    """Send pending-invite DMs to every unresolvable mention.
+
+    Fetches each Discord user by ID and sends them a DM asking for
+    their email.  Users that can't be found or can't receive DMs are
+    skipped with a warning log.
+    """
+    for discord_id in unresolvable_ids:
+        try:
+            user = await client.fetch_user(int(discord_id))
+            await send_pending_invite_dm(
+                user=user,
+                event_id=event_id,
+                event_title=event_title,
+                event_start=event_start,
+                event_html_link=event_html_link,
+                inviter_name=inviter.name,
+                inviter_id=str(inviter.id),
+                settings_store=settings_store,
+            )
+        except discord.NotFound:
+            logger.warning(
+                "Could not find Discord user %s for pending invite DM",
+                discord_id,
+            )
+        except Exception:
+            logger.warning(
+                "Failed to DM user %s for pending invite",
+                discord_id, exc_info=True,
+            )
+
+
 # ── DM reply handling ────────────────────────────────────────────────────────
 
 
 async def handle_dm_reply(
     message: discord.Message,
-    settings_store,
-    calendar_service,
+    settings_store: SettingsStore,
+    calendar: CalendarService,
 ) -> bool:
     """Process a DM reply from a user with a pending invite.
 
@@ -97,7 +140,7 @@ async def handle_dm_reply(
 
     # Check if the event still exists
     try:
-        event = calendar_service.get_event(event_id)
+        event = calendar.get_event(event_id)
     except HttpError:
         logger.warning("Event %s no longer exists for pending invite of user %s", event_id, user_id)
         await message.channel.send(
@@ -136,7 +179,7 @@ async def handle_dm_reply(
 
     # Add the attendee
     try:
-        calendar_service.add_attendees(event_id, [email])
+        calendar.add_attendees(event_id, [email])
     except HttpError as exc:
         logger.error("Failed to add attendee %s to event %s: %s", user_id, event_id, exc)
         await message.channel.send(

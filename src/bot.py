@@ -19,6 +19,7 @@ from src.commands.edit import edit  # noqa: F401  # side-effect: registers on ca
 from src.commands.rsvp import invite  # noqa: F401  # side-effect: registers on cal group
 from src.commands.reminders import reminders_group, reminders_defaults_group  # noqa: F401
 from src.db.queries import SettingsStore
+from src.dm_handler import handle_dm_reply
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +124,6 @@ class DiscalClient(discord.Client):
         if self.calendar is None:
             return
 
-        from src.dm_handler import handle_dm_reply
         await handle_dm_reply(message, self.settings, self.calendar)
 
 

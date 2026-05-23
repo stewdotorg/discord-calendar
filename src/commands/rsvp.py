@@ -8,7 +8,7 @@ from googleapiclient.errors import HttpError
 
 from src.commands.autocomplete import event_autocomplete
 from src.commands.list_events import cal
-from src.dm_handler import send_pending_invite_dm
+from src.dm_handler import send_pending_invites_to_unresolvable
 from src.utils import _MENTION_PATTERN, format_invite_error, validate_email
 
 logger = logging.getLogger(__name__)
@@ -106,33 +106,19 @@ async def invite(
         try:
             event = calendar.get_event(event_id)
         except HttpError:
-            # If we can't fetch the event, still try to add valid recipients
             event = None
 
-        for mentioned_id in unresolvable_ids:
-            try:
-                user = await interaction.client.fetch_user(int(mentioned_id))
-                if event:
-                    await send_pending_invite_dm(
-                        user=user,
-                        event_id=event_id,
-                        event_title=event.get("summary", "Untitled Event"),
-                        event_start=event.get("start", {}).get("dateTime", ""),
-                        event_html_link=event.get("htmlLink", ""),
-                        inviter_name=interaction.user.name,
-                        inviter_id=str(interaction.user.id),
-                        settings_store=interaction.client.settings,
-                    )
-            except discord.NotFound:
-                logger.warning(
-                    "Could not find Discord user %s for pending invite DM",
-                    mentioned_id,
-                )
-            except Exception:
-                logger.warning(
-                    "Failed to DM user %s for pending invite",
-                    mentioned_id, exc_info=True,
-                )
+        if event:
+            await send_pending_invites_to_unresolvable(
+                client=interaction.client,
+                unresolvable_ids=unresolvable_ids,
+                inviter=interaction.user,
+                event_id=event_id,
+                event_title=event.get("summary", "Untitled Event"),
+                event_start=event.get("start", {}).get("dateTime", ""),
+                event_html_link=event.get("htmlLink", ""),
+                settings_store=interaction.client.settings,
+            )
 
     if not resolved:
         await interaction.edit_original_response(

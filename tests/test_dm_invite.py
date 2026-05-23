@@ -440,7 +440,6 @@ class TestDMInviteSending:
 
         mock_user = AsyncMock()
         mock_user.id = 12345
-        mock_user.send.side_ffect = None  # no-op for safety
         # Make send raise Forbidden (DMs disabled)
         import discord
         mock_user.send.side_effect = discord.Forbidden(
