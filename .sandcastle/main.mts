@@ -21,6 +21,7 @@
 // Or add to package.json:
 //   "scripts": { "sandcastle": "npx tsx .sandcastle/main.mts" }
 
+import { execSync } from "child_process";
 import * as sandcastle from "@ai-hero/sandcastle";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
 
@@ -164,9 +165,8 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
     }
   }
 
-  // Only pass branches that actually produced commits to the merge phase.
-  // An agent that ran successfully but made no commits has nothing to merge.
-  const completedIssues = settled
+  // Collect issues that produced NEW commits in this run.
+  const newCommitIssues = settled
     .map((outcome, i) => ({ outcome, issue: issues[i]! }))
     .filter(
       (entry) =>
@@ -175,10 +175,37 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
     )
     .map((entry) => entry.issue);
 
+  // Also collect issues whose branches already had unmerged commits from a
+  // prior run (e.g. the merge phase was skipped, or the reviewer-only script
+  // added a commit). Without this, those branches loop forever: the planner
+  // schedules them, the implementer produces zero NEW commits, the merge
+  // phase is skipped, and the issues stay open.
+  const existingCommitIssues: typeof newCommitIssues = [];
+  for (const [i, outcome] of settled.entries()) {
+    if (outcome.status !== "fulfilled") continue;
+    // Already covered by newCommitIssues — don't double-count.
+    if (newCommitIssues.some((issue) => issue.id === issues[i]!.id)) continue;
+    try {
+      const log = execSync(
+        `git log main..${issues[i]!.branch} --oneline`,
+        { encoding: "utf8" },
+      ).trim();
+      if (log.length > 0) {
+        console.log(
+          `  ∟ ${issues[i]!.id}: branch ${issues[i]!.branch} already has unmerged commits — including in merge`,
+        );
+        existingCommitIssues.push(issues[i]!);
+      }
+    } catch {
+      // Branch doesn't exist — skip.
+    }
+  }
+
+  const completedIssues = [...newCommitIssues, ...existingCommitIssues];
   const completedBranches = completedIssues.map((i) => i.branch);
 
   console.log(
-    `\nExecution complete. ${completedBranches.length} branch(es) with commits:`,
+    `\nExecution complete. ${newCommitIssues.length} new + ${existingCommitIssues.length} existing = ${completedBranches.length} branch(es) to merge:`,
   );
   for (const branch of completedBranches) {
     console.log(`  ${branch}`);

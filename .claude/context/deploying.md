@@ -2,6 +2,19 @@
 
 How to deploy Discal to the DigitalOcean droplet and manage the dev container.
 
+## Environments
+
+| Env | Env file | Compose file | Container | Port |
+|---|---|---|---|---|
+| Prod | `.env` (current bot; will rename to `.env.prod`) | `docker-compose.yml` | `bot` | 8000 |
+| Dev | `.env.dev` | `docker-compose.dev.yml` | `bot-dev` | 8001 |
+
+## Pre-deploy smoke test
+
+```bash
+cd ~/dev/discal && source .venv/bin/activate && pytest tests/test_bot_setup.py -v
+```
+
 ## Production
 
 ```bash
@@ -11,7 +24,11 @@ ssh discord-calendar-bot "cd /opt/discal && git pull && docker compose up -d --b
 # View prod logs
 ssh discord-calendar-bot "cd /opt/discal && docker compose logs bot --tail=50"
 
-# Prod uses .env, port 8000, volume bot_data
+# Quick restart (prod-only)
+ssh discord-calendar-bot "docker restart discal-bot-1"
+
+# Free disk space
+ssh discord-calendar-bot "docker system prune -af --volumes"
 ```
 
 ## Dev Container

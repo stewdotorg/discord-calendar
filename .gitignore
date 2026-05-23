@@ -1,5 +1,7 @@
 # Secrets
 .env
+.env.dev
+.env.prod
 service-account.json
 client-secret.json
 
