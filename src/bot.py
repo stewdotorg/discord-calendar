@@ -98,6 +98,20 @@ class DiscalClient(discord.Client):
 
         return service
 
+    async def on_interaction(self, interaction: discord.Interaction) -> None:
+        """Handle persistent component interactions.
+
+        Catches RSVP button clicks (custom_id starts with ``rsvp:``) after
+        bot restarts when the in-memory View is no longer present.
+        """
+        if interaction.type != discord.InteractionType.component:
+            return
+        custom_id = interaction.data.get("custom_id", "")  # type: ignore[union-attr]
+        if custom_id.startswith("rsvp:"):
+            event_id = custom_id[5:]
+            from src.commands.rsvp import _handle_rsvp_interaction
+            await _handle_rsvp_interaction(interaction, event_id)
+
     async def on_ready(self) -> None:
         """Log when the bot has connected to Discord."""
         name = self.user.name if self.user else "Unknown"

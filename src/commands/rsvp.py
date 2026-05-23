@@ -1,4 +1,8 @@
-"""/cal invite — invite yourself or others to events with mixed resolution."""
+"""/cal invite — invite yourself or others to events with mixed resolution.
+
+Also provides the RSVP-button flow (RsvpView, EmailModal) attached to event
+creation posts so users can self-invite with a single click.
+"""
 
 import logging
 
@@ -11,6 +15,128 @@ from src.commands.list_events import cal
 from src.utils import _MENTION_PATTERN, format_invite_error, validate_email
 
 logger = logging.getLogger(__name__)
+
+
+# ── RSVP button (attached to /cal create posts) ───────────────────────────
+
+
+class EmailModal(discord.ui.Modal, title="Enter your email"):
+    """Modal for collecting a user's email when they click RSVP without one stored."""
+
+    email_input = discord.ui.TextInput(
+        label="Email address",
+        placeholder="you@example.com",
+        required=True,
+        min_length=5,
+        max_length=254,
+    )
+
+    def __init__(self, event_id: str) -> None:
+        super().__init__()
+        self._event_id = event_id
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        """Validate email, save to settings, and add as attendee."""
+        email = self.email_input.value.strip()
+        error = validate_email(email)
+        if error:
+            await interaction.response.send_message(
+                "❌ Invalid email. Please enter a valid email like you@example.com.",
+                ephemeral=True,
+            )
+            return
+
+        discord_id = str(interaction.user.id)
+        interaction.client.settings.set(discord_id, "email", email)  # type: ignore[attr-defined]
+
+        calendar = interaction.client.calendar  # type: ignore[attr-defined]
+        try:
+            event = calendar.get_event(self._event_id)
+            event_title = event.get("summary", "the event")
+            calendar.add_attendees(self._event_id, [email])
+        except HttpError:
+            await interaction.response.send_message(
+                "❌ Could not add you — please try again.",
+                ephemeral=True,
+            )
+            return
+
+        await interaction.response.send_message(
+            f"✅ Email saved! You have been added to {event_title}!",
+            ephemeral=True,
+        )
+
+
+async def _handle_rsvp_interaction(
+    interaction: discord.Interaction, event_id: str
+) -> None:
+    """Handle an RSVP button click.
+
+    If the user has an email on file, add them as an attendee directly.
+    If not, open ``EmailModal`` to collect their email first.
+    """
+    settings = interaction.client.settings  # type: ignore[attr-defined]
+    calendar = interaction.client.calendar  # type: ignore[attr-defined]
+
+    if calendar is None:
+        await interaction.response.send_message(
+            "❌ Calendar is not configured.", ephemeral=True
+        )
+        return
+
+    discord_id = str(interaction.user.id)
+    email = settings.get(discord_id, "email")
+
+    if email:
+        try:
+            event = calendar.get_event(event_id)
+            attendees = event.get("attendees", [])
+            if any(a.get("email", "").lower() == email.lower() for a in attendees):
+                await interaction.response.send_message(
+                    "You are already on the list for this event.",
+                    ephemeral=True,
+                )
+                return
+
+            calendar.add_attendees(event_id, [email])
+            event_title = event.get("summary", "the event")
+            await interaction.response.send_message(
+                f"✅ You have been added to {event_title}!",
+                ephemeral=True,
+            )
+        except HttpError:
+            logger.error("RSVP API error for user %s, event %s", discord_id, event_id)
+            await interaction.response.send_message(
+                "❌ Could not add you — please try again.",
+                ephemeral=True,
+            )
+    else:
+        modal = EmailModal(event_id=event_id)
+        await interaction.response.send_modal(modal)
+
+
+class RsvpView(discord.ui.View):
+    """Persistent View with an RSVP button for event posts.
+
+    The event ID is encoded in the button's ``custom_id`` (``rsvp:event_id``)
+    so the handler can recover it after bot restarts.
+    """
+
+    def __init__(self, event_id: str) -> None:
+        super().__init__(timeout=None)
+        button = discord.ui.Button(
+            label="📅 RSVP",
+            style=discord.ButtonStyle.primary,
+            custom_id=f"rsvp:{event_id}",
+        )
+        button.callback = self._rsvp_callback
+        self.add_item(button)
+
+    async def _rsvp_callback(self, interaction: discord.Interaction) -> None:
+        """Extract event_id from custom_id and delegate to shared handler."""
+        custom_id = interaction.data.get("custom_id", "")  # type: ignore[union-attr]
+        event_id = custom_id[5:]  # strip "rsvp:"
+        await _handle_rsvp_interaction(interaction, event_id)
 
 
 async def _require_calendar(interaction: discord.Interaction) -> bool:
