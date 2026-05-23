@@ -1,0 +1,16 @@
+services:
+  bot-dev:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env.dev
+    volumes:
+      - ./client-secret.json:/app/client-secret.json:ro
+      - bot_dev_data:/app/data
+    profiles:
+      - dev
+    ports:
+      - "8001:8000"
+
+volumes:
+  bot_dev_data:
