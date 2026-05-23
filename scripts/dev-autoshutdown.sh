@@ -18,11 +18,16 @@ log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S'): $*" >> "$LOG_FILE"
 }
 
+stop_dev() {
+    local reason="$1"
+    log "$reason — stopping idle dev container"
+    docker compose -f "$COMPOSE_FILE" stop "$SERVICE"
+}
+
 cd /opt/discal || { log "ERROR: /opt/discal not found"; exit 1; }
 
 # Check if the dev container is running
 if ! docker compose -f "$COMPOSE_FILE" ps "$SERVICE" --status running 2>/dev/null | grep -q "$SERVICE"; then
-    # Container not running — nothing to do
     exit 0
 fi
 
@@ -30,16 +35,14 @@ fi
 LAST_LOG=$(docker compose -f "$COMPOSE_FILE" logs "$SERVICE" --tail 1 --timestamps 2>/dev/null || true)
 
 if [ -z "$LAST_LOG" ]; then
-    log "No log output from $SERVICE — stopping idle dev container"
-    docker compose -f "$COMPOSE_FILE" stop "$SERVICE"
+    stop_dev "No log output from $SERVICE"
     exit 0
 fi
 
 # Extract the timestamp (Docker format: 2026-05-23T12:34:56.789012345Z ...)
 TIMESTAMP_STR=$(echo "$LAST_LOG" | awk '{print $2}' | sed 's/\.[0-9]*Z/Z/')
 if [ -z "$TIMESTAMP_STR" ]; then
-    log "Could not parse timestamp from log — stopping idle dev container"
-    docker compose -f "$COMPOSE_FILE" stop "$SERVICE"
+    stop_dev "Could not parse timestamp from $SERVICE"
     exit 0
 fi
 
@@ -56,8 +59,7 @@ NOW_EPOCH=$(date +%s)
 DIFF_MINUTES=$(( (NOW_EPOCH - LAST_EPOCH) / 60 ))
 
 if [ "$DIFF_MINUTES" -ge "$IDLE_MINUTES" ]; then
-    log "Dev container idle for ${DIFF_MINUTES}m (≥${IDLE_MINUTES}m) — stopping"
-    docker compose -f "$COMPOSE_FILE" stop "$SERVICE"
+    stop_dev "Dev container idle for ${DIFF_MINUTES}m (≥${IDLE_MINUTES}m)"
 else
     log "Dev container active (last log ${DIFF_MINUTES}m ago) — leaving running"
 fi

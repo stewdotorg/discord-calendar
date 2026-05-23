@@ -4,95 +4,83 @@ import os
 import subprocess
 from pathlib import Path
 
-import yaml  # type: ignore
+import pytest
+import yaml  # type: ignore[import-untyped]
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+_COMPOSE_PATH = REPO_ROOT / "docker-compose.dev.yml"
+_AUTOSHUTDOWN_PATH = REPO_ROOT / "scripts" / "dev-autoshutdown.sh"
+_AUTOUPDATE_PATH = REPO_ROOT / "scripts" / "dev-autoupdate.sh"
+
+
+def _extract_volume_names(volumes: list) -> list[str]:
+    """Extract volume names from a Docker Compose volumes list.
+
+    Compose volumes support short syntax ("vol_name:/path") and long syntax
+    ({"vol_name": {...}}). This returns just the volume name portion.
+    """
+    names: list[str] = []
+    for vol in volumes:
+        names.append(vol if isinstance(vol, str) else next(iter(vol)))
+    return names
+
+
+@pytest.fixture(scope="class")
+def dev_compose() -> dict:
+    """Load docker-compose.dev.yml once per test class."""
+    with open(_COMPOSE_PATH) as f:
+        return yaml.safe_load(f)
 
 
 class TestDevComposeFile:
     """Validate docker-compose.dev.yml structure."""
 
     def test_compose_file_exists(self) -> None:
-        """docker-compose.dev.yml exists in repo root."""
-        compose_file = REPO_ROOT / "docker-compose.dev.yml"
-        assert compose_file.exists(), f"Expected {compose_file} to exist"
+        assert _COMPOSE_PATH.exists(), f"Expected {_COMPOSE_PATH} to exist"
 
-    def test_compose_is_valid_yaml(self) -> None:
-        """docker-compose.dev.yml is valid YAML."""
-        compose_file = REPO_ROOT / "docker-compose.dev.yml"
-        with open(compose_file) as f:
-            data = yaml.safe_load(f)
-        assert data is not None, "docker-compose.dev.yml should not be empty"
+    def test_compose_is_valid_yaml(self, dev_compose: dict) -> None:
+        assert dev_compose is not None, "docker-compose.dev.yml should not be empty"
 
-    def test_has_bot_dev_service(self) -> None:
-        """docker-compose.dev.yml defines a bot-dev service."""
-        compose_file = REPO_ROOT / "docker-compose.dev.yml"
-        with open(compose_file) as f:
-            data = yaml.safe_load(f)
-        assert "services" in data, "compose file must have services"
-        assert "bot-dev" in data["services"], "compose file must have bot-dev service"
+    def test_has_bot_dev_service(self, dev_compose: dict) -> None:
+        assert "services" in dev_compose, "compose file must have services"
+        assert "bot-dev" in dev_compose["services"], "compose file must have bot-dev service"
 
-    def test_bot_dev_uses_dev_profile(self) -> None:
-        """bot-dev service uses profiles: [dev] for isolation."""
-        compose_file = REPO_ROOT / "docker-compose.dev.yml"
-        with open(compose_file) as f:
-            data = yaml.safe_load(f)
-        service = data["services"]["bot-dev"]
-        profiles = service.get("profiles", [])
+    def test_bot_dev_uses_dev_profile(self, dev_compose: dict) -> None:
+        service = dev_compose["services"]["bot-dev"]
+        profiles: list[str] = service.get("profiles", [])
         assert "dev" in profiles, "bot-dev must use profiles: [dev] for isolation"
 
-    def test_bot_dev_uses_env_dev(self) -> None:
-        """bot-dev service uses .env.dev for isolated env vars."""
-        compose_file = REPO_ROOT / "docker-compose.dev.yml"
-        with open(compose_file) as f:
-            data = yaml.safe_load(f)
-        service = data["services"]["bot-dev"]
-        env_files = service.get("env_file", [])
+    def test_bot_dev_uses_env_dev(self, dev_compose: dict) -> None:
+        service = dev_compose["services"]["bot-dev"]
+        env_files: list[str] = service.get("env_file", [])
         assert ".env.dev" in env_files, "bot-dev must use .env.dev"
 
-    def test_bot_dev_has_separate_volume(self) -> None:
-        """bot-dev service uses bot_dev_data volume (separate from prod)."""
-        compose_file = REPO_ROOT / "docker-compose.dev.yml"
-        with open(compose_file) as f:
-            data = yaml.safe_load(f)
-        service = data["services"]["bot-dev"]
-        volumes = service.get("volumes", [])
-        volume_names = [v if isinstance(v, str) else list(v.keys())[0] for v in volumes]
+    def test_bot_dev_has_separate_volume(self, dev_compose: dict) -> None:
+        service = dev_compose["services"]["bot-dev"]
+        volumes: list = service.get("volumes", [])
+        volume_names = _extract_volume_names(volumes)
         assert any("bot_dev_data" in v for v in volume_names), (
             "bot-dev must use bot_dev_data volume"
         )
-        # Also check the volume is declared at top level
-        assert "volumes" in data, "compose file must declare volumes"
-        assert "bot_dev_data" in data["volumes"], (
+        assert "volumes" in dev_compose, "compose file must declare volumes"
+        assert "bot_dev_data" in dev_compose["volumes"], (
             "bot_dev_data volume must be declared"
         )
 
-    def test_no_port_conflict_with_prod(self) -> None:
-        """Dev host port (8001) does not conflict with prod host port (8000)."""
-        compose_file = REPO_ROOT / "docker-compose.dev.yml"
-        with open(compose_file) as f:
-            data = yaml.safe_load(f)
-        service = data["services"]["bot-dev"]
-        ports = service.get("ports", [])
-        # Check host-side port: the part before the colon in "HOST:CONTAINER"
+    def test_no_port_conflict_with_prod(self, dev_compose: dict) -> None:
+        service = dev_compose["services"]["bot-dev"]
+        ports: list = service.get("ports", [])
         host_ports = [str(p).split(":")[0] for p in ports]
-        assert "8001" in host_ports, (
-            "Dev must expose on host port 8001"
-        )
+        assert "8001" in host_ports, "Dev must expose on host port 8001"
         assert "8000" not in host_ports, (
             "Dev must not expose on host port 8000 (reserved for prod)"
         )
 
-    def test_dev_compose_does_not_affect_prod(self) -> None:
-        """docker-compose.dev.yml does not reference prod services or volumes."""
-        compose_file = REPO_ROOT / "docker-compose.dev.yml"
-        with open(compose_file) as f:
-            data = yaml.safe_load(f)
-        services = list(data.get("services", {}).keys())
-        # Should only have bot-dev (and maybe nothing else)
+    def test_dev_compose_does_not_affect_prod(self, dev_compose: dict) -> None:
+        services = list(dev_compose.get("services", {}).keys())
         assert "bot" not in services, "Dev compose must not define prod bot service"
         assert "caddy" not in services, "Dev compose must not define prod caddy service"
-        volume_names = list(data.get("volumes", {}).keys())
+        volume_names = list(dev_compose.get("volumes", {}).keys())
         assert "bot_data" not in volume_names, "Dev compose must not use prod bot_data volume"
         assert "caddy_data" not in volume_names, "Dev compose must not use prod caddy_data volume"
 
@@ -101,20 +89,14 @@ class TestDevAutoshutdownScript:
     """Validate dev-autoshutdown.sh script."""
 
     def test_script_exists(self) -> None:
-        """dev-autoshutdown.sh exists in scripts/."""
-        script = REPO_ROOT / "scripts" / "dev-autoshutdown.sh"
-        assert script.exists(), f"Expected {script} to exist"
+        assert _AUTOSHUTDOWN_PATH.exists(), f"Expected {_AUTOSHUTDOWN_PATH} to exist"
 
     def test_script_is_executable(self) -> None:
-        """dev-autoshutdown.sh is executable."""
-        script = REPO_ROOT / "scripts" / "dev-autoshutdown.sh"
-        assert os.access(script, os.X_OK), f"{script} must be executable"
+        assert os.access(_AUTOSHUTDOWN_PATH, os.X_OK), f"{_AUTOSHUTDOWN_PATH} must be executable"
 
     def test_script_syntax(self) -> None:
-        """dev-autoshutdown.sh passes bash syntax check."""
-        script = REPO_ROOT / "scripts" / "dev-autoshutdown.sh"
         result = subprocess.run(
-            ["bash", "-n", str(script)],
+            ["bash", "-n", str(_AUTOSHUTDOWN_PATH)],
             capture_output=True, text=True,
         )
         assert result.returncode == 0, (
@@ -122,48 +104,34 @@ class TestDevAutoshutdownScript:
         )
 
     def test_script_has_shebang(self) -> None:
-        """dev-autoshutdown.sh starts with a shebang."""
-        script = REPO_ROOT / "scripts" / "dev-autoshutdown.sh"
-        first_line = script.read_text().split("\n")[0]
+        first_line = _AUTOSHUTDOWN_PATH.read_text().split("\n")[0]
         assert first_line.startswith("#!/"), (
             f"Script must have shebang, got: {first_line}"
         )
 
     def test_script_references_dev_compose(self) -> None:
-        """dev-autoshutdown.sh uses docker-compose.dev.yml."""
-        script = REPO_ROOT / "scripts" / "dev-autoshutdown.sh"
-        content = script.read_text()
+        content = _AUTOSHUTDOWN_PATH.read_text()
         assert "docker-compose.dev.yml" in content, (
             "Script must reference docker-compose.dev.yml"
         )
 
     def test_script_references_bot_dev(self) -> None:
-        """dev-autoshutdown.sh stops the bot-dev service."""
-        script = REPO_ROOT / "scripts" / "dev-autoshutdown.sh"
-        content = script.read_text()
-        assert "bot-dev" in content, (
-            "Script must reference bot-dev service"
-        )
+        content = _AUTOSHUTDOWN_PATH.read_text()
+        assert "bot-dev" in content, "Script must reference bot-dev service"
 
 
 class TestDevAutoupdateScript:
     """Validate dev-autoupdate.sh script."""
 
     def test_script_exists(self) -> None:
-        """dev-autoupdate.sh exists in scripts/."""
-        script = REPO_ROOT / "scripts" / "dev-autoupdate.sh"
-        assert script.exists(), f"Expected {script} to exist"
+        assert _AUTOUPDATE_PATH.exists(), f"Expected {_AUTOUPDATE_PATH} to exist"
 
     def test_script_is_executable(self) -> None:
-        """dev-autoupdate.sh is executable."""
-        script = REPO_ROOT / "scripts" / "dev-autoupdate.sh"
-        assert os.access(script, os.X_OK), f"{script} must be executable"
+        assert os.access(_AUTOUPDATE_PATH, os.X_OK), f"{_AUTOUPDATE_PATH} must be executable"
 
     def test_script_syntax(self) -> None:
-        """dev-autoupdate.sh passes bash syntax check."""
-        script = REPO_ROOT / "scripts" / "dev-autoupdate.sh"
         result = subprocess.run(
-            ["bash", "-n", str(script)],
+            ["bash", "-n", str(_AUTOUPDATE_PATH)],
             capture_output=True, text=True,
         )
         assert result.returncode == 0, (
@@ -171,33 +139,23 @@ class TestDevAutoupdateScript:
         )
 
     def test_script_has_shebang(self) -> None:
-        """dev-autoupdate.sh starts with a shebang."""
-        script = REPO_ROOT / "scripts" / "dev-autoupdate.sh"
-        first_line = script.read_text().split("\n")[0]
+        first_line = _AUTOUPDATE_PATH.read_text().split("\n")[0]
         assert first_line.startswith("#!/"), (
             f"Script must have shebang, got: {first_line}"
         )
 
     def test_script_uses_git_fetch_before_pull(self) -> None:
-        """dev-autoupdate.sh fetches before checking for main advancement."""
-        script = REPO_ROOT / "scripts" / "dev-autoupdate.sh"
-        content = script.read_text()
+        content = _AUTOUPDATE_PATH.read_text()
         assert "git fetch" in content, (
             "Script must git fetch before checking for updates"
         )
 
     def test_script_references_dev_compose(self) -> None:
-        """dev-autoupdate.sh uses docker-compose.dev.yml."""
-        script = REPO_ROOT / "scripts" / "dev-autoupdate.sh"
-        content = script.read_text()
+        content = _AUTOUPDATE_PATH.read_text()
         assert "docker-compose.dev.yml" in content, (
             "Script must reference docker-compose.dev.yml"
         )
 
     def test_script_references_bot_dev(self) -> None:
-        """dev-autoupdate.sh rebuilds the bot-dev service."""
-        script = REPO_ROOT / "scripts" / "dev-autoupdate.sh"
-        content = script.read_text()
-        assert "bot-dev" in content, (
-            "Script must reference bot-dev service"
-        )
+        content = _AUTOUPDATE_PATH.read_text()
+        assert "bot-dev" in content, "Script must reference bot-dev service"
