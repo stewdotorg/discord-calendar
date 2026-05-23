@@ -4,6 +4,7 @@ Backed by SQLite.  Tables are created automatically on first use.
 Uses WAL mode and a threading lock for safe concurrent access.
 """
 
+import datetime
 import os
 import sqlite3
 import threading
@@ -107,3 +108,78 @@ class SettingsStore:
                 (guild_id, channel_id, period),
             )
             self._conn.commit()
+
+    # ── pending_invites ──────────────────────────────────────────────────
+
+    def insert_pending_invite(self, user_id: str, event_id: str,
+                              inviter_id: str, created_at: str) -> None:
+        """Create or overwrite a pending invite for *user_id*.
+
+        A user can only have one pending invite at a time.  If they are
+        re-invited to a different event, the old pending invite is replaced.
+        """
+        with self._lock:
+            self._conn.execute(
+                "INSERT OR REPLACE INTO pending_invites "
+                "(user_id, event_id, inviter_id, created_at) "
+                "VALUES (?, ?, ?, ?)",
+                (user_id, event_id, inviter_id, created_at),
+            )
+            self._conn.commit()
+
+    def get_pending_invite(self, user_id: str,
+                           now: datetime.datetime | None = None) -> dict | None:
+        """Return the pending invite for *user_id*, or None if none exists.
+
+        Invites older than 7 days are treated as expired and skipped.
+
+        Args:
+            user_id: The Discord user ID to look up.
+            now: Optional reference datetime for expiry check (defaults to
+                UTC now).  Useful for tests that need a fixed clock.
+        """
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT user_id, event_id, inviter_id, created_at "
+                "FROM pending_invites WHERE user_id = ?",
+                (user_id,),
+            ).fetchone()
+            if row is None:
+                return None
+
+            # Check expiry: skip invites older than 7 days
+            ref = now if now is not None else datetime.datetime.now(datetime.timezone.utc)
+            created = datetime.datetime.fromisoformat(row["created_at"])
+            if (ref - created) > datetime.timedelta(days=7):
+                return None
+
+            return dict(row)
+
+    def delete_pending_invite(self, user_id: str) -> None:
+        """Remove the pending invite for *user_id*.  No-op if not set."""
+        with self._lock:
+            self._conn.execute(
+                "DELETE FROM pending_invites WHERE user_id = ?",
+                (user_id,),
+            )
+            self._conn.commit()
+
+    def cleanup_expired_invites(self,
+                                now: datetime.datetime | None = None) -> int:
+        """Remove pending invites older than 7 days.
+
+        Args:
+            now: Optional reference datetime (defaults to UTC now).
+
+        Returns:
+            Number of rows deleted.
+        """
+        ref = now if now is not None else datetime.datetime.now(datetime.timezone.utc)
+        cutoff = (ref - datetime.timedelta(days=7)).isoformat()
+        with self._lock:
+            cursor = self._conn.execute(
+                "DELETE FROM pending_invites WHERE created_at < ?",
+                (cutoff,),
+            )
+            self._conn.commit()
+            return cursor.rowcount

@@ -34,7 +34,7 @@ _MENTION_PATTERN = re.compile(r"^<@!?(\d+)>$")
 def resolve_mentions(
     items: list[str],
     settings_store,
-) -> tuple[list[str], list[str]]:
+) -> tuple[list[str], list[str], set[str]]:
     """Resolve Discord @mentions to stored emails.
 
     Items that match the ``<@discord_id>`` pattern are looked up via
@@ -52,9 +52,12 @@ def resolve_mentions(
           Unresolvable mentions with no stored email are omitted.
         * **warnings** — Warning messages for unresolvable mentions, suitable
           for display to the calling user.
+        * **unresolvable_ids** — Set of Discord user IDs for mentions that
+          could not be resolved to an email (for DM follow-up).
     """
     resolved: list[str] = []
     warnings: list[str] = []
+    unresolvable_ids: set[str] = set()
 
     for item in items:
         item = item.strip()
@@ -69,11 +72,12 @@ def resolve_mentions(
                     f"⚠️ Could not invite {item}: no email stored. "
                     "Ask them to run `/cal settings set email`"
                 )
+                unresolvable_ids.add(discord_id)
         else:
             # Treat as raw email/text — validation happens upstream.
             resolved.append(item)
 
-    return resolved, warnings
+    return resolved, warnings, unresolvable_ids
 
 
 EASTERN = ZoneInfo("America/New_York")

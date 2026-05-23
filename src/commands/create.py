@@ -7,6 +7,7 @@ from discord import app_commands
 from googleapiclient.errors import HttpError
 
 from src.commands.list_events import cal
+from src.dm_handler import send_pending_invite_dm
 from src.utils import (
     format_create_error,
     format_datetime_eastern,
@@ -17,6 +18,8 @@ from src.utils import (
     resolve_mentions,
     validate_email,
 )
+
+logger = logging.getLogger(__name__)
 
 logger = logging.getLogger(__name__)
 
@@ -56,11 +59,12 @@ async def create(
     # ── Resolve @mentions and validate raw emails ──────────────────────────
     invite_emails: list[str] = []
     invite_warnings: list[str] = []
+    unresolvable_ids: set[str] = set()
 
     if invite:
         settings = interaction.client.settings  # type: ignore[attr-defined]
         items = [item.strip() for item in invite.split(",") if item.strip()]
-        invite_emails, invite_warnings = resolve_mentions(items, settings)
+        invite_emails, invite_warnings, unresolvable_ids = resolve_mentions(items, settings)
         # Validate raw emails that were not @mentions
         validated_emails: list[str] = []
         for email in invite_emails:
@@ -96,6 +100,32 @@ async def create(
         error_msg = format_create_error(exc)
         await interaction.edit_original_response(content=error_msg)
         return
+
+    # ── DM unresolvable mentions ──────────────────────────────────────
+    if unresolvable_ids:
+        for discord_id in unresolvable_ids:
+            try:
+                user = await interaction.client.fetch_user(int(discord_id))
+                await send_pending_invite_dm(
+                    user=user,
+                    event_id=result["id"],
+                    event_title=title,
+                    event_start=start.isoformat(),
+                    event_html_link=result["htmlLink"],
+                    inviter_name=interaction.user.name,
+                    inviter_id=str(interaction.user.id),
+                    settings_store=settings,
+                )
+            except discord.NotFound:
+                logger.warning(
+                    "Could not find Discord user %s for pending invite DM",
+                    discord_id,
+                )
+            except Exception:
+                logger.warning(
+                    "Failed to DM user %s for pending invite",
+                    discord_id, exc_info=True,
+                )
 
     # ── Add attendees if invite emails were resolved ───────────────────────
     if invite_emails:

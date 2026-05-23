@@ -19,11 +19,11 @@ def test_bot_has_command_tree(monkeypatch):
     assert isinstance(client.tree, discord.app_commands.CommandTree)
 
 
-def test_bot_has_no_message_content_intent(monkeypatch):
-    """The bot uses default intents only — no privileged intents needed."""
+def test_bot_has_message_content_intent(monkeypatch):
+    """The bot requires message_content intent for DM reply handling."""
     monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
     client = DiscalClient()
-    assert not client.intents.message_content
+    assert client.intents.message_content
     assert not client.intents.members
     assert not client.intents.presences
 
