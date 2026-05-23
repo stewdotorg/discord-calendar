@@ -16,7 +16,11 @@ from src.commands.create import create  # noqa: F401  # side-effect: registers o
 from src.commands.help import help_cmd  # noqa: F401  # side-effect: registers on cal group
 import src.commands.settings  # noqa: F401  # side-effect: registers settings subgroup on cal
 from src.commands.edit import edit  # noqa: F401  # side-effect: registers on cal group
-from src.commands.rsvp import invite  # noqa: F401  # side-effect: registers on cal group
+from src.commands.rsvp import (  # noqa: F401  # side-effect: registers on cal group
+    RSVP_PREFIX,
+    _handle_rsvp_interaction,
+    invite,
+)
 from src.commands.reminders import reminders_group, reminders_defaults_group  # noqa: F401
 from src.db.queries import SettingsStore
 
@@ -107,9 +111,8 @@ class DiscalClient(discord.Client):
         if interaction.type != discord.InteractionType.component:
             return
         custom_id = interaction.data.get("custom_id", "")  # type: ignore[union-attr]
-        if custom_id.startswith("rsvp:"):
-            event_id = custom_id[5:]
-            from src.commands.rsvp import _handle_rsvp_interaction
+        if custom_id.startswith(RSVP_PREFIX):
+            event_id = custom_id[len(RSVP_PREFIX):]
             await _handle_rsvp_interaction(interaction, event_id)
 
     async def on_ready(self) -> None:

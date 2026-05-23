@@ -16,6 +16,8 @@ from src.utils import _MENTION_PATTERN, format_invite_error, validate_email
 
 logger = logging.getLogger(__name__)
 
+RSVP_PREFIX = "rsvp:"
+
 
 # ── RSVP button (attached to /cal create posts) ───────────────────────────
 
@@ -118,25 +120,23 @@ async def _handle_rsvp_interaction(
 class RsvpView(discord.ui.View):
     """Persistent View with an RSVP button for event posts.
 
-    The event ID is encoded in the button's ``custom_id`` (``rsvp:event_id``)
-    so the handler can recover it after bot restarts.
+    The event ID is encoded in the button's ``custom_id`` so the handler
+    can recover it after bot restarts via ``on_interaction``.
     """
 
     def __init__(self, event_id: str) -> None:
         super().__init__(timeout=None)
+        self._event_id = event_id
         button = discord.ui.Button(
             label="📅 RSVP",
             style=discord.ButtonStyle.primary,
-            custom_id=f"rsvp:{event_id}",
+            custom_id=f"{RSVP_PREFIX}{event_id}",
         )
         button.callback = self._rsvp_callback
         self.add_item(button)
 
     async def _rsvp_callback(self, interaction: discord.Interaction) -> None:
-        """Extract event_id from custom_id and delegate to shared handler."""
-        custom_id = interaction.data.get("custom_id", "")  # type: ignore[union-attr]
-        event_id = custom_id[5:]  # strip "rsvp:"
-        await _handle_rsvp_interaction(interaction, event_id)
+        await _handle_rsvp_interaction(interaction, self._event_id)
 
 
 async def _require_calendar(interaction: discord.Interaction) -> bool:

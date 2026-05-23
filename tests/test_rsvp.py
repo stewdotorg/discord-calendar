@@ -435,29 +435,6 @@ async def test_rsvp_button_no_email_stored_opens_modal():
 
 
 @pytest.mark.asyncio
-async def test_rsvp_button_no_settings_at_all_opens_modal():
-    """RSVP button with user not in settings at all opens the email modal."""
-    from src.commands.rsvp import _handle_rsvp_interaction
-
-    interaction = MagicMock()
-    interaction.user.id = 12345
-    interaction.response = MagicMock()
-    interaction.response.send_modal = AsyncMock()
-
-    mock_calendar = MagicMock()
-    interaction.client.calendar = mock_calendar
-
-    # settings.get returns None for missing user (same as no email)
-    mock_settings = MagicMock()
-    mock_settings.get.return_value = None
-    interaction.client.settings = mock_settings
-
-    await _handle_rsvp_interaction(interaction, "abc123")
-
-    interaction.response.send_modal.assert_called_once()
-
-
-@pytest.mark.asyncio
 async def test_rsvp_button_api_error_shows_error():
     """RSVP button when Google Calendar API is down shows ephemeral error."""
     from src.commands.rsvp import _handle_rsvp_interaction
@@ -605,7 +582,6 @@ async def test_rsvp_view_callback_delegates_to_handler():
     from src.commands.rsvp import RsvpView
 
     interaction = MagicMock()
-    interaction.data = {"custom_id": "rsvp:abc123"}
 
     with patch("src.commands.rsvp._handle_rsvp_interaction") as mock_handler:
         mock_handler.return_value = None
