@@ -198,7 +198,7 @@ def get_current_commit_sha() -> str | None:
         )
         if result.returncode == 0:
             return result.stdout.strip()
-    except Exception:
+    except (OSError, subprocess.SubprocessError):
         pass
 
     return None

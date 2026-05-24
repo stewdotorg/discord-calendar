@@ -29,6 +29,11 @@ from src.dm_handler import handle_dm_reply
 logger = logging.getLogger(__name__)
 
 
+def _format_utc_timestamp() -> str:
+    """Return the current UTC time as a human-readable string."""
+    return discord.utils.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+
+
 def _is_message_content_enabled() -> bool:
     """Return True if DISCORD_ENABLE_MESSAGE_CONTENT is 'true' (case-insensitive)."""
     return os.environ.get("DISCORD_ENABLE_MESSAGE_CONTENT", "").lower() == "true"
@@ -142,7 +147,7 @@ class DiscalClient(discord.Client):
         name = self.user.name if self.user else "Unknown"
         logger.info("Ready: %s", name)
 
-        now = discord.utils.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+        now = _format_utc_timestamp()
         sha = notify.get_current_commit_sha() or ""
         await notify.notify(self, "restart", timestamp=now, sha=sha)
         await notify.check_and_notify_deploy(self)
@@ -153,7 +158,7 @@ class DiscalClient(discord.Client):
     async def close(self) -> None:
         """Send shutdown notification before closing the Discord connection."""
         try:
-            now = discord.utils.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+            now = _format_utc_timestamp()
             await notify.notify(self, "shutdown", timestamp=now)
         except Exception:
             logger.warning("Failed to send shutdown notification", exc_info=True)
