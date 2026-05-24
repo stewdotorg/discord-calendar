@@ -111,17 +111,20 @@ class DiscalClient(discord.Client):
         empty, silently returns.  On failure (user not found, DMs blocked,
         HTTP error), logs a warning but never raises.
         """
-        admin_id_str = os.environ.get("DISCORD_ADMIN_USER_ID", "")
-        if not admin_id_str:
+        admin_id = os.environ.get("DISCORD_ADMIN_USER_ID", "")
+        if not admin_id:
             return
 
         try:
-            admin_user = await self.fetch_user(int(admin_id_str))
+            admin_user = await self.fetch_user(int(admin_id))
+        except ValueError:
+            logger.warning("Cannot DM admin user %s: invalid user ID", admin_id)
+            return
         except discord.NotFound:
-            logger.warning("Cannot DM admin user %s: user not found", admin_id_str)
+            logger.warning("Cannot DM admin user %s: user not found", admin_id)
             return
         except discord.HTTPException as exc:
-            logger.warning("Cannot DM admin user %s: %s", admin_id_str, exc)
+            logger.warning("Cannot DM admin user %s: %s", admin_id, exc)
             return
 
         now = discord.utils.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
@@ -129,9 +132,9 @@ class DiscalClient(discord.Client):
         try:
             await admin_user.send(msg)
         except discord.Forbidden:
-            logger.warning("Cannot DM admin user %s: DMs are blocked", admin_id_str)
+            logger.warning("Cannot DM admin user %s: DMs are blocked", admin_id)
         except discord.HTTPException as exc:
-            logger.warning("Cannot DM admin user %s: %s", admin_id_str, exc)
+            logger.warning("Cannot DM admin user %s: %s", admin_id, exc)
 
 
 def main() -> None:
