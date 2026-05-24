@@ -8,6 +8,8 @@ import dateparser
 import discord
 from googleapiclient.errors import HttpError
 
+from src.db.queries import SettingsStore
+
 _INVALID_EMAIL_MSG = (
     "❌ Invalid email: {reason}. "
     "Please provide a valid email address, e.g. me@example.com."
@@ -33,7 +35,7 @@ _MENTION_PATTERN = re.compile(r"^<@!?(\d+)>$")
 
 def resolve_mentions(
     items: list[str],
-    settings_store,
+    settings_store: SettingsStore,
 ) -> tuple[list[str], list[str], set[str]]:
     """Resolve Discord @mentions to stored emails.
 
@@ -46,7 +48,7 @@ def resolve_mentions(
         settings_store: A ``SettingsStore`` instance for email lookup.
 
     Returns:
-        ``(resolved, warnings)`` tuple:
+        ``(resolved, warnings, unresolvable_ids)`` tuple:
 
         * **resolved** — List of email addresses (resolved + passed-through).
           Unresolvable mentions with no stored email are omitted.

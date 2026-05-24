@@ -11,6 +11,8 @@ import threading
 
 from src.db.schema import init_db
 
+_PENDING_INVITE_EXPIRY_DAYS = 7
+
 
 class SettingsStore:
     """Key-value store for per-user settings and per-guild digest configs.
@@ -150,7 +152,7 @@ class SettingsStore:
             # Check expiry: skip invites older than 7 days
             ref = now if now is not None else datetime.datetime.now(datetime.timezone.utc)
             created = datetime.datetime.fromisoformat(row["created_at"])
-            if (ref - created) > datetime.timedelta(days=7):
+            if (ref - created) > datetime.timedelta(days=_PENDING_INVITE_EXPIRY_DAYS):
                 return None
 
             return dict(row)
@@ -175,7 +177,7 @@ class SettingsStore:
             Number of rows deleted.
         """
         ref = now if now is not None else datetime.datetime.now(datetime.timezone.utc)
-        cutoff = (ref - datetime.timedelta(days=7)).isoformat()
+        cutoff = (ref - datetime.timedelta(days=_PENDING_INVITE_EXPIRY_DAYS)).isoformat()
         with self._lock:
             cursor = self._conn.execute(
                 "DELETE FROM pending_invites WHERE created_at < ?",

@@ -109,7 +109,7 @@ async def create(
             event_title=title,
             event_start=start.isoformat(),
             event_html_link=result["htmlLink"],
-            settings_store=settings,
+            settings_store=interaction.client.settings,  # type: ignore[attr-defined]
         )
 
     # ── Add attendees if invite emails were resolved ───────────────────────
