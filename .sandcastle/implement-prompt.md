@@ -35,7 +35,7 @@ If applicable, use RGR to complete the task.
 
 # FEEDBACK LOOPS
 
-Before committing, run `ruff check src/ tests/` for linting and `python -m pytest tests/ -v` to ensure tests pass.
+Before committing, run `ruff check src/ tests/` for linting and `python -m pytest tests/ -q` to ensure tests pass (use -q not -v to keep output compact; if tests fail, rerun the failing file with -v to debug).
 
 # COMMIT
 
@@ -56,6 +56,54 @@ Do not close the issue - this will be done later.
 
 Once complete, output <promise>COMPLETE</promise>.
 
+# FORBIDDEN FILES
+
+**Never modify these unless the issue explicitly says to:**
+
+- `.claude/` — agent context files (AGENTS.md, CLAUDE.md, context/*)
+- `.sandcastle/` — config files (main.mts, *.md prompts, Dockerfile)
+- `.pi/` — project skills
+
+These are the project's agent infrastructure. Touching them outside of a scoped ticket corrupts future agent sessions.
+
+# OFFGASSING
+
+If you notice a bug, have a suggested context update, or want to flag anything out of scope for the current issue, create a file in `.notes/` (gitignored). Do NOT commit it.
+
+**File naming:** `sc-extra-{YYYY-MM-DD}-{issue-slug}-{severity}.md`
+
+**Severity levels:**
+
+| Level | When to use |
+|---|---|
+| `critical` | Security issue, credential leak, data loss risk — must fix immediately |
+| `high` | Bug that affects functionality, incorrect context that will mislead agents |
+| `medium` | Suggested improvement, refactoring opportunity, context gap |
+| `low` | Minor observation, nice-to-have, documentation nit |
+
+**Format:**
+
+```markdown
+# SC Extra: {one-line summary}
+
+**Issue:** #{{TASK_ID}} — {{ISSUE_TITLE}}
+**Date:** {YYYY-MM-DD}
+**Severity:** {level}
+
+## Observation
+
+[What you noticed]
+
+## Recommendation
+
+[What should be done about it]
+```
+
+If `.notes/` doesn't exist, create it. One file per observation — don't lump unrelated things together.
+
+Do NOT commit `.notes/` or any files within it.
+
 # FINAL RULES
 
 ONLY WORK ON A SINGLE TASK.
+Do NOT modify `.claude/`, `.sandcastle/config`, or `.pi/` unless the issue explicitly says to.

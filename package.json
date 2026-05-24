@@ -3,6 +3,7 @@
     "@ai-hero/sandcastle": "^0.5.5"
   },
   "scripts": {
-    "sandcastle": "npx tsx .sandcastle/main.mts"
+    "sandcastle": "npx tsx .sandcastle/main.mts",
+    "postinstall": "node scripts/patch-sandcastle.js"
   }
 }

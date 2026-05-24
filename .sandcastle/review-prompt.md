@@ -43,12 +43,28 @@ Review the code changes on branch `{{BRANCH}}` and improve code clarity, consist
 
 6. **Preserve functionality**: Never change what the code does - only how it does it. All original features, outputs, and behaviors must remain intact.
 
+# FORBIDDEN FILES
+
+**Never modify these unless the issue explicitly says to:**
+
+- `.claude/` — agent context files (AGENTS.md, CLAUDE.md, context/*)
+- `.sandcastle/` — config files (main.mts, *.md prompts, Dockerfile)
+- `.pi/` — project skills
+
+# OFFGASSING
+
+If you notice a bug or have a suggested context update that is out of scope, create a file in `.notes/` using the naming convention:
+
+`sc-extra-{YYYY-MM-DD}-{issue-slug}-{severity}.md`
+
+Severity: `critical` | `high` | `medium` | `low`. One file per observation. Do NOT commit it.
+
 # EXECUTION
 
 If you find improvements to make:
 
 1. Make the changes directly on this branch
-2. Run `ruff check src/ tests/` and `python -m pytest tests/ -v` to ensure nothing is broken
+2. Run `ruff check src/ tests/` and `python -m pytest tests/ -q` to ensure nothing is broken (use -q not -v to keep output compact)
 3. Commit describing the refinements
 
 If the code is already clean and well-structured, do nothing.

@@ -5,6 +5,9 @@
 service-account.json
 client-secret.json
 
+# Agent side-effects (offgassing, scratch notes)
+.notes/
+
 # Potential context pollution
 PRD.md
 learnings.md
