@@ -28,6 +28,11 @@ from src.dm_handler import handle_dm_reply
 logger = logging.getLogger(__name__)
 
 
+def _is_message_content_enabled() -> bool:
+    """Return True if DISCORD_ENABLE_MESSAGE_CONTENT is 'true' (case-insensitive)."""
+    return os.environ.get("DISCORD_ENABLE_MESSAGE_CONTENT", "").lower() == "true"
+
+
 class DiscalClient(discord.Client):
     """Discord client for the Discal calendar bot.
 
@@ -37,7 +42,10 @@ class DiscalClient(discord.Client):
 
     def __init__(self, db_path: str = "data/discal.db") -> None:
         intents = discord.Intents.default()
-        intents.message_content = True
+        if _is_message_content_enabled():
+            intents.message_content = True
+        else:
+            logger.info("message_content intent disabled — DM reply handling will be skipped")
         app_id = os.environ.get("DISCORD_APPLICATION_ID", "")
         super().__init__(intents=intents, application_id=app_id)
         self.tree = app_commands.CommandTree(self)
@@ -109,7 +117,11 @@ class DiscalClient(discord.Client):
 
         Catches RSVP button clicks (custom_id starts with ``rsvp:``) after
         bot restarts when the in-memory View is no longer present.
+
+        Skipped when message_content intent is disabled.
         """
+        if not _is_message_content_enabled():
+            return
         if interaction.type != discord.InteractionType.component:
             return
         custom_id = interaction.data.get("custom_id", "")  # type: ignore[union-attr]
@@ -129,7 +141,11 @@ class DiscalClient(discord.Client):
         Reads DISCORD_ADMIN_USER_ID from the environment.  If not set or
         empty, silently returns.  On failure (user not found, DMs blocked,
         HTTP error), logs a warning but never raises.
+
+        Skipped when message_content intent is disabled.
         """
+        if not _is_message_content_enabled():
+            return
         admin_id = os.environ.get("DISCORD_ADMIN_USER_ID", "")
         if not admin_id:
             return
@@ -175,6 +191,9 @@ class DiscalClient(discord.Client):
             return
 
         if self.calendar is None:
+            return
+
+        if not _is_message_content_enabled():
             return
 
         try:

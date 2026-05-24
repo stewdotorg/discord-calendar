@@ -13,7 +13,7 @@ from tests import VALID_KEY_JSON
 ADMIN_USER_ID = "123456789012345678"
 
 
-def _make_client(monkeypatch, admin_id=None):
+def _make_client(monkeypatch, admin_id=None, message_content_enabled=None):
     """Create a DiscalClient with the user property mocked and optional admin config.
 
     Returns (client, mock_user) where mock_user has name="DiscalBot" and the
@@ -24,6 +24,10 @@ def _make_client(monkeypatch, admin_id=None):
         monkeypatch.setenv("DISCORD_ADMIN_USER_ID", admin_id)
     else:
         monkeypatch.delenv("DISCORD_ADMIN_USER_ID", raising=False)
+    if message_content_enabled is not None:
+        monkeypatch.setenv("DISCORD_ENABLE_MESSAGE_CONTENT", message_content_enabled)
+    else:
+        monkeypatch.delenv("DISCORD_ENABLE_MESSAGE_CONTENT", raising=False)
     client = DiscalClient()
     mock_user = MagicMock()
     mock_user.name = "DiscalBot"
@@ -39,12 +43,37 @@ def test_bot_has_command_tree(monkeypatch):
 
 
 def test_bot_has_message_content_intent(monkeypatch):
-    """The bot requires message_content intent for DM reply handling."""
+    """When DISCORD_ENABLE_MESSAGE_CONTENT is true, the intent is enabled."""
     monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
+    monkeypatch.setenv("DISCORD_ENABLE_MESSAGE_CONTENT", "true")
     client = DiscalClient()
     assert client.intents.message_content
     assert not client.intents.members
     assert not client.intents.presences
+
+
+def test_message_content_intent_disabled_by_default(monkeypatch):
+    """When DISCORD_ENABLE_MESSAGE_CONTENT is unset, the intent is disabled."""
+    monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
+    monkeypatch.delenv("DISCORD_ENABLE_MESSAGE_CONTENT", raising=False)
+    client = DiscalClient()
+    assert not client.intents.message_content
+
+
+def test_message_content_intent_disabled_when_false(monkeypatch):
+    """When DISCORD_ENABLE_MESSAGE_CONTENT is 'false', the intent is disabled."""
+    monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
+    monkeypatch.setenv("DISCORD_ENABLE_MESSAGE_CONTENT", "false")
+    client = DiscalClient()
+    assert not client.intents.message_content
+
+
+def test_message_content_intent_case_insensitive(monkeypatch):
+    """DISCORD_ENABLE_MESSAGE_CONTENT is case-insensitive: 'TRUE' enables it."""
+    monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
+    monkeypatch.setenv("DISCORD_ENABLE_MESSAGE_CONTENT", "TRUE")
+    client = DiscalClient()
+    assert client.intents.message_content
 
 
 @pytest.mark.asyncio
@@ -162,6 +191,7 @@ class TestOnMessage:
         """When a DM arrives from a user with a pending invite,
         handle_dm_reply is called and processing returns True."""
         monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
+        monkeypatch.setenv("DISCORD_ENABLE_MESSAGE_CONTENT", "true")
         initial_cal = MagicMock()
         with patch("src.bot.handle_dm_reply", new_callable=AsyncMock) as mock_handle:
             mock_handle.return_value = True
@@ -182,6 +212,7 @@ class TestOnMessage:
     async def test_guild_message_is_ignored(self, monkeypatch):
         """Messages in guild channels are not processed by on_message."""
         monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
+        monkeypatch.setenv("DISCORD_ENABLE_MESSAGE_CONTENT", "true")
         with patch("src.bot.handle_dm_reply", new_callable=AsyncMock) as mock_handle:
             client = DiscalClient()
             client.calendar = MagicMock()
@@ -198,6 +229,7 @@ class TestOnMessage:
     async def test_own_message_is_skipped(self, monkeypatch):
         """The bot's own messages are skipped before any processing."""
         monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
+        monkeypatch.setenv("DISCORD_ENABLE_MESSAGE_CONTENT", "true")
         with patch("src.bot.handle_dm_reply", new_callable=AsyncMock) as mock_handle:
             client = DiscalClient()
             client.calendar = MagicMock()
@@ -215,6 +247,7 @@ class TestOnMessage:
     async def test_no_calendar_is_ignored(self, monkeypatch):
         """When calendar is None, DMs are silently ignored."""
         monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
+        monkeypatch.setenv("DISCORD_ENABLE_MESSAGE_CONTENT", "true")
         with patch("src.bot.handle_dm_reply", new_callable=AsyncMock) as mock_handle:
             client = DiscalClient()
             client.calendar = None
@@ -232,6 +265,7 @@ class TestOnMessage:
         """When handle_dm_reply raises an unexpected exception,
         it is caught and logged so on_message doesn't crash."""
         monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
+        monkeypatch.setenv("DISCORD_ENABLE_MESSAGE_CONTENT", "true")
         with patch("src.bot.handle_dm_reply", new_callable=AsyncMock) as mock_handle:
             mock_handle.side_effect = RuntimeError("unexpected DB error")
             client = DiscalClient()
@@ -250,6 +284,56 @@ class TestOnMessage:
                 mock_handle.assert_called_once()
                 mock_log.assert_called_once()
                 assert "handle_dm_reply" in mock_log.call_args.args[0]
+
+    @pytest.mark.asyncio
+    async def test_dm_skipped_when_message_content_disabled(self, monkeypatch):
+        """When message_content is disabled, DM handling is skipped entirely."""
+        monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
+        # message_content defaults to disabled when unset
+        with patch("src.bot.handle_dm_reply", new_callable=AsyncMock) as mock_handle:
+            client = DiscalClient()
+            client.calendar = MagicMock()
+
+            message = MagicMock()
+            message.author = MagicMock()
+            message.guild = None
+
+            await client.on_message(message)
+            mock_handle.assert_not_called()
+
+
+class TestOnInteractionRSVP:
+    """Tests for RSVP on_interaction handling with message_content feature flag."""
+
+    @pytest.mark.asyncio
+    async def test_rsvp_interaction_handled_when_message_content_enabled(self, monkeypatch):
+        """on_interaction forwards RSVP button clicks when message_content is enabled."""
+        monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
+        monkeypatch.setenv("DISCORD_ENABLE_MESSAGE_CONTENT", "true")
+        client = DiscalClient()
+
+        interaction = MagicMock()
+        interaction.type = discord.InteractionType.component
+        interaction.data = {"custom_id": "rsvp:abc123"}
+
+        with patch("src.bot._handle_rsvp_interaction", new_callable=AsyncMock) as mock_rsvp:
+            await client.on_interaction(interaction)
+            mock_rsvp.assert_called_once_with(interaction, "abc123")
+
+    @pytest.mark.asyncio
+    async def test_rsvp_interaction_skipped_when_message_content_disabled(self, monkeypatch):
+        """on_interaction returns early when message_content is disabled."""
+        monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
+        # message_content defaults to disabled
+        client = DiscalClient()
+
+        interaction = MagicMock()
+        interaction.type = discord.InteractionType.component
+        interaction.data = {"custom_id": "rsvp:abc123"}
+
+        with patch("src.bot._handle_rsvp_interaction", new_callable=AsyncMock) as mock_rsvp:
+            await client.on_interaction(interaction)
+            mock_rsvp.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -287,7 +371,9 @@ class TestOnReadyDMAdmin:
     @pytest.mark.asyncio
     async def test_sends_dm_on_restart(self, monkeypatch):
         """on_ready fetches admin user and sends a DM with restart timestamp."""
-        client, mock_user = _make_client(monkeypatch, admin_id=ADMIN_USER_ID)
+        client, mock_user = _make_client(
+            monkeypatch, admin_id=ADMIN_USER_ID, message_content_enabled="true"
+        )
 
         mock_admin = MagicMock()
         mock_admin.send = AsyncMock()
@@ -306,7 +392,9 @@ class TestOnReadyDMAdmin:
     @pytest.mark.asyncio
     async def test_warns_when_admin_user_not_found(self, monkeypatch):
         """on_ready logs warning when admin user ID not found on Discord."""
-        client, mock_user = _make_client(monkeypatch, admin_id=ADMIN_USER_ID)
+        client, mock_user = _make_client(
+            monkeypatch, admin_id=ADMIN_USER_ID, message_content_enabled="true"
+        )
 
         with patch.object(type(client), "user",
                           new_callable=lambda: property(lambda self: mock_user)):
@@ -321,7 +409,9 @@ class TestOnReadyDMAdmin:
     @pytest.mark.asyncio
     async def test_warns_when_dm_blocked(self, monkeypatch):
         """on_ready logs warning when admin has DMs blocked."""
-        client, mock_user = _make_client(monkeypatch, admin_id=ADMIN_USER_ID)
+        client, mock_user = _make_client(
+            monkeypatch, admin_id=ADMIN_USER_ID, message_content_enabled="true"
+        )
 
         mock_admin = MagicMock()
         mock_admin.send = AsyncMock(side_effect=discord.Forbidden(
@@ -339,7 +429,9 @@ class TestOnReadyDMAdmin:
     @pytest.mark.asyncio
     async def test_warns_on_fetch_http_error(self, monkeypatch):
         """on_ready logs warning when fetching admin user fails with HTTP error."""
-        client, mock_user = _make_client(monkeypatch, admin_id=ADMIN_USER_ID)
+        client, mock_user = _make_client(
+            monkeypatch, admin_id=ADMIN_USER_ID, message_content_enabled="true"
+        )
 
         with patch.object(type(client), "user",
                           new_callable=lambda: property(lambda self: mock_user)):
@@ -365,7 +457,9 @@ class TestOnReadyDMAdmin:
     @pytest.mark.asyncio
     async def test_warns_when_admin_id_invalid(self, monkeypatch):
         """on_ready logs warning when admin user ID is not a valid integer."""
-        client, mock_user = _make_client(monkeypatch, admin_id="not-a-number")
+        client, mock_user = _make_client(
+            monkeypatch, admin_id="not-a-number", message_content_enabled="true"
+        )
 
         with patch.object(type(client), "user",
                           new_callable=lambda: property(lambda self: mock_user)):
@@ -375,3 +469,16 @@ class TestOnReadyDMAdmin:
                     mock_fetch.assert_not_called()
                     mock_warn.assert_called()
                     assert "invalid" in mock_warn.call_args[0][0].lower()
+
+    @pytest.mark.asyncio
+    async def test_dm_admin_skipped_when_message_content_disabled(self, monkeypatch):
+        """_dm_admin_on_restart is skipped when message_content is disabled."""
+        client, mock_user = _make_client(
+            monkeypatch, admin_id=ADMIN_USER_ID, message_content_enabled="false"
+        )
+
+        with patch.object(type(client), "user",
+                          new_callable=lambda: property(lambda self: mock_user)):
+            with patch.object(client, "fetch_user", new_callable=AsyncMock) as mock_fetch:
+                await client.on_ready()
+                mock_fetch.assert_not_called()
