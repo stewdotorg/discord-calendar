@@ -99,9 +99,42 @@ class DiscalClient(discord.Client):
         return service
 
     async def on_ready(self) -> None:
-        """Log when the bot has connected to Discord."""
+        """Log when the bot has connected to Discord and DM the admin if configured."""
         name = self.user.name if self.user else "Unknown"
         logger.info("Ready: %s", name)
+        await self._dm_admin_on_restart()
+
+    async def _dm_admin_on_restart(self) -> None:
+        """Send a DM to the configured admin user on bot restart.
+
+        Reads DISCORD_ADMIN_USER_ID from the environment.  If not set or
+        empty, silently returns.  On failure (user not found, DMs blocked,
+        HTTP error), logs a warning but never raises.
+        """
+        admin_id = os.environ.get("DISCORD_ADMIN_USER_ID", "")
+        if not admin_id:
+            return
+
+        try:
+            admin_user = await self.fetch_user(int(admin_id))
+        except ValueError:
+            logger.warning("Cannot DM admin user %s: invalid user ID", admin_id)
+            return
+        except discord.NotFound:
+            logger.warning("Cannot DM admin user %s: user not found", admin_id)
+            return
+        except discord.HTTPException as exc:
+            logger.warning("Cannot DM admin user %s: %s", admin_id, exc)
+            return
+
+        now = discord.utils.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+        msg = f"Discal restarted at {now}"
+        try:
+            await admin_user.send(msg)
+        except discord.Forbidden:
+            logger.warning("Cannot DM admin user %s: DMs are blocked", admin_id)
+        except discord.HTTPException as exc:
+            logger.warning("Cannot DM admin user %s: %s", admin_id, exc)
 
 
 def main() -> None:
