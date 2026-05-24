@@ -7,6 +7,7 @@ import sys
 import discord
 from discord import app_commands
 
+from src import notify
 from src.calendar.auth import CredentialsError, load_credentials
 from src.calendar.service import CalendarService
 from src.commands.delete import delete  # noqa: F401  # side-effect: registers on cal group
@@ -39,7 +40,8 @@ class DiscalClient(discord.Client):
     The ``message_content`` privileged intent is enabled only when
     ``DISCORD_ENABLE_MESSAGE_CONTENT`` is set to ``"true"``.
     When disabled, DM reply handling, RSVP button persistence, and
-    admin restart DMs are all skipped.
+    notification DMs to users are all skipped — channel notifications
+    are unaffected.
     """
 
     def __init__(self, db_path: str = "data/discal.db") -> None:
@@ -81,6 +83,9 @@ class DiscalClient(discord.Client):
             parse_when("May 1")
         except ValueError:
             pass
+
+        # Wire tree error handler for slash-command exception notifications.
+        self.tree.on_error = self._on_tree_error
 
         logger.info("Initializing calendar...")
         self.calendar = self._init_calendar()
@@ -133,49 +138,73 @@ class DiscalClient(discord.Client):
             await _handle_rsvp_interaction(interaction, event_id)
 
     async def on_ready(self) -> None:
-        """Log when the bot has connected to Discord and DM the admin if configured."""
+        """Log ready, send restart notification, detect deploy, clean up invites."""
         name = self.user.name if self.user else "Unknown"
         logger.info("Ready: %s", name)
-        await self._dm_admin_on_restart()
-
-    async def _dm_admin_on_restart(self) -> None:
-        """Send a DM to the configured admin user on bot restart.
-
-        Reads DISCORD_ADMIN_USER_ID from the environment.  If not set or
-        empty, silently returns.  On failure (user not found, DMs blocked,
-        HTTP error), logs a warning but never raises.
-
-        Skipped when ``DISCORD_ENABLE_MESSAGE_CONTENT`` is not ``"true"``.
-        """
-        if not self._message_content_enabled:
-            return
-        admin_id = os.environ.get("DISCORD_ADMIN_USER_ID", "")
-        if not admin_id:
-            return
-
-        try:
-            admin_user = await self.fetch_user(int(admin_id))
-        except ValueError:
-            logger.warning("Cannot DM admin user %s: invalid user ID", admin_id)
-            return
-        except discord.NotFound:
-            logger.warning("Cannot DM admin user %s: user not found", admin_id)
-            return
-        except discord.HTTPException as exc:
-            logger.warning("Cannot DM admin user %s: %s", admin_id, exc)
-            return
 
         now = discord.utils.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
-        msg = f"Discal restarted at {now}"
-        try:
-            await admin_user.send(msg)
-        except discord.Forbidden:
-            logger.warning("Cannot DM admin user %s: DMs are blocked", admin_id)
-        except discord.HTTPException as exc:
-            logger.warning("Cannot DM admin user %s: %s", admin_id, exc)
+        sha = notify.get_current_commit_sha() or ""
+        await notify.notify(self, "restart", timestamp=now, sha=sha)
+        await notify.check_and_notify_deploy(self)
 
         # Clean up expired pending invites on startup.
         self.settings.cleanup_expired_invites()
+
+    async def close(self) -> None:
+        """Send shutdown notification before closing the Discord connection."""
+        try:
+            now = discord.utils.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+            await notify.notify(self, "shutdown", timestamp=now)
+        except Exception:
+            logger.warning("Failed to send shutdown notification", exc_info=True)
+        await super().close()
+
+    async def on_error(self, event_method: str, /, *args, **kwargs) -> None:
+        """Handle unhandled exceptions in gateway event handlers."""
+        exc_type, exc_value, _ = sys.exc_info()
+        message = str(exc_value) if exc_value else str(exc_type)
+        # Suppress default discord.py traceback stack to avoid duplicating
+        # the traceback (logged via exc_info below).
+        logger.error(
+            "Unhandled exception in %s: %s",
+            event_method,
+            message,
+            exc_info=True,
+        )
+        try:
+            await notify.notify(
+                self, "error", handler=f"event:{event_method}", message=message
+            )
+        except Exception:
+            logger.warning("Failed to send error notification", exc_info=True)
+
+    async def _on_tree_error(
+        self,
+        interaction: discord.Interaction,
+        error: discord.app_commands.AppCommandError,
+    ) -> None:
+        """Handle unhandled exceptions in slash-command invocations."""
+        command_name = (
+            interaction.command.name
+            if interaction.command
+            else "unknown"
+        )
+        message = str(error)
+        logger.error(
+            "Unhandled exception in command /%s: %s",
+            command_name,
+            message,
+            exc_info=error,
+        )
+        try:
+            await notify.notify(
+                self,
+                "error",
+                handler=f"command:/{command_name}",
+                message=message,
+            )
+        except Exception:
+            logger.warning("Failed to send error notification", exc_info=True)
 
     async def on_message(self, message: discord.Message) -> None:
         """Handle incoming messages for the pending-invite DM reply flow.
