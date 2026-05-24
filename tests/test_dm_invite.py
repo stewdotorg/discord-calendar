@@ -466,6 +466,36 @@ class TestDMInviteSending:
         mock_settings.insert_pending_invite.assert_not_called()
 
     @pytest.mark.asyncio
+    async def test_send_pending_invite_dm_handles_empty_html_link(self):
+        """When event_html_link is empty, the DM does NOT include a broken
+        markdown link — title is plain bold text."""
+        from src.dm_handler import send_pending_invite_dm
+
+        mock_user = AsyncMock()
+        mock_user.id = 12345
+
+        mock_settings = MagicMock()
+
+        result = await send_pending_invite_dm(
+            user=mock_user,
+            event_id="evt_test",
+            event_title="Team Sync",
+            event_start="2026-05-05T18:00:00+00:00",
+            event_html_link="",
+            inviter_name="stew",
+            inviter_id="99999",
+            settings_store=mock_settings,
+        )
+        assert result is True
+
+        sent = mock_user.send.call_args.args[0]
+        assert "Team Sync" in sent
+        # Should NOT have a broken markdown link
+        assert "](https://" not in sent
+        assert "](http://" not in sent
+        assert "[Team Sync]()" not in sent
+
+    @pytest.mark.asyncio
     async def test_create_with_unresolvable_mention_dms_user(self):
         """When /cal create has an unresolvable @mention, the bot DMs that
         user with the invite prompt."""

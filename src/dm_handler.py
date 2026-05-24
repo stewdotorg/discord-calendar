@@ -50,9 +50,14 @@ async def send_pending_invite_dm(
         start_dt = dt_mod.datetime.now(dt_mod.timezone.utc)
     date_fmt = format_datetime_eastern(start_dt, tz=tz)
 
+    if event_html_link:
+        title_fmt = f"**[{event_title}]({event_html_link})**"
+    else:
+        title_fmt = f"**{event_title}**"
+
     msg = (
         f"👋 **{inviter_name}** invited you to "
-        f"**[{event_title}]({event_html_link})** "
+        f"{title_fmt} "
         f"({date_fmt}).\n\n"
         f"Reply with your email to join."
     )

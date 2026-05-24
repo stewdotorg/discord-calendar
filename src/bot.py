@@ -113,6 +113,9 @@ class DiscalClient(discord.Client):
 
         Only processes DMs (guild is None).  Skips the bot's own messages.
         Delegates to ``handle_dm_reply`` for pending-invite logic.
+
+        Catches unexpected exceptions from the reply handler so a single
+        misbehaving DM cannot crash the entire message handler.
         """
         if message.author == self.user:
             return
@@ -124,7 +127,14 @@ class DiscalClient(discord.Client):
         if self.calendar is None:
             return
 
-        await handle_dm_reply(message, self.settings, self.calendar)
+        try:
+            await handle_dm_reply(message, self.settings, self.calendar)
+        except Exception:
+            logger.error(
+                "Unhandled exception in handle_dm_reply for user %s",
+                message.author.id,
+                exc_info=True,
+            )
 
 
 def main() -> None:
