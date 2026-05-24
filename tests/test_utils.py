@@ -348,16 +348,16 @@ class TestParseWhenDateparser:
         assert result.minute == 0
         assert result.tzinfo == datetime.timezone.utc
 
-    def test_relative_next_monday_3am(self):
-        """Parses 'monday 3:00' as next Monday 3am Eastern."""
+    def test_relative_next_monday_3pm(self):
+        """Parses 'monday 3:00' with AM/PM inference (hour 3 → PM)."""
         with patch("src.utils._dateparser_now", return_value=_BASE):
             result = parse_when("monday 3:00")
         # May 1 is Friday, next Monday = May 4
-        # Monday 3:00 AM EDT = 7:00 UTC
+        # Monday 3:00 PM EDT = 19:00 UTC (hour 3 inferred as PM per Issue #36)
         assert result.year == 2026
         assert result.month == 5
         assert result.day == 4
-        assert result.hour == 7
+        assert result.hour == 19
         assert result.minute == 0
         assert result.tzinfo == datetime.timezone.utc
 

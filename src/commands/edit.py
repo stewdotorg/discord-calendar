@@ -140,12 +140,20 @@ def _compute_start_end(
     current_end = datetime.datetime.fromisoformat(current_end_str)
 
     if when is not None:
-        new_start = parse_when(when, tz=tz)
+        parsed = parse_when(when, tz=tz)
+        if isinstance(parsed, tuple):
+            new_start, parsed_end = parsed
+        else:
+            new_start = parsed
+            parsed_end = None
     else:
         new_start = current_start
+        parsed_end = None
 
     if duration is not None:
         new_end = new_start + datetime.timedelta(minutes=duration)
+    elif parsed_end is not None:
+        new_end = parsed_end
     elif when is not None:
         existing_minutes = (current_end - current_start).total_seconds() / 60
         new_end = new_start + datetime.timedelta(minutes=int(existing_minutes))

@@ -74,12 +74,19 @@ async def create(
     user_tz = get_user_timezone(interaction)
 
     try:
-        start = parse_when(when, tz=user_tz)
+        parsed = parse_when(when, tz=user_tz)
     except ValueError as exc:
         await interaction.edit_original_response(
             content=f"❌ Cannot parse '{when}': {exc}"
         )
         return
+
+    if isinstance(parsed, tuple):
+        start, end = parsed
+        # Override duration with the parsed range.
+        duration = int((end - start).total_seconds() / 60)
+    else:
+        start = parsed
 
     creator_discord_id = str(interaction.user.id)
 
