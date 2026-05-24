@@ -12,6 +12,7 @@ from googleapiclient.errors import HttpError
 
 from src.commands.autocomplete import event_autocomplete
 from src.commands.list_events import cal
+from src.dm_handler import send_pending_invites_to_unresolvable
 from src.utils import _MENTION_PATTERN, format_invite_error, validate_email
 
 logger = logging.getLogger(__name__)
@@ -193,6 +194,7 @@ async def invite(
 
     resolved: list[str] = []
     warnings: list[str] = []
+    unresolvable_ids: set[str] = set()
 
     for item in items:
         if item.lower() == "me":
@@ -217,12 +219,32 @@ async def invite(
                     f"⚠️ Could not invite {item}: no email stored. "
                     "Ask them to run `/cal settings set email`."
                 )
+                unresolvable_ids.add(mentioned_id)
         else:
             error = validate_email(item)
             if error:
                 warnings.append(f"⚠️ {item}: {error}")
             elif item not in resolved:
                 resolved.append(item)
+
+    # ── DM unresolvable mentions ──────────────────────────────────────
+    if unresolvable_ids:
+        try:
+            event = calendar.get_event(event_id)
+        except HttpError:
+            event = None
+
+        if event:
+            await send_pending_invites_to_unresolvable(
+                client=interaction.client,
+                unresolvable_ids=unresolvable_ids,
+                inviter=interaction.user,
+                event_id=event_id,
+                event_title=event.get("summary", "Untitled Event"),
+                event_start=event.get("start", {}).get("dateTime", ""),
+                event_html_link=event.get("htmlLink", ""),
+                settings_store=interaction.client.settings,
+            )
 
     if not resolved:
         await interaction.edit_original_response(

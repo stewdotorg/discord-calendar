@@ -23,6 +23,7 @@ from src.commands.rsvp import (  # noqa: F401  # side-effect: registers on cal g
 )
 from src.commands.reminders import reminders_group, reminders_defaults_group  # noqa: F401
 from src.db.queries import SettingsStore
+from src.dm_handler import handle_dm_reply
 
 logger = logging.getLogger(__name__)
 
@@ -30,12 +31,13 @@ logger = logging.getLogger(__name__)
 class DiscalClient(discord.Client):
     """Discord client for the Discal calendar bot.
 
-    Uses default intents (no privileged gateway intents needed)
-    and registers slash commands via app_commands.CommandTree.
+    Requires the ``message_content`` privileged intent for DM reply
+    handling (pending-invite flow).  All other intents use defaults.
     """
 
     def __init__(self, db_path: str = "data/discal.db") -> None:
         intents = discord.Intents.default()
+        intents.message_content = True
         app_id = os.environ.get("DISCORD_APPLICATION_ID", "")
         super().__init__(intents=intents, application_id=app_id)
         self.tree = app_commands.CommandTree(self)
@@ -152,6 +154,37 @@ class DiscalClient(discord.Client):
             logger.warning("Cannot DM admin user %s: DMs are blocked", admin_id)
         except discord.HTTPException as exc:
             logger.warning("Cannot DM admin user %s: %s", admin_id, exc)
+
+        # Clean up expired pending invites on startup.
+        self.settings.cleanup_expired_invites()
+
+    async def on_message(self, message: discord.Message) -> None:
+        """Handle incoming messages for the pending-invite DM reply flow.
+
+        Only processes DMs (guild is None).  Skips the bot's own messages.
+        Delegates to ``handle_dm_reply`` for pending-invite logic.
+
+        Catches unexpected exceptions from the reply handler so a single
+        misbehaving DM cannot crash the entire message handler.
+        """
+        if message.author == self.user:
+            return
+
+        # Only process DMs — channel messages are ignored here.
+        if message.guild is not None:
+            return
+
+        if self.calendar is None:
+            return
+
+        try:
+            await handle_dm_reply(message, self.settings, self.calendar)
+        except Exception:
+            logger.error(
+                "Unhandled exception in handle_dm_reply for user %s",
+                message.author.id,
+                exc_info=True,
+            )
 
 
 def main() -> None:

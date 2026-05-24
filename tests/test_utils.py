@@ -482,11 +482,12 @@ class TestResolveMentions:
         settings = MagicMock()
         settings.get.return_value = "bob@example.com"
 
-        resolved, warnings = resolve_mentions(["<@123456789>"], settings)
+        resolved, warnings, unresolvable = resolve_mentions(["<@123456789>"], settings)
 
         settings.get.assert_called_once_with("123456789", "email")
         assert resolved == ["bob@example.com"]
         assert warnings == []
+        assert unresolvable == set()
 
     def test_passes_raw_emails_through(self):
         """resolve_mentions passes raw email addresses through unchanged."""
@@ -495,12 +496,13 @@ class TestResolveMentions:
         settings = MagicMock()
         settings.get.return_value = None
 
-        resolved, warnings = resolve_mentions(
+        resolved, warnings, unresolvable = resolve_mentions(
             ["alice@example.com"], settings
         )
 
         assert resolved == ["alice@example.com"]
         assert warnings == []
+        assert unresolvable == set()
 
     def test_warns_when_mention_has_no_stored_email(self):
         """resolve_mentions returns a warning when a mentioned user has no stored email."""
@@ -509,12 +511,13 @@ class TestResolveMentions:
         settings = MagicMock()
         settings.get.return_value = None
 
-        resolved, warnings = resolve_mentions(["<@999999>"], settings)
+        resolved, warnings, unresolvable = resolve_mentions(["<@999999>"], settings)
 
         assert resolved == []
         assert len(warnings) == 1
         assert "no email stored" in warnings[0].lower()
         assert "<@999999>" in warnings[0]
+        assert unresolvable == {"999999"}
 
     def test_resolves_mixed_mentions_and_emails(self):
         """resolve_mentions handles a mix of @mentions and raw emails."""
@@ -530,7 +533,7 @@ class TestResolveMentions:
         settings = MagicMock()
         settings.get = mock_get
 
-        resolved, warnings = resolve_mentions(
+        resolved, warnings, unresolvable = resolve_mentions(
             ["<@111111>", "alice@example.com", "<@222222>"],
             settings,
         )
@@ -541,6 +544,7 @@ class TestResolveMentions:
             "carol@example.com",
         ]
         assert warnings == []
+        assert unresolvable == set()
 
     def test_mixed_resolved_and_unresolved_mentions(self):
         """resolve_mentions resolves what it can and warns about the rest."""
@@ -554,7 +558,7 @@ class TestResolveMentions:
         settings = MagicMock()
         settings.get = mock_get
 
-        resolved, warnings = resolve_mentions(
+        resolved, warnings, unresolvable = resolve_mentions(
             ["<@111111>", "<@999999>", "alice@example.com"],
             settings,
         )
@@ -562,6 +566,7 @@ class TestResolveMentions:
         assert resolved == ["bob@example.com", "alice@example.com"]
         assert len(warnings) == 1
         assert "<@999999>" in warnings[0]
+        assert unresolvable == {"999999"}
 
     def test_handles_whitespace_around_items(self):
         """resolve_mentions strips whitespace around each item."""
@@ -570,13 +575,14 @@ class TestResolveMentions:
         settings = MagicMock()
         settings.get.return_value = "bob@example.com"
 
-        resolved, warnings = resolve_mentions(
+        resolved, warnings, unresolvable = resolve_mentions(
             ["  <@123456789>  ", "  alice@example.com  "],
             settings,
         )
 
         assert resolved == ["bob@example.com", "alice@example.com"]
         assert warnings == []
+        assert unresolvable == set()
 
     def test_handles_nickname_mention_format(self):
         """resolve_mentions handles <@!id> (nickname) mention format."""
@@ -585,11 +591,12 @@ class TestResolveMentions:
         settings = MagicMock()
         settings.get.return_value = "bob@example.com"
 
-        resolved, warnings = resolve_mentions(["<@!123456789>"], settings)
+        resolved, warnings, unresolvable = resolve_mentions(["<@!123456789>"], settings)
 
         settings.get.assert_called_once_with("123456789", "email")
         assert resolved == ["bob@example.com"]
         assert warnings == []
+        assert unresolvable == set()
 
     def test_empty_list_returns_empty(self):
         """resolve_mentions returns empty results for an empty list."""
@@ -597,10 +604,11 @@ class TestResolveMentions:
 
         settings = MagicMock()
 
-        resolved, warnings = resolve_mentions([], settings)
+        resolved, warnings, unresolvable = resolve_mentions([], settings)
 
         assert resolved == []
         assert warnings == []
+        assert unresolvable == set()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

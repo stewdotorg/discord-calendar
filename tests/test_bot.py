@@ -38,11 +38,11 @@ def test_bot_has_command_tree(monkeypatch):
     assert isinstance(client.tree, discord.app_commands.CommandTree)
 
 
-def test_bot_has_no_message_content_intent(monkeypatch):
-    """The bot uses default intents only — no privileged intents needed."""
+def test_bot_has_message_content_intent(monkeypatch):
+    """The bot requires message_content intent for DM reply handling."""
     monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
     client = DiscalClient()
-    assert not client.intents.message_content
+    assert client.intents.message_content
     assert not client.intents.members
     assert not client.intents.presences
 
@@ -149,6 +149,107 @@ class TestInitCalendar:
                 client._init_calendar()
 
             assert exc_info.value.code == 1
+
+
+# ── on_message ───────────────────────────────────────────────────────────────
+
+
+class TestOnMessage:
+    """Tests for the DiscalClient.on_message handler."""
+
+    @pytest.mark.asyncio
+    async def test_dm_message_with_pending_invite_is_handled(self, monkeypatch):
+        """When a DM arrives from a user with a pending invite,
+        handle_dm_reply is called and processing returns True."""
+        monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
+        initial_cal = MagicMock()
+        with patch("src.bot.handle_dm_reply", new_callable=AsyncMock) as mock_handle:
+            mock_handle.return_value = True
+            client = DiscalClient()
+            client.calendar = initial_cal
+
+            message = MagicMock()
+            message.author = MagicMock()
+            message.guild = None  # DM
+
+            await client.on_message(message)
+
+            mock_handle.assert_called_once_with(
+                message, client.settings, initial_cal
+            )
+
+    @pytest.mark.asyncio
+    async def test_guild_message_is_ignored(self, monkeypatch):
+        """Messages in guild channels are not processed by on_message."""
+        monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
+        with patch("src.bot.handle_dm_reply", new_callable=AsyncMock) as mock_handle:
+            client = DiscalClient()
+            client.calendar = MagicMock()
+
+            message = MagicMock()
+            message.author = MagicMock()
+            message.guild = MagicMock()  # Not a DM
+
+            await client.on_message(message)
+
+            mock_handle.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_own_message_is_skipped(self, monkeypatch):
+        """The bot's own messages are skipped before any processing."""
+        monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
+        with patch("src.bot.handle_dm_reply", new_callable=AsyncMock) as mock_handle:
+            client = DiscalClient()
+            client.calendar = MagicMock()
+
+            message = MagicMock()
+            # author is the bot itself
+            message.author = client.user
+            message.guild = None
+
+            await client.on_message(message)
+
+            mock_handle.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_no_calendar_is_ignored(self, monkeypatch):
+        """When calendar is None, DMs are silently ignored."""
+        monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
+        with patch("src.bot.handle_dm_reply", new_callable=AsyncMock) as mock_handle:
+            client = DiscalClient()
+            client.calendar = None
+
+            message = MagicMock()
+            message.author = MagicMock()
+            message.guild = None
+
+            await client.on_message(message)
+
+            mock_handle.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_exception_in_handler_is_caught_and_logged(self, monkeypatch):
+        """When handle_dm_reply raises an unexpected exception,
+        it is caught and logged so on_message doesn't crash."""
+        monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
+        with patch("src.bot.handle_dm_reply", new_callable=AsyncMock) as mock_handle:
+            mock_handle.side_effect = RuntimeError("unexpected DB error")
+            client = DiscalClient()
+            client.calendar = MagicMock()
+
+            message = MagicMock()
+            message.author = MagicMock()
+            message.guild = None
+
+            with patch.object(
+                logging.getLogger("src.bot"), "error"
+            ) as mock_log:
+                # Should not raise
+                await client.on_message(message)
+
+                mock_handle.assert_called_once()
+                mock_log.assert_called_once()
+                assert "handle_dm_reply" in mock_log.call_args.args[0]
 
 
 @pytest.mark.asyncio

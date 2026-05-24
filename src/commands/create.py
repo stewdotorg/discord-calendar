@@ -8,6 +8,7 @@ from googleapiclient.errors import HttpError
 
 from src.commands.list_events import cal
 from src.commands.rsvp import RsvpView
+from src.dm_handler import send_pending_invites_to_unresolvable
 from src.utils import (
     format_create_error,
     format_datetime_eastern,
@@ -57,11 +58,12 @@ async def create(
     # ── Resolve @mentions and validate raw emails ──────────────────────────
     invite_emails: list[str] = []
     invite_warnings: list[str] = []
+    unresolvable_ids: set[str] = set()
 
     if invite:
         settings = interaction.client.settings  # type: ignore[attr-defined]
         items = [item.strip() for item in invite.split(",") if item.strip()]
-        invite_emails, invite_warnings = resolve_mentions(items, settings)
+        invite_emails, invite_warnings, unresolvable_ids = resolve_mentions(items, settings)
         # Validate raw emails that were not @mentions
         validated_emails: list[str] = []
         for email in invite_emails:
@@ -104,6 +106,19 @@ async def create(
         error_msg = format_create_error(exc)
         await interaction.edit_original_response(content=error_msg)
         return
+
+    # ── DM unresolvable mentions ──────────────────────────────────────
+    if unresolvable_ids:
+        await send_pending_invites_to_unresolvable(
+            client=interaction.client,
+            unresolvable_ids=unresolvable_ids,
+            inviter=interaction.user,
+            event_id=result["id"],
+            event_title=title,
+            event_start=start.isoformat(),
+            event_html_link=result["htmlLink"],
+            settings_store=interaction.client.settings,  # type: ignore[attr-defined]
+        )
 
     # ── Add attendees if invite emails were resolved ───────────────────────
     if invite_emails:

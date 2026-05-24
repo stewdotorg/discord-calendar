@@ -17,6 +17,13 @@ CREATE TABLE IF NOT EXISTS digest_configs (
     time TEXT NOT NULL,
     PRIMARY KEY (guild_id, channel_id, period)
 );
+
+CREATE TABLE IF NOT EXISTS pending_invites (
+    user_id TEXT PRIMARY KEY,
+    event_id TEXT NOT NULL,
+    inviter_id TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
 """
 
 
