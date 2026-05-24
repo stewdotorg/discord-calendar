@@ -7,6 +7,7 @@ from discord import app_commands
 from googleapiclient.errors import HttpError
 
 from src.commands.list_events import cal
+from src.commands.rsvp import RsvpView
 from src.utils import (
     format_create_error,
     format_datetime_eastern,
@@ -143,4 +144,6 @@ async def create(
     if invite_warnings:
         response += "\n" + "\n".join(invite_warnings)
 
-    await interaction.edit_original_response(content=response)
+    await interaction.edit_original_response(
+        content=response, view=RsvpView(event_id=result["id"])
+    )
