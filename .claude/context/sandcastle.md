@@ -28,6 +28,10 @@ This uses `createSandbox()` + `sandbox.run()` with `review-prompt.md`. The scrip
 
 The review prompt uses `{{TARGET_BRANCH}}` (main) as the diff base and `{{BRANCH}}` (from promptArgs) as the feature branch. This was fixed from `{{SOURCE_BRANCH}}` which was always equal to `{{BRANCH}}`.
 
-## Infinite-loop guard (main.mts)
+## Postinstall patch (sandcastle OOM)
 
-If the merge phase is skipped (e.g. crash before merge, or reviewer-only script added commits), branches with existing unmerged commits would loop forever: the planner re-schedules them, the implementer produces zero new commits, merge is skipped again. `main.mts` now checks `git log main..<branch> --oneline` after the implementer phase and includes branches with pre-existing commits in the merge list.
+`scripts/patch-sandcastle.js` caps sandcastle stdout/stderr at 5000 lines / 500KB to prevent V8 string-limit crashes. Applied automatically via `postinstall` in `package.json`.
+
+## Offgassing
+
+Sandcastle agents write out-of-scope observations to `.notes/sc-extra-{date}-{ticket}-{severity}.md`. Severity: `critical` | `high` | `medium` | `low`. `.notes/` is gitignored globally and per-project.

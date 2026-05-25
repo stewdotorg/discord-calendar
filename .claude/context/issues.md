@@ -1,9 +1,7 @@
 # Current Issue State
 
-**Closed (completed):** #1–#24, #26–#32, #35
+**Closed (completed):** #1–#32, #35–#40
 
 | # | What | Status |
 |---|---|---|
-| #33 | parse_when: support time-range expressions (e.g. tomorrow 2-4pm) | Implemented + reviewed, needs merge |
-| #34 | RSVP via button on event posts | Open, `ready-for-agent` |
-| #25 | HITL: DM unset-email users on partial invite failure | Open, `ready-for-agent` |
+| #41 | Polish ephemeral Post-to-channel: RSVP on posted, action-line rules, no gcal embed | Open, `ready-for-agent` |
