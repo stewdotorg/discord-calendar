@@ -1,7 +1,7 @@
 """UI components — PostToChannelView for ephemeral-to-public republishing.
 
 PostToChannelView attaches a "Post to channel" button to ephemeral command
-responses.  When clicked, the bot republishes the same content + embeds as
+responses. When clicked, the bot republishes the same content + embeds as
 a normal public message and disables the button.
 """
 
@@ -40,44 +40,36 @@ class PostToChannelView(discord.ui.View):
         self, interaction: discord.Interaction, button: discord.ui.Button
     ) -> None:
         """Republish the ephemeral message as a public channel message."""
-        # Build kwargs for channel.send from the original message
-        kwargs: dict = {}
+        message = interaction.message
 
-        if interaction.message is None:
-            # Message was deleted – nothing to republish.  Still disable the
-            # button so the user knows the action was handled.
-            button.disabled = True
-            button.label = "✓ Posted"
-            try:
-                await interaction.response.edit_message(view=self)
-            except discord.HTTPException:
-                logger.warning(
-                    "Could not edit PostToChannel message (likely deleted)"
-                )
+        if message is None:
+            await self._disable_button(interaction, button)
             return
 
-        if interaction.message.content:
-            kwargs["content"] = interaction.message.content
-        if interaction.message.embeds:
-            kwargs["embeds"] = interaction.message.embeds
+        kwargs = {}
+        if message.content:
+            kwargs["content"] = message.content
+        if message.embeds:
+            kwargs["embeds"] = message.embeds
         if self._posted_view is not None:
             kwargs["view"] = self._posted_view
 
         try:
             await interaction.channel.send(**kwargs)
         except (discord.Forbidden, discord.HTTPException) as exc:
-            # Permission errors or HTTP failures — log but don't crash.
             logger.warning(
                 "Failed to republish ephemeral message to channel: %s", exc
             )
 
-        # Disable the button regardless of whether the post succeeded,
-        # so the user doesn't keep clicking.
+        await self._disable_button(interaction, button)
+
+    async def _disable_button(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ) -> None:
+        """Disable the post button and update the ephemeral message."""
         button.disabled = True
         button.label = "✓ Posted"
         try:
             await interaction.response.edit_message(view=self)
         except discord.HTTPException:
-            logger.warning(
-                "Could not edit PostToChannel message after post (likely deleted)"
-            )
+            logger.warning("Could not edit PostToChannel message (likely deleted)")

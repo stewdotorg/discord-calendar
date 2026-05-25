@@ -95,7 +95,7 @@ _COMMANDS = [
 
 @cal.command(name="help", description="Show all available calendar commands")
 async def help_cmd(interaction: discord.Interaction) -> None:
-    """Respond with an ephemeral embed listing all commands and examples."""
+    """Respond with a public embed listing all commands and examples."""
     embed = discord.Embed(
         title="📅 Discal — Calendar Commands",
         description="Use these slash commands to manage the shared calendar:",
