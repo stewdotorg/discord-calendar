@@ -55,7 +55,7 @@ class PostToChannelView(discord.ui.View):
             kwargs["view"] = self._posted_view
 
         try:
-            await interaction.channel.send(**kwargs)
+            await interaction.followup.send(**kwargs)
         except (discord.Forbidden, discord.HTTPException) as exc:
             logger.warning(
                 "Failed to republish ephemeral message to channel: %s", exc
