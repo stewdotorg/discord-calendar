@@ -55,7 +55,7 @@ async def create(
 
     # Defer response — dateparser and Google Calendar API calls may exceed
     # Discord's 3-second interaction timeout.
-    await interaction.response.defer(ephemeral=True)
+    await interaction.response.defer()
 
     # ── Resolve @mentions and validate raw emails ──────────────────────────
     invite_emails: list[str] = []
