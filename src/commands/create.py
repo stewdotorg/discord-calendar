@@ -152,7 +152,7 @@ async def create(
     start_fmt = format_datetime_eastern(start, tz=user_tz)
 
     response = (
-        f"✅ **Event created!**\n"
+        f"✅ Event created!\n"
         f"**{title}**\n"
         f"📅 {start_fmt} ET  "
         f"({duration} min)\n"
@@ -164,7 +164,13 @@ async def create(
     if invite_warnings:
         response += "\n" + "\n".join(invite_warnings)
 
+    # Posted message omits the action line (✅ Event created!)
+    post_content = "\n".join(response.split("\n")[1:])
+
     await interaction.edit_original_response(
         content=response,
-        view=PostToChannelView(posted_view=RsvpView(event_id=result["id"])),
+        view=PostToChannelView(
+            posted_view=RsvpView(event_id=result["id"]),
+            post_content=post_content,
+        ),
     )

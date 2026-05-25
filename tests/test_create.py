@@ -310,6 +310,13 @@ async def test_create_command_parses_when_and_calls_service():
     assert "Team Sync" in response_text
     assert "May 1, 2026 at 2:00 PM ET" in response_text
     assert "https://calendar.google.com/event?eid=evt_001" in response_text
+    # Action line is no longer bold
+    assert "✅ Event created!" in response_text
+    assert "✅ **Event created!**" not in response_text
+    # Posted content excludes the action line — starts with event title
+    post_content = kwargs["view"]._post_content
+    assert post_content.startswith("**Team Sync**")
+    assert "✅ Event created!" not in post_content
 
 
 @pytest.mark.asyncio

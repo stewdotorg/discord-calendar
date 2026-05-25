@@ -64,5 +64,5 @@ async def delete(interaction: discord.Interaction, event_id: str) -> None:
     await interaction.response.send_message(
         f"🗑️ **{summary}** deleted{date_display}.",
         ephemeral=True,
-        view=PostToChannelView(),
+        view=PostToChannelView(post_content=""),
     )

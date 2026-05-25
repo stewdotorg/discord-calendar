@@ -25,11 +25,21 @@ class PostToChannelView(discord.ui.View):
         An optional View to attach to the posted public message (e.g. an
         RsvpView so the RSVP button appears only on the public copy, not
         the ephemeral confirmation).
+    post_content : str | None
+        Optional override for the content of the posted message. If
+        provided, this replaces the ephemeral message's content in the
+        public copy. Used to strip action lines ("✅ Event created!")
+        that only make sense in the ephemeral confirmation.
     """
 
-    def __init__(self, posted_view: discord.ui.View | None = None) -> None:
+    def __init__(
+        self,
+        posted_view: discord.ui.View | None = None,
+        post_content: str | None = None,
+    ) -> None:
         super().__init__(timeout=300)  # 5 minutes to decide
         self._posted_view = posted_view
+        self._post_content = post_content
 
     @discord.ui.button(
         label="Post to channel",
@@ -47,7 +57,10 @@ class PostToChannelView(discord.ui.View):
             return
 
         kwargs: dict = {}
-        if message.content:
+        if self._post_content is not None:
+            if self._post_content:
+                kwargs["content"] = self._post_content
+        elif message.content:
             kwargs["content"] = message.content
         if message.embeds:
             kwargs["embeds"] = message.embeds

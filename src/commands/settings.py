@@ -81,7 +81,7 @@ async def set_settings(
             return
         interaction.client.settings.set(discord_id, "email", value)
         await interaction.response.send_message(
-            f"✅ Email stored: {value}", ephemeral=True, view=PostToChannelView()
+            f"✅ Email stored: {value}", ephemeral=True, view=PostToChannelView(post_content="")
         )
     elif setting == "timezone":
         if not value:
@@ -102,7 +102,7 @@ async def set_settings(
         await interaction.response.send_message(
             f"✅ Timezone stored: {value}",
             ephemeral=True,
-            view=PostToChannelView(),
+            view=PostToChannelView(post_content=""),
         )
     else:
         await interaction.response.send_message(

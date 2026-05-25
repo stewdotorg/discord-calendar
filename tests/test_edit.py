@@ -96,13 +96,18 @@ def test_format_confirmation_title_changed():
     patch_body = {"summary": "New Title"}
     html_link = "https://calendar.google.com/event?eid=evt1"
 
-    result = _format_confirmation(current, patch_body, html_link)
+    result, posted = _format_confirmation(current, patch_body, html_link)
 
-    assert "Event updated" in result
+    assert "✅ Event updated!" in result
     assert "Old Title" in result
     assert "New Title" in result
     assert "→" in result
     assert html_link in result
+    # Posted message has italic action line, no emoji, event title still bold
+    assert posted.startswith("_Event updated:_")
+    assert "**Old Title**" in posted
+    assert "**New Title**" in posted
+    assert "✅" not in posted
 
 
 def test_format_confirmation_time_changed():
@@ -119,11 +124,14 @@ def test_format_confirmation_time_changed():
     }
     html_link = "https://calendar.google.com/event?eid=evt1"
 
-    result = _format_confirmation(current, patch_body, html_link)
+    result, posted = _format_confirmation(current, patch_body, html_link)
 
     # May 2 19:00 UTC = May 2 3:00 PM EDT
     assert "May 2, 2026 at 3:00 PM ET" in result
     assert "(60 min)" in result
+    # Posted has italic action line, no emoji
+    assert posted.startswith("_Event updated:_")
+    assert "✅" not in posted
 
 
 def test_format_confirmation_includes_description():
@@ -137,9 +145,12 @@ def test_format_confirmation_includes_description():
     patch_body = {"description": "Updated agenda"}
     html_link = "https://example.com"
 
-    result = _format_confirmation(current, patch_body, html_link)
+    result, posted = _format_confirmation(current, patch_body, html_link)
 
     assert "📝 Updated agenda" in result
+    # Posted has italic action line, no emoji
+    assert posted.startswith("_Event updated:_")
+    assert "✅" not in posted
 
 
 # ── /cal edit command handler ────────────────────────────────────────────────
@@ -242,6 +253,8 @@ async def test_edit_updates_title_only():
     assert "Event updated" in content
     assert "Old Title" in content
     assert "New Title" in content
+    # Posted content has italic action line, no emoji
+    assert kwargs["view"]._post_content.startswith("_Event updated:_")
 
 
 @patch("src.utils._dateparser_now", return_value=datetime.datetime(2026, 5, 1, 12, 0, tzinfo=datetime.timezone.utc))

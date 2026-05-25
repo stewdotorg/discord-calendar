@@ -275,5 +275,5 @@ async def invite(
         lines.extend(warnings)
 
     await interaction.edit_original_response(
-        content="\n".join(lines), view=PostToChannelView()
+        content="\n".join(lines), view=PostToChannelView(post_content="")
     )

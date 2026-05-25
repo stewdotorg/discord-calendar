@@ -186,7 +186,7 @@ async def reminders_defaults_set(
     await interaction.response.send_message(
         f"✅ Default reminders: {display}",
         ephemeral=True,
-        view=PostToChannelView(),
+        view=PostToChannelView(post_content=""),
     )
 
 

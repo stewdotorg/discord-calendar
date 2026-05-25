@@ -34,12 +34,13 @@ class TestPostToChannelView:
     @pytest.mark.asyncio
     async def test_post_button_sends_content_to_channel(self):
         """Clicking the Post button sends the original ephemeral message
-        content as a public channel message."""
+        content as a public channel message via interaction.response.send_message."""
         from src.views import PostToChannelView
 
         interaction = MagicMock()
-        interaction.response = MagicMock()
-        interaction.response.edit_message = AsyncMock()
+        interaction.response.send_message = AsyncMock()
+        interaction.followup = MagicMock()
+        interaction.followup.edit_message = AsyncMock()
 
         # Simulate the original ephemeral message
         mock_message = MagicMock()
@@ -47,19 +48,17 @@ class TestPostToChannelView:
         mock_message.embeds = []
         interaction.message = mock_message
 
-        mock_channel = MagicMock()
-        mock_channel.send = AsyncMock()
-        interaction.channel = mock_channel
-
         view = PostToChannelView()
         button = view.children[0]
         await button.callback(interaction)
 
-        # Should send content to channel
-        mock_channel.send.assert_called_once_with(content="✅ Event created!")
+        # Should send content via interaction.response.send_message
+        interaction.response.send_message.assert_called_once_with(
+            content="✅ Event created!"
+        )
         # Button should be disabled
-        interaction.response.edit_message.assert_called_once()
-        updated_view = interaction.response.edit_message.call_args.kwargs["view"]
+        interaction.followup.edit_message.assert_called_once()
+        updated_view = interaction.followup.edit_message.call_args.kwargs["view"]
         assert updated_view.children[0].disabled is True
         assert updated_view.children[0].label == "✓ Posted"
 
@@ -69,8 +68,9 @@ class TestPostToChannelView:
         from src.views import PostToChannelView
 
         interaction = MagicMock()
-        interaction.response = MagicMock()
-        interaction.response.edit_message = AsyncMock()
+        interaction.response.send_message = AsyncMock()
+        interaction.followup = MagicMock()
+        interaction.followup.edit_message = AsyncMock()
 
         embed = discord.Embed(title="Today's Events")
         mock_message = MagicMock()
@@ -78,15 +78,11 @@ class TestPostToChannelView:
         mock_message.embeds = [embed]
         interaction.message = mock_message
 
-        mock_channel = MagicMock()
-        mock_channel.send = AsyncMock()
-        interaction.channel = mock_channel
-
         view = PostToChannelView()
         button = view.children[0]
         await button.callback(interaction)
 
-        mock_channel.send.assert_called_once_with(embeds=[embed])
+        interaction.response.send_message.assert_called_once_with(embeds=[embed])
 
     @pytest.mark.asyncio
     async def test_post_button_sends_both_content_and_embeds(self):
@@ -94,8 +90,9 @@ class TestPostToChannelView:
         from src.views import PostToChannelView
 
         interaction = MagicMock()
-        interaction.response = MagicMock()
-        interaction.response.edit_message = AsyncMock()
+        interaction.response.send_message = AsyncMock()
+        interaction.followup = MagicMock()
+        interaction.followup.edit_message = AsyncMock()
 
         embed = discord.Embed(title="Events")
         mock_message = MagicMock()
@@ -103,15 +100,11 @@ class TestPostToChannelView:
         mock_message.embeds = [embed]
         interaction.message = mock_message
 
-        mock_channel = MagicMock()
-        mock_channel.send = AsyncMock()
-        interaction.channel = mock_channel
-
         view = PostToChannelView()
         button = view.children[0]
         await button.callback(interaction)
 
-        mock_channel.send.assert_called_once_with(
+        interaction.response.send_message.assert_called_once_with(
             content="Here are your events:", embeds=[embed]
         )
 
@@ -123,25 +116,70 @@ class TestPostToChannelView:
 
         posted_view = discord.ui.View()
         interaction = MagicMock()
-        interaction.response = MagicMock()
-        interaction.response.edit_message = AsyncMock()
+        interaction.response.send_message = AsyncMock()
+        interaction.followup = MagicMock()
+        interaction.followup.edit_message = AsyncMock()
 
         mock_message = MagicMock()
         mock_message.content = "✅ Event created!"
         mock_message.embeds = []
         interaction.message = mock_message
 
-        mock_channel = MagicMock()
-        mock_channel.send = AsyncMock()
-        interaction.channel = mock_channel
-
         view = PostToChannelView(posted_view=posted_view)
         button = view.children[0]
         await button.callback(interaction)
 
-        mock_channel.send.assert_called_once_with(
+        interaction.response.send_message.assert_called_once_with(
             content="✅ Event created!", view=posted_view
         )
+
+    @pytest.mark.asyncio
+    async def test_post_content_overrides_message_content(self):
+        """When constructed with post_content, the posted message uses
+        that content instead of the ephemeral message's content."""
+        from src.views import PostToChannelView
+
+        interaction = MagicMock()
+        interaction.response.send_message = AsyncMock()
+        interaction.followup = MagicMock()
+        interaction.followup.edit_message = AsyncMock()
+
+        mock_message = MagicMock()
+        mock_message.content = "✅ Event created!\n**Team Sync**\n📅 May 1, 2026"
+        mock_message.embeds = []
+        interaction.message = mock_message
+
+        view = PostToChannelView(post_content="**Team Sync**\n📅 May 1, 2026")
+        button = view.children[0]
+        await button.callback(interaction)
+
+        interaction.response.send_message.assert_called_once_with(
+            content="**Team Sync**\n📅 May 1, 2026"
+        )
+
+    @pytest.mark.asyncio
+    async def test_post_content_empty_string_suppresses_content(self):
+        """When post_content is an empty string, the posted message has
+        no content (only embeds, if any)."""
+        from src.views import PostToChannelView
+
+        interaction = MagicMock()
+        interaction.response.send_message = AsyncMock()
+        interaction.followup = MagicMock()
+        interaction.followup.edit_message = AsyncMock()
+
+        embed = discord.Embed(title="Events")
+        mock_message = MagicMock()
+        mock_message.content = "🗑️ **Test** deleted on May 1, 2026."
+        mock_message.embeds = [embed]
+        interaction.message = mock_message
+
+        view = PostToChannelView(post_content="")
+        button = view.children[0]
+        await button.callback(interaction)
+
+        # Content is suppressed, but embeds are preserved
+        interaction.response.send_message.assert_called_once_with(embeds=[embed])
 
     @pytest.mark.asyncio
     async def test_post_button_disable_after_post(self):
@@ -149,24 +187,21 @@ class TestPostToChannelView:
         from src.views import PostToChannelView
 
         interaction = MagicMock()
-        interaction.response = MagicMock()
-        interaction.response.edit_message = AsyncMock()
+        interaction.response.send_message = AsyncMock()
+        interaction.followup = MagicMock()
+        interaction.followup.edit_message = AsyncMock()
 
         mock_message = MagicMock()
         mock_message.content = "test"
         mock_message.embeds = []
         interaction.message = mock_message
 
-        mock_channel = MagicMock()
-        mock_channel.send = AsyncMock()
-        interaction.channel = mock_channel
-
         view = PostToChannelView()
         button = view.children[0]
         await button.callback(interaction)
 
         # Button should be disabled in the view passed to edit_message
-        edit_kwargs = interaction.response.edit_message.call_args.kwargs
+        edit_kwargs = interaction.followup.edit_message.call_args.kwargs
         updated_view = edit_kwargs["view"]
         assert updated_view.children[0].disabled is True
         assert updated_view.children[0].label == "✓ Posted"
@@ -178,15 +213,10 @@ class TestPostToChannelView:
         from src.views import PostToChannelView
 
         interaction = MagicMock()
-        interaction.response = MagicMock()
-        interaction.response.edit_message = AsyncMock()
+        interaction.response.defer = AsyncMock()
 
         # Simulate deleted message — message is None
         interaction.message = None
-
-        mock_channel = MagicMock()
-        mock_channel.send = AsyncMock()
-        interaction.channel = mock_channel
 
         view = PostToChannelView()
         button = view.children[0]
@@ -195,31 +225,28 @@ class TestPostToChannelView:
         await button.callback(interaction)
 
         # Should NOT try to post (no message to read)
-        mock_channel.send.assert_not_called()
-        # Should still disable the button
-        interaction.response.edit_message.assert_called_once()
+        interaction.response.defer.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_post_button_handles_permission_error(self):
         """If the bot lacks permission to post in the channel, the error
-        is caught gracefully."""
+        is caught gracefully and the button interaction is deferred."""
         from src.views import PostToChannelView
 
         interaction = MagicMock()
-        interaction.response = MagicMock()
-        interaction.response.edit_message = AsyncMock()
+        interaction.response.send_message = AsyncMock(
+            side_effect=discord.Forbidden(
+                MagicMock(), "Missing permissions"
+            )
+        )
+        interaction.response.defer = AsyncMock()
+        interaction.followup = MagicMock()
+        interaction.followup.edit_message = AsyncMock()
 
         mock_message = MagicMock()
         mock_message.content = "test"
         mock_message.embeds = []
         interaction.message = mock_message
-
-        mock_channel = MagicMock()
-        mock_channel.send = AsyncMock()
-        mock_channel.send.side_effect = discord.Forbidden(
-            MagicMock(), "Missing permissions"
-        )
-        interaction.channel = mock_channel
 
         view = PostToChannelView()
         button = view.children[0]
@@ -227,33 +254,30 @@ class TestPostToChannelView:
         # Should not raise — catches the error
         await button.callback(interaction)
 
-        # Button should still be disabled
-        interaction.response.edit_message.assert_called_once()
-        updated_view = interaction.response.edit_message.call_args.kwargs["view"]
-        assert updated_view.children[0].disabled is True
-        assert updated_view.children[0].label == "✓ Posted"
+        # Should defer the interaction gracefully (button not disabled)
+        interaction.response.defer.assert_called_once()
+        interaction.followup.edit_message.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_post_button_handles_http_exception(self):
         """If posting fails with an HTTPException, the error is caught
-        gracefully."""
+        gracefully and the button interaction is deferred."""
         from src.views import PostToChannelView
 
         interaction = MagicMock()
-        interaction.response = MagicMock()
-        interaction.response.edit_message = AsyncMock()
+        interaction.response.send_message = AsyncMock(
+            side_effect=discord.HTTPException(
+                MagicMock(), "Failed"
+            )
+        )
+        interaction.response.defer = AsyncMock()
+        interaction.followup = MagicMock()
+        interaction.followup.edit_message = AsyncMock()
 
         mock_message = MagicMock()
         mock_message.content = "test"
         mock_message.embeds = []
         interaction.message = mock_message
-
-        mock_channel = MagicMock()
-        mock_channel.send = AsyncMock()
-        mock_channel.send.side_effect = discord.HTTPException(
-            MagicMock(), "Failed"
-        )
-        interaction.channel = mock_channel
 
         view = PostToChannelView()
         button = view.children[0]
@@ -261,5 +285,6 @@ class TestPostToChannelView:
         # Should not raise
         await button.callback(interaction)
 
-        # Button should still be disabled
-        interaction.response.edit_message.assert_called_once()
+        # Should defer the interaction gracefully (button not disabled)
+        interaction.response.defer.assert_called_once()
+        interaction.followup.edit_message.assert_not_called()

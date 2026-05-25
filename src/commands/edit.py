@@ -117,9 +117,9 @@ async def edit(
         return
 
     # Build confirmation message
-    response = _format_confirmation(current, patch_body, result["htmlLink"], user_tz)
+    response, post_content = _format_confirmation(current, patch_body, result["htmlLink"], user_tz)
     await interaction.edit_original_response(
-        content=response, view=PostToChannelView()
+        content=response, view=PostToChannelView(post_content=post_content)
     )
 
 
@@ -198,7 +198,7 @@ async def _respond_no_changes(
             pass
 
     response = (
-        f"ℹ️ **No changes specified.**\n\n"
+        f"ℹ️ No changes specified.\n\n"
         f"**{summary}**\n"
     )
     if time_line:
@@ -218,7 +218,7 @@ def _format_confirmation(
     patch_body: dict,
     html_link: str,
     tz: ZoneInfo = EASTERN,
-) -> str:
+) -> tuple[str, str]:
     """Build the confirmation message showing updated event details.
 
     Args:
@@ -227,7 +227,10 @@ def _format_confirmation(
         html_link: The htmlLink from the updated event.
 
     Returns:
-        A formatted confirmation string.
+        A tuple of (ephemeral_content, post_content).
+        * ephemeral_content: complete message with action line.
+        * post_content: message for the posted copy, with italic action line
+          and no emoji ("_Event updated:_" instead of "✅ Event updated!").
     """
     new_title = patch_body.get("summary", current.get("summary", "Untitled Event"))
     old_title = current.get("summary", "Untitled Event")
@@ -252,18 +255,22 @@ def _format_confirmation(
     duration_min = int((end_dt - start_dt).total_seconds() / 60)
     start_fmt = format_datetime_eastern(start_dt, tz=tz)
 
-    response = "✅ **Event updated!**\n"
+    # Build the body (title + time + link + description) shared by both views
+    body = ""
     if new_title != old_title:
-        response += f"**{old_title}** → **{new_title}**\n"
+        body += f"**{old_title}** → **{new_title}**\n"
     else:
-        response += f"**{new_title}**\n"
+        body += f"**{new_title}**\n"
 
-    response += (
+    body += (
         f"📅 {start_fmt} ET  ({duration_min} min)\n"
         f"[Open in Google Calendar]({html_link})"
     )
 
     if new_description:
-        response += f"\n📝 {new_description}"
+        body += f"\n📝 {new_description}"
 
-    return response
+    ephemeral = f"✅ Event updated!\n{body}"
+    posted = f"_Event updated:_\n{body}"
+
+    return ephemeral, posted
