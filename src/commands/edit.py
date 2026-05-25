@@ -53,7 +53,7 @@ async def edit(
         return
 
     # Defer — API calls may exceed Discord's 3-second interaction timeout.
-    await interaction.response.defer()
+    await interaction.response.defer(ephemeral=True)
 
     user_tz = get_user_timezone(interaction)
 
