@@ -185,7 +185,7 @@ async def invite(
         return
 
     calendar = interaction.client.calendar  # type: ignore[attr-defined]
-    await interaction.response.defer()
+    await interaction.response.defer(ephemeral=True)
 
     items = [p.strip() for p in people.split(",") if p.strip()]
     if not items:
