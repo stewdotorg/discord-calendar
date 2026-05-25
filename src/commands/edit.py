@@ -17,6 +17,7 @@ from src.utils import (
     get_user_timezone,
     parse_when,
 )
+from src.views import PostToChannelView
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,7 @@ async def edit(
             "❌ Calendar is not configured. Ask an admin to set "
             "GOOGLE_SERVICE_ACCOUNT_FILE and GOOGLE_CALENDAR_ID.",
             ephemeral=True,
+            view=PostToChannelView(),
         )
         return
 
@@ -61,7 +63,9 @@ async def edit(
     except HttpError as exc:
         logger.error("Failed to get event %s: %s", event_id, exc)
         error_msg = format_edit_error(exc)
-        await interaction.edit_original_response(content=error_msg)
+        await interaction.edit_original_response(
+            content=error_msg, view=PostToChannelView()
+        )
         return
 
     has_changes = any(
@@ -89,7 +93,8 @@ async def edit(
             )
         except ValueError as exc:
             await interaction.edit_original_response(
-                content=f"❌ Cannot parse '{when}': {exc}"
+                content=f"❌ Cannot parse '{when}': {exc}",
+                view=PostToChannelView(),
             )
             return
         patch_body["start"] = {
@@ -106,12 +111,16 @@ async def edit(
     except HttpError as exc:
         logger.error("Failed to update event %s: %s", event_id, exc)
         error_msg = format_edit_error(exc)
-        await interaction.edit_original_response(content=error_msg)
+        await interaction.edit_original_response(
+            content=error_msg, view=PostToChannelView()
+        )
         return
 
     # Build confirmation message
     response = _format_confirmation(current, patch_body, result["htmlLink"], user_tz)
-    await interaction.edit_original_response(content=response)
+    await interaction.edit_original_response(
+        content=response, view=PostToChannelView()
+    )
 
 
 def _compute_start_end(
@@ -199,7 +208,9 @@ async def _respond_no_changes(
     if description:
         response += f"\n📝 {description}"
 
-    await interaction.edit_original_response(content=response)
+    await interaction.edit_original_response(
+        content=response, view=PostToChannelView()
+    )
 
 
 def _format_confirmation(

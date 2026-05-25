@@ -106,4 +106,4 @@ async def help_cmd(interaction: discord.Interaction) -> None:
         value = f"{cmd['description']}\n*Example: {cmd['example']}*"
         embed.add_field(name=cmd["name"], value=value, inline=False)
 
-    await interaction.response.send_message(embed=embed, ephemeral=True)
+    await interaction.response.send_message(embed=embed)

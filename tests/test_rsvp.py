@@ -12,6 +12,7 @@ from googleapiclient.errors import HttpError
 @pytest.mark.asyncio
 async def test_invite_me_with_stored_email():
     """invite resolves 'me' to the caller's stored email."""
+    from src.views import PostToChannelView
     from src.commands.rsvp import invite
 
     interaction = MagicMock()
@@ -36,7 +37,9 @@ async def test_invite_me_with_stored_email():
     mock_calendar.add_attendees.assert_called_once_with(
         "evt1", ["me@example.com"]
     )
-    content = interaction.edit_original_response.call_args.kwargs["content"]
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    assert isinstance(kwargs["view"], PostToChannelView)
+    content = kwargs["content"]
     assert "Invited" in content
     assert "me@example.com" in content
     assert "invitation" in content.lower()
@@ -45,6 +48,7 @@ async def test_invite_me_with_stored_email():
 @pytest.mark.asyncio
 async def test_invite_me_no_stored_email():
     """invite returns a warning when 'me' has no stored email."""
+    from src.views import PostToChannelView
     from src.commands.rsvp import invite
 
     interaction = MagicMock()
@@ -63,7 +67,9 @@ async def test_invite_me_no_stored_email():
     await invite.callback(interaction, event_id="evt1", people="me")
 
     mock_calendar.add_attendees.assert_not_called()
-    content = interaction.edit_original_response.call_args.kwargs["content"]
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    assert isinstance(kwargs["view"], PostToChannelView)
+    content = kwargs["content"]
     assert "No valid recipients" in content
     assert "no email stored" in content.lower()
 
@@ -71,6 +77,7 @@ async def test_invite_me_no_stored_email():
 @pytest.mark.asyncio
 async def test_invite_raw_emails():
     """invite accepts raw comma-separated email addresses."""
+    from src.views import PostToChannelView
     from src.commands.rsvp import invite
 
     interaction = MagicMock()
@@ -97,7 +104,9 @@ async def test_invite_raw_emails():
     mock_calendar.add_attendees.assert_called_once_with(
         "evt1", ["alice@example.com", "bob@example.com"]
     )
-    content = interaction.edit_original_response.call_args.kwargs["content"]
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    assert isinstance(kwargs["view"], PostToChannelView)
+    content = kwargs["content"]
     assert "Invited" in content
     assert "2" in content
     assert "invitation" in content.lower()
@@ -106,6 +115,7 @@ async def test_invite_raw_emails():
 @pytest.mark.asyncio
 async def test_invite_mention_with_stored_email():
     """invite resolves a Discord mention to the stored email."""
+    from src.views import PostToChannelView
     from src.commands.rsvp import invite
 
     interaction = MagicMock()
@@ -130,7 +140,9 @@ async def test_invite_mention_with_stored_email():
     mock_calendar.add_attendees.assert_called_once_with(
         "evt1", ["chaz@example.com"]
     )
-    content = interaction.edit_original_response.call_args.kwargs["content"]
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    assert isinstance(kwargs["view"], PostToChannelView)
+    content = kwargs["content"]
     assert "Invited" in content
     assert "chaz@example.com" in content
 
@@ -138,6 +150,7 @@ async def test_invite_mention_with_stored_email():
 @pytest.mark.asyncio
 async def test_invite_mention_no_stored_email():
     """invite returns a warning for a mention with no stored email."""
+    from src.views import PostToChannelView
     from src.commands.rsvp import invite
 
     interaction = MagicMock()
@@ -156,7 +169,9 @@ async def test_invite_mention_no_stored_email():
     await invite.callback(interaction, event_id="evt1", people="<@67890>")
 
     mock_calendar.add_attendees.assert_not_called()
-    content = interaction.edit_original_response.call_args.kwargs["content"]
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    assert isinstance(kwargs["view"], PostToChannelView)
+    content = kwargs["content"]
     assert "No valid recipients" in content
     assert "no email stored" in content.lower()
 
@@ -164,6 +179,7 @@ async def test_invite_mention_no_stored_email():
 @pytest.mark.asyncio
 async def test_invite_mixed_with_partial_success():
     """invite adds valid entries and warns about invalid ones (partial success)."""
+    from src.views import PostToChannelView
     from src.commands.rsvp import invite
 
     interaction = MagicMock()
@@ -196,7 +212,9 @@ async def test_invite_mixed_with_partial_success():
     mock_calendar.add_attendees.assert_called_once_with(
         "evt1", ["me@example.com", "alice@example.com"]
     )
-    content = interaction.edit_original_response.call_args.kwargs["content"]
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    assert isinstance(kwargs["view"], PostToChannelView)
+    content = kwargs["content"]
     assert "Invited 2" in content
     assert "me@example.com" in content
     assert "alice@example.com" in content
@@ -208,6 +226,7 @@ async def test_invite_mixed_with_partial_success():
 @pytest.mark.asyncio
 async def test_invite_invalid_email_warning():
     """invite warns about invalid email format without blocking valid entries."""
+    from src.views import PostToChannelView
     from src.commands.rsvp import invite
 
     interaction = MagicMock()
@@ -234,7 +253,9 @@ async def test_invite_invalid_email_warning():
     mock_calendar.add_attendees.assert_called_once_with(
         "evt1", ["good@example.com"]
     )
-    content = interaction.edit_original_response.call_args.kwargs["content"]
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    assert isinstance(kwargs["view"], PostToChannelView)
+    content = kwargs["content"]
     assert "Invited 1" in content
     assert "good@example.com" in content
     assert "Invalid" in content or "invalid" in content.lower()
@@ -243,6 +264,7 @@ async def test_invite_invalid_email_warning():
 @pytest.mark.asyncio
 async def test_invite_calendar_not_configured():
     """invite responds with an error when calendar is not configured."""
+    from src.views import PostToChannelView
     from src.commands.rsvp import invite
 
     interaction = MagicMock()
@@ -253,6 +275,9 @@ async def test_invite_calendar_not_configured():
     await invite.callback(interaction, event_id="evt1", people="me@example.com")
 
     interaction.response.send_message.assert_called_once()
+    kwargs = interaction.response.send_message.call_args.kwargs
+    assert kwargs["ephemeral"] is True
+    assert isinstance(kwargs["view"], PostToChannelView)
     msg = interaction.response.send_message.call_args.args[0]
     assert "not configured" in msg.lower()
 
@@ -260,6 +285,7 @@ async def test_invite_calendar_not_configured():
 @pytest.mark.asyncio
 async def test_invite_handles_api_error():
     """invite returns a user-friendly message on API errors."""
+    from src.views import PostToChannelView
     from src.commands.rsvp import invite
 
     interaction = MagicMock()
@@ -280,13 +306,16 @@ async def test_invite_handles_api_error():
 
     await invite.callback(interaction, event_id="evt1", people="alice@example.com")
 
-    content = interaction.edit_original_response.call_args.kwargs["content"]
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    assert isinstance(kwargs["view"], PostToChannelView)
+    content = kwargs["content"]
     assert "not found" in content.lower() or "event not found" in content.lower()
 
 
 @pytest.mark.asyncio
 async def test_invite_deduplicates_duplicate_entries():
     """invite deduplicates entries (same email appears only once)."""
+    from src.views import PostToChannelView
     from src.commands.rsvp import invite
 
     interaction = MagicMock()
@@ -315,13 +344,16 @@ async def test_invite_deduplicates_duplicate_entries():
     mock_calendar.add_attendees.assert_called_once_with(
         "evt1", ["me@example.com"]
     )
-    content = interaction.edit_original_response.call_args.kwargs["content"]
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    assert isinstance(kwargs["view"], PostToChannelView)
+    content = kwargs["content"]
     assert "Invited 1" in content
 
 
 @pytest.mark.asyncio
 async def test_invite_empty_people():
     """invite returns an error when people string is empty."""
+    from src.views import PostToChannelView
     from src.commands.rsvp import invite
 
     interaction = MagicMock()
@@ -338,7 +370,9 @@ async def test_invite_empty_people():
     await invite.callback(interaction, event_id="evt1", people="  ,  ")
 
     mock_calendar.add_attendees.assert_not_called()
-    content = interaction.edit_original_response.call_args.kwargs["content"]
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    assert isinstance(kwargs["view"], PostToChannelView)
+    content = kwargs["content"]
     assert "No people" in content
 
 

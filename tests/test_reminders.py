@@ -90,6 +90,7 @@ def test_format_reminders_empty():
 @pytest.mark.asyncio
 async def test_reminders_set_single_value():
     """The /cal reminders set command calls add_reminders with a single value."""
+    from src.views import PostToChannelView
     from src.commands.reminders import reminders_set
 
     interaction = MagicMock()
@@ -107,6 +108,9 @@ async def test_reminders_set_single_value():
 
     mock_calendar.add_reminders.assert_called_once_with("evt1", [10])
     interaction.response.send_message.assert_called_once()
+    kwargs = interaction.response.send_message.call_args.kwargs
+    assert kwargs["ephemeral"] is True
+    assert isinstance(kwargs["view"], PostToChannelView)
     msg = interaction.response.send_message.call_args.args[0]
     assert "✅ Reminders set" in msg
     assert "10 min before" in msg
@@ -115,6 +119,7 @@ async def test_reminders_set_single_value():
 @pytest.mark.asyncio
 async def test_reminders_set_multiple_values():
     """The /cal reminders set command handles comma-separated minutes."""
+    from src.views import PostToChannelView
     from src.commands.reminders import reminders_set
 
     interaction = MagicMock()
@@ -134,6 +139,9 @@ async def test_reminders_set_multiple_values():
     await reminders_set.callback(interaction, event_id="evt1", minutes="10,30")
 
     mock_calendar.add_reminders.assert_called_once_with("evt1", [10, 30])
+    kwargs = interaction.response.send_message.call_args.kwargs
+    assert kwargs["ephemeral"] is True
+    assert isinstance(kwargs["view"], PostToChannelView)
     msg = interaction.response.send_message.call_args.args[0]
     assert "✅ Reminders set" in msg
     assert "10 min, 30 min before" in msg
@@ -142,6 +150,7 @@ async def test_reminders_set_multiple_values():
 @pytest.mark.asyncio
 async def test_reminders_set_calendar_not_configured():
     """The /cal reminders set command responds with an error when calendar is None."""
+    from src.views import PostToChannelView
     from src.commands.reminders import reminders_set
 
     interaction = MagicMock()
@@ -152,14 +161,17 @@ async def test_reminders_set_calendar_not_configured():
     await reminders_set.callback(interaction, event_id="evt1", minutes="10")
 
     interaction.response.send_message.assert_called_once()
+    kwargs = interaction.response.send_message.call_args.kwargs
+    assert kwargs["ephemeral"] is True
+    assert isinstance(kwargs["view"], PostToChannelView)
     msg = interaction.response.send_message.call_args.args[0]
     assert "not configured" in msg.lower()
-    assert interaction.response.send_message.call_args.kwargs["ephemeral"] is True
 
 
 @pytest.mark.asyncio
 async def test_reminders_set_invalid_minutes():
     """The /cal reminders set command returns an error for invalid minutes."""
+    from src.views import PostToChannelView
     from src.commands.reminders import reminders_set
 
     interaction = MagicMock()
@@ -170,14 +182,17 @@ async def test_reminders_set_invalid_minutes():
     await reminders_set.callback(interaction, event_id="evt1", minutes="abc")
 
     interaction.response.send_message.assert_called_once()
+    kwargs = interaction.response.send_message.call_args.kwargs
+    assert kwargs["ephemeral"] is True
+    assert isinstance(kwargs["view"], PostToChannelView)
     msg = interaction.response.send_message.call_args.args[0]
     assert "Invalid" in msg or "invalid" in msg.lower()
-    assert interaction.response.send_message.call_args.kwargs["ephemeral"] is True
 
 
 @pytest.mark.asyncio
 async def test_reminders_set_api_error():
     """The /cal reminders set command returns a user-friendly error on API failure."""
+    from src.views import PostToChannelView
     from src.commands.reminders import reminders_set
 
     interaction = MagicMock()
@@ -195,6 +210,9 @@ async def test_reminders_set_api_error():
     await reminders_set.callback(interaction, event_id="nonexistent", minutes="10")
 
     interaction.response.send_message.assert_called_once()
+    kwargs = interaction.response.send_message.call_args.kwargs
+    assert kwargs["ephemeral"] is True
+    assert isinstance(kwargs["view"], PostToChannelView)
     msg = interaction.response.send_message.call_args.args[0]
     assert "not found" in msg.lower()
 
@@ -205,6 +223,7 @@ async def test_reminders_set_api_error():
 @pytest.mark.asyncio
 async def test_reminders_show_with_reminders():
     """The /cal reminders show command displays reminders when set."""
+    from src.views import PostToChannelView
     from src.commands.reminders import reminders_show
 
     interaction = MagicMock()
@@ -228,15 +247,18 @@ async def test_reminders_show_with_reminders():
     await reminders_show.callback(interaction, event_id="evt1")
 
     interaction.response.send_message.assert_called_once()
+    kwargs = interaction.response.send_message.call_args.kwargs
+    assert kwargs["ephemeral"] is True
+    assert isinstance(kwargs["view"], PostToChannelView)
     msg = interaction.response.send_message.call_args.args[0]
     assert "📋 Reminders" in msg
     assert "10 min, 30 min before" in msg
-    assert interaction.response.send_message.call_args.kwargs["ephemeral"] is True
 
 
 @pytest.mark.asyncio
 async def test_reminders_show_no_reminders():
     """The /cal reminders show command shows 'No reminders set' when useDefault."""
+    from src.views import PostToChannelView
     from src.commands.reminders import reminders_show
 
     interaction = MagicMock()
@@ -254,6 +276,9 @@ async def test_reminders_show_no_reminders():
     await reminders_show.callback(interaction, event_id="evt1")
 
     interaction.response.send_message.assert_called_once()
+    kwargs = interaction.response.send_message.call_args.kwargs
+    assert kwargs["ephemeral"] is True
+    assert isinstance(kwargs["view"], PostToChannelView)
     msg = interaction.response.send_message.call_args.args[0]
     assert "No reminders" in msg
 
@@ -261,6 +286,7 @@ async def test_reminders_show_no_reminders():
 @pytest.mark.asyncio
 async def test_reminders_show_no_overrides():
     """The /cal reminders show command shows 'No reminders set' when no overrides."""
+    from src.views import PostToChannelView
     from src.commands.reminders import reminders_show
 
     interaction = MagicMock()
@@ -277,6 +303,9 @@ async def test_reminders_show_no_overrides():
 
     await reminders_show.callback(interaction, event_id="evt1")
 
+    kwargs = interaction.response.send_message.call_args.kwargs
+    assert kwargs["ephemeral"] is True
+    assert isinstance(kwargs["view"], PostToChannelView)
     msg = interaction.response.send_message.call_args.args[0]
     assert "No reminders" in msg
 
@@ -284,6 +313,7 @@ async def test_reminders_show_no_overrides():
 @pytest.mark.asyncio
 async def test_reminders_show_calendar_not_configured():
     """The /cal reminders show command responds with an error when calendar is None."""
+    from src.views import PostToChannelView
     from src.commands.reminders import reminders_show
 
     interaction = MagicMock()
@@ -296,11 +326,13 @@ async def test_reminders_show_calendar_not_configured():
     signal = interaction.response.send_message.call_args
     assert "not configured" in signal.args[0].lower()
     assert signal.kwargs["ephemeral"] is True
+    assert isinstance(signal.kwargs["view"], PostToChannelView)
 
 
 @pytest.mark.asyncio
 async def test_reminders_show_api_error():
     """The /cal reminders show command returns a user-friendly error on API failure."""
+    from src.views import PostToChannelView
     from src.commands.reminders import reminders_show
 
     interaction = MagicMock()
@@ -318,6 +350,9 @@ async def test_reminders_show_api_error():
     await reminders_show.callback(interaction, event_id="nonexistent")
 
     interaction.response.send_message.assert_called_once()
+    kwargs = interaction.response.send_message.call_args.kwargs
+    assert kwargs["ephemeral"] is True
+    assert isinstance(kwargs["view"], PostToChannelView)
     msg = interaction.response.send_message.call_args.args[0]
     assert "not found" in msg.lower()
 
@@ -328,6 +363,7 @@ async def test_reminders_show_api_error():
 @pytest.mark.asyncio
 async def test_reminders_defaults_set_stores_and_confirms():
     """The /cal reminders-defaults set command stores default and confirms."""
+    from src.views import PostToChannelView
     from src.commands.reminders import reminders_defaults_set
 
     interaction = MagicMock()
@@ -342,15 +378,18 @@ async def test_reminders_defaults_set_stores_and_confirms():
 
     mock_settings.set.assert_called_once_with("12345", "default_reminders", "10,30")
     interaction.response.send_message.assert_called_once()
+    kwargs = interaction.response.send_message.call_args.kwargs
+    assert kwargs["ephemeral"] is True
+    assert isinstance(kwargs["view"], PostToChannelView)
     msg = interaction.response.send_message.call_args.args[0]
     assert "✅ Default reminders" in msg
     assert "10 min, 30 min before" in msg
-    assert interaction.response.send_message.call_args.kwargs["ephemeral"] is True
 
 
 @pytest.mark.asyncio
 async def test_reminders_defaults_set_invalid_minutes():
     """The /cal reminders-defaults set command rejects invalid minutes."""
+    from src.views import PostToChannelView
     from src.commands.reminders import reminders_defaults_set
 
     interaction = MagicMock()
@@ -364,14 +403,17 @@ async def test_reminders_defaults_set_invalid_minutes():
     await reminders_defaults_set.callback(interaction, minutes="abc")
 
     mock_settings.set.assert_not_called()
+    kwargs = interaction.response.send_message.call_args.kwargs
+    assert kwargs["ephemeral"] is True
+    assert isinstance(kwargs["view"], PostToChannelView)
     msg = interaction.response.send_message.call_args.args[0]
     assert "Invalid" in msg or "invalid" in msg.lower()
-    assert interaction.response.send_message.call_args.kwargs["ephemeral"] is True
 
 
 @pytest.mark.asyncio
 async def test_reminders_defaults_set_single_value():
     """The /cal reminders-defaults set command stores a single value."""
+    from src.views import PostToChannelView
     from src.commands.reminders import reminders_defaults_set
 
     interaction = MagicMock()
@@ -385,6 +427,9 @@ async def test_reminders_defaults_set_single_value():
     await reminders_defaults_set.callback(interaction, minutes="5")
 
     mock_settings.set.assert_called_once_with("12345", "default_reminders", "5")
+    kwargs = interaction.response.send_message.call_args.kwargs
+    assert kwargs["ephemeral"] is True
+    assert isinstance(kwargs["view"], PostToChannelView)
     msg = interaction.response.send_message.call_args.args[0]
     assert "✅ Default reminders" in msg
     assert "5 min before" in msg
@@ -396,6 +441,7 @@ async def test_reminders_defaults_set_single_value():
 @pytest.mark.asyncio
 async def test_reminders_defaults_show_displays_stored():
     """The /cal reminders-defaults show command displays stored defaults."""
+    from src.views import PostToChannelView
     from src.commands.reminders import reminders_defaults_show
 
     interaction = MagicMock()
@@ -411,15 +457,18 @@ async def test_reminders_defaults_show_displays_stored():
 
     mock_settings.get.assert_called_once_with("12345", "default_reminders")
     interaction.response.send_message.assert_called_once()
+    kwargs = interaction.response.send_message.call_args.kwargs
+    assert kwargs["ephemeral"] is True
+    assert isinstance(kwargs["view"], PostToChannelView)
     msg = interaction.response.send_message.call_args.args[0]
     assert "📋 Default reminders" in msg
     assert "10 min, 30 min before" in msg
-    assert interaction.response.send_message.call_args.kwargs["ephemeral"] is True
 
 
 @pytest.mark.asyncio
 async def test_reminders_defaults_show_no_default():
     """The /cal reminders-defaults show command shows message when no default."""
+    from src.views import PostToChannelView
     from src.commands.reminders import reminders_defaults_show
 
     interaction = MagicMock()
@@ -434,9 +483,11 @@ async def test_reminders_defaults_show_no_default():
     await reminders_defaults_show.callback(interaction)
 
     interaction.response.send_message.assert_called_once()
+    kwargs = interaction.response.send_message.call_args.kwargs
+    assert kwargs["ephemeral"] is True
+    assert isinstance(kwargs["view"], PostToChannelView)
     msg = interaction.response.send_message.call_args.args[0]
     assert "No default reminders" in msg
-    assert interaction.response.send_message.call_args.kwargs["ephemeral"] is True
 
 
 # ── create with default reminders ────────────────────────────────────────────
@@ -445,6 +496,7 @@ async def test_reminders_defaults_show_no_default():
 @pytest.mark.asyncio
 async def test_create_applies_default_reminders_when_set():
     """The /cal create command applies default reminders after creating an event."""
+    from src.views import PostToChannelView
     from src.commands.create import create
 
     interaction = MagicMock()
@@ -476,14 +528,17 @@ async def test_create_applies_default_reminders_when_set():
     mock_calendar.create_event.assert_called_once()
     # add_reminders should be called with the default minutes
     mock_calendar.add_reminders.assert_called_once_with("evt_001", [10, 30])
-    # Response should still contain event info
-    response_text = interaction.edit_original_response.call_args.kwargs["content"]
+    # Response should still contain event info and PostToChannelView
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    assert isinstance(kwargs["view"], PostToChannelView)
+    response_text = kwargs["content"]
     assert "Team Sync" in response_text
 
 
 @pytest.mark.asyncio
 async def test_create_skips_default_reminders_when_not_set():
     """The /cal create command does not call add_reminders when no default is set."""
+    from src.views import PostToChannelView
     from src.commands.create import create
 
     interaction = MagicMock()
@@ -511,12 +566,17 @@ async def test_create_skips_default_reminders_when_not_set():
 
     mock_calendar.create_event.assert_called_once()
     mock_calendar.add_reminders.assert_not_called()
+    assert isinstance(
+        interaction.edit_original_response.call_args.kwargs["view"],
+        PostToChannelView,
+    )
 
 
 @pytest.mark.asyncio
 async def test_create_handles_add_reminders_error_gracefully():
     """The /cal create command still shows the event confirmation even when
     add_reminders fails."""
+    from src.views import PostToChannelView
     from src.commands.create import create
 
     interaction = MagicMock()
@@ -550,7 +610,9 @@ async def test_create_handles_add_reminders_error_gracefully():
     mock_calendar.create_event.assert_called_once()
     mock_calendar.add_reminders.assert_called_once()
     # Confirmation should still be shown
-    response_text = interaction.edit_original_response.call_args.kwargs["content"]
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    assert isinstance(kwargs["view"], PostToChannelView)
+    response_text = kwargs["content"]
     assert "Test Event" in response_text
 
 

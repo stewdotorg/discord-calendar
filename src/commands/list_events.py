@@ -14,6 +14,7 @@ from src.utils import (
     get_user_timezone,
     parse_date_eastern,
 )
+from src.views import PostToChannelView
 
 logger = logging.getLogger(__name__)
 
@@ -86,15 +87,18 @@ async def today(interaction: discord.Interaction) -> None:
         embed = _fetch_events_embed(
             interaction, time_min, time_max, date_title, tz=user_tz
         )
-        await interaction.response.send_message(embed=embed)
+        await interaction.response.send_message(
+            embed=embed, ephemeral=True, view=PostToChannelView()
+        )
     except _CalendarNotConfigured:
         await interaction.response.send_message(
-            _NOT_CONFIGURED_MSG, ephemeral=True
+            _NOT_CONFIGURED_MSG, ephemeral=True, view=PostToChannelView()
         )
     except _FetchFailed:
         await interaction.response.send_message(
             "Failed to fetch today's events. Please try again later.",
             ephemeral=True,
+            view=PostToChannelView(),
         )
 
 
@@ -115,15 +119,18 @@ async def week(interaction: discord.Interaction) -> None:
         embed = _fetch_events_embed(
             interaction, time_min, time_max, date_title, tz=user_tz
         )
-        await interaction.response.send_message(embed=embed)
+        await interaction.response.send_message(
+            embed=embed, ephemeral=True, view=PostToChannelView()
+        )
     except _CalendarNotConfigured:
         await interaction.response.send_message(
-            _NOT_CONFIGURED_MSG, ephemeral=True
+            _NOT_CONFIGURED_MSG, ephemeral=True, view=PostToChannelView()
         )
     except _FetchFailed:
         await interaction.response.send_message(
             "Failed to fetch events. Please try again later.",
             ephemeral=True,
+            view=PostToChannelView(),
         )
 
 
@@ -150,7 +157,7 @@ async def list_events(
         time_max = parse_date_eastern(to, tz=user_tz)
     except ValueError as exc:
         await interaction.response.send_message(
-            f"❌ Invalid date: {exc}", ephemeral=True
+            f"❌ Invalid date: {exc}", ephemeral=True, view=PostToChannelView()
         )
         return
 
@@ -164,13 +171,16 @@ async def list_events(
         embed = _fetch_events_embed(
             interaction, time_min, time_max, date_title, q=search, tz=user_tz
         )
-        await interaction.response.send_message(embed=embed)
+        await interaction.response.send_message(
+            embed=embed, ephemeral=True, view=PostToChannelView()
+        )
     except _CalendarNotConfigured:
         await interaction.response.send_message(
-            _NOT_CONFIGURED_MSG, ephemeral=True
+            _NOT_CONFIGURED_MSG, ephemeral=True, view=PostToChannelView()
         )
     except _FetchFailed:
         await interaction.response.send_message(
             "Failed to fetch events. Please try again later.",
             ephemeral=True,
+            view=PostToChannelView(),
         )

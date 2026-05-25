@@ -13,6 +13,7 @@ from src.utils import (
     format_delete_error,
     get_user_timezone,
 )
+from src.views import PostToChannelView
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,7 @@ async def delete(interaction: discord.Interaction, event_id: str) -> None:
             "❌ Calendar is not configured. Ask an admin to set "
             "GOOGLE_SERVICE_ACCOUNT_FILE and GOOGLE_CALENDAR_ID.",
             ephemeral=True,
+            view=PostToChannelView(),
         )
         return
 
@@ -41,7 +43,9 @@ async def delete(interaction: discord.Interaction, event_id: str) -> None:
     except HttpError as exc:
         logger.error("Failed to delete event %s: %s", event_id, exc)
         error_msg = format_delete_error(exc)
-        await interaction.response.send_message(error_msg, ephemeral=True)
+        await interaction.response.send_message(
+            error_msg, ephemeral=True, view=PostToChannelView()
+        )
         return
 
     user_tz = get_user_timezone(interaction)
@@ -59,5 +63,6 @@ async def delete(interaction: discord.Interaction, event_id: str) -> None:
 
     await interaction.response.send_message(
         f"🗑️ **{summary}** deleted{date_display}.",
-        ephemeral=False,
+        ephemeral=True,
+        view=PostToChannelView(),
     )

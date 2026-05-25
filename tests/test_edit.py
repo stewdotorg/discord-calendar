@@ -155,7 +155,9 @@ async def test_edit_command_metadata():
 @pytest.mark.asyncio
 async def test_edit_no_changes_shows_current_event():
     """When no optional params are provided, the command shows the current
-    event details with a 'No changes specified' message."""
+    event details with a 'No changes specified' message and PostToChannelView."""
+    from src.views import PostToChannelView
+
     interaction = MagicMock()
     interaction.response = MagicMock()
     interaction.response.defer = AsyncMock()
@@ -185,7 +187,9 @@ async def test_edit_no_changes_shows_current_event():
     mock_calendar.update_event.assert_not_called()
 
     interaction.edit_original_response.assert_called_once()
-    content = interaction.edit_original_response.call_args.kwargs["content"]
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    assert isinstance(kwargs["view"], PostToChannelView)
+    content = kwargs["content"]
     assert "No changes specified" in content
     assert "Team Standup" in content
     assert "Daily sync" in content
@@ -194,6 +198,8 @@ async def test_edit_no_changes_shows_current_event():
 @pytest.mark.asyncio
 async def test_edit_updates_title_only():
     """When only title is provided, only summary is sent in the patch."""
+    from src.views import PostToChannelView
+
     interaction = MagicMock()
     interaction.response = MagicMock()
     interaction.response.defer = AsyncMock()
@@ -230,7 +236,9 @@ async def test_edit_updates_title_only():
     assert "start" not in body
     assert "end" not in body
 
-    content = interaction.edit_original_response.call_args.kwargs["content"]
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    assert isinstance(kwargs["view"], PostToChannelView)
+    content = kwargs["content"]
     assert "Event updated" in content
     assert "Old Title" in content
     assert "New Title" in content
@@ -240,6 +248,8 @@ async def test_edit_updates_title_only():
 @pytest.mark.asyncio
 async def test_edit_updates_when_only(_mock_now):
     """When only when is provided, start and end are sent, keeping existing duration."""
+    from src.views import PostToChannelView
+
     interaction = MagicMock()
     interaction.response = MagicMock()
     interaction.response.defer = AsyncMock()
@@ -277,10 +287,17 @@ async def test_edit_updates_when_only(_mock_now):
     assert "summary" not in body
     assert "description" not in body
 
+    assert isinstance(
+        interaction.edit_original_response.call_args.kwargs["view"],
+        PostToChannelView,
+    )
+
 
 @pytest.mark.asyncio
 async def test_edit_updates_duration_only():
     """When only duration is provided, only end is sent, keeping existing start."""
+    from src.views import PostToChannelView
+
     interaction = MagicMock()
     interaction.response = MagicMock()
     interaction.response.defer = AsyncMock()
@@ -318,10 +335,17 @@ async def test_edit_updates_duration_only():
     assert "summary" not in body
     assert "description" not in body
 
+    assert isinstance(
+        interaction.edit_original_response.call_args.kwargs["view"],
+        PostToChannelView,
+    )
+
 
 @pytest.mark.asyncio
 async def test_edit_updates_description_only():
     """When only description is provided, only description is sent in the patch."""
+    from src.views import PostToChannelView
+
     interaction = MagicMock()
     interaction.response = MagicMock()
     interaction.response.defer = AsyncMock()
@@ -357,7 +381,9 @@ async def test_edit_updates_description_only():
     assert "start" not in body
     assert "end" not in body
 
-    content = interaction.edit_original_response.call_args.kwargs["content"]
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    assert isinstance(kwargs["view"], PostToChannelView)
+    content = kwargs["content"]
     assert "📝 New agenda items" in content
 
 
@@ -365,6 +391,8 @@ async def test_edit_updates_description_only():
 @pytest.mark.asyncio
 async def test_edit_updates_all_fields(_mock_now):
     """When all optional params are provided, all fields are sent in the patch."""
+    from src.views import PostToChannelView
+
     interaction = MagicMock()
     interaction.response = MagicMock()
     interaction.response.defer = AsyncMock()
@@ -401,7 +429,9 @@ async def test_edit_updates_all_fields(_mock_now):
     assert body["start"]["dateTime"] == "2026-05-03T14:00:00+00:00"
     assert body["end"]["dateTime"] == "2026-05-03T14:45:00+00:00"
 
-    content = interaction.edit_original_response.call_args.kwargs["content"]
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    assert isinstance(kwargs["view"], PostToChannelView)
+    content = kwargs["content"]
     assert "Event updated" in content
     assert "Old Event" in content
     assert "Brand New Event" in content
@@ -410,6 +440,8 @@ async def test_edit_updates_all_fields(_mock_now):
 @pytest.mark.asyncio
 async def test_edit_calendar_not_configured():
     """The edit command responds with an error when calendar is not configured."""
+    from src.views import PostToChannelView
+
     interaction = MagicMock()
     interaction.response = MagicMock()
     interaction.response.send_message = AsyncMock()
@@ -425,6 +457,9 @@ async def test_edit_calendar_not_configured():
     )
 
     interaction.response.send_message.assert_called_once()
+    kwargs = interaction.response.send_message.call_args.kwargs
+    assert kwargs["ephemeral"] is True
+    assert isinstance(kwargs["view"], PostToChannelView)
     msg = interaction.response.send_message.call_args.args[0]
     assert "not configured" in msg.lower()
 
@@ -432,6 +467,8 @@ async def test_edit_calendar_not_configured():
 @pytest.mark.asyncio
 async def test_edit_invalid_when_returns_error():
     """The edit command responds with a parse error for invalid when strings."""
+    from src.views import PostToChannelView
+
     interaction = MagicMock()
     interaction.response = MagicMock()
     interaction.response.defer = AsyncMock()
@@ -456,13 +493,17 @@ async def test_edit_invalid_when_returns_error():
         description=None,
     )
 
-    content = interaction.edit_original_response.call_args.kwargs["content"]
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    assert isinstance(kwargs["view"], PostToChannelView)
+    content = kwargs["content"]
     assert "Cannot parse" in content
 
 
 @pytest.mark.asyncio
 async def test_edit_formats_event_not_found_on_get():
     """The edit command returns a user-friendly message when get_event returns 404."""
+    from src.views import PostToChannelView
+
     interaction = MagicMock()
     interaction.response = MagicMock()
     interaction.response.defer = AsyncMock()
@@ -485,13 +526,17 @@ async def test_edit_formats_event_not_found_on_get():
         description=None,
     )
 
-    content = interaction.edit_original_response.call_args.kwargs["content"]
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    assert isinstance(kwargs["view"], PostToChannelView)
+    content = kwargs["content"]
     assert "not found" in content.lower() or "Event not found" in content
 
 
 @pytest.mark.asyncio
 async def test_edit_formats_permission_denied_on_update():
     """The edit command returns a user-friendly message when update_event returns 403."""
+    from src.views import PostToChannelView
+
     interaction = MagicMock()
     interaction.response = MagicMock()
     interaction.response.defer = AsyncMock()
@@ -521,13 +566,17 @@ async def test_edit_formats_permission_denied_on_update():
         description=None,
     )
 
-    content = interaction.edit_original_response.call_args.kwargs["content"]
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    assert isinstance(kwargs["view"], PostToChannelView)
+    content = kwargs["content"]
     assert "permission" in content.lower()
 
 
 @pytest.mark.asyncio
 async def test_edit_formats_generic_error_on_update():
     """The edit command returns a generic error for unexpected failures."""
+    from src.views import PostToChannelView
+
     interaction = MagicMock()
     interaction.response = MagicMock()
     interaction.response.defer = AsyncMock()
@@ -557,7 +606,9 @@ async def test_edit_formats_generic_error_on_update():
         description=None,
     )
 
-    content = interaction.edit_original_response.call_args.kwargs["content"]
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    assert isinstance(kwargs["view"], PostToChannelView)
+    content = kwargs["content"]
     assert "Failed to edit" in content or "failed" in content.lower()
 
 

@@ -302,7 +302,11 @@ async def test_create_command_parses_when_and_calls_service():
     assert call_kwargs["creator_discord_id"] == str(interaction.user.id)
 
     interaction.edit_original_response.assert_called_once()
-    response_text = interaction.edit_original_response.call_args.kwargs["content"]
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    # The ephemeral response has PostToChannelView (RsvpView nested inside)
+    from src.views import PostToChannelView
+    assert isinstance(kwargs["view"], PostToChannelView)
+    response_text = kwargs["content"]
     assert "Team Sync" in response_text
     assert "May 1, 2026 at 2:00 PM ET" in response_text
     assert "https://calendar.google.com/event?eid=evt_001" in response_text
@@ -336,6 +340,8 @@ async def test_create_command_defaults_duration_to_60():
 @pytest.mark.asyncio
 async def test_create_command_handles_no_calendar():
     """The create command responds with an error when the calendar is not configured."""
+    from src.views import PostToChannelView
+
     interaction = MagicMock()
     interaction.response = MagicMock()
     interaction.response.send_message = AsyncMock()
@@ -350,6 +356,9 @@ async def test_create_command_handles_no_calendar():
     )
 
     interaction.response.send_message.assert_called_once()
+    kwargs = interaction.response.send_message.call_args.kwargs
+    assert kwargs["ephemeral"] is True
+    assert isinstance(kwargs["view"], PostToChannelView)
     msg = interaction.response.send_message.call_args.args[0]
     assert "not configured" in msg.lower()
 
@@ -357,6 +366,8 @@ async def test_create_command_handles_no_calendar():
 @pytest.mark.asyncio
 async def test_create_command_handles_invalid_when():
     """The create command responds with a parse error for invalid when strings."""
+    from src.views import PostToChannelView
+
     interaction = MagicMock()
     interaction.response = MagicMock()
     interaction.response.defer = AsyncMock()
@@ -372,7 +383,9 @@ async def test_create_command_handles_invalid_when():
     )
 
     interaction.edit_original_response.assert_called_once()
-    msg = interaction.edit_original_response.call_args.kwargs["content"]
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    assert isinstance(kwargs["view"], PostToChannelView)
+    msg = kwargs["content"]
     assert "Cannot parse" in msg
 
 
@@ -380,6 +393,7 @@ async def test_create_command_handles_invalid_when():
 async def test_create_command_formats_unauthorized_error():
     """The create command returns a user-friendly message on 403 Forbidden."""
     from googleapiclient.errors import HttpError
+    from src.views import PostToChannelView
 
     interaction = MagicMock()
     interaction.response = MagicMock()
@@ -402,7 +416,9 @@ async def test_create_command_formats_unauthorized_error():
         description=None,
     )
 
-    response_text = interaction.edit_original_response.call_args.kwargs["content"]
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    assert isinstance(kwargs["view"], PostToChannelView)
+    response_text = kwargs["content"]
     assert "permission" in response_text.lower()
 
 
@@ -410,6 +426,7 @@ async def test_create_command_formats_unauthorized_error():
 async def test_create_command_formats_not_found_error():
     """The create command returns a user-friendly message on 404 NotFound."""
     from googleapiclient.errors import HttpError
+    from src.views import PostToChannelView
 
     interaction = MagicMock()
     interaction.response = MagicMock()
@@ -432,7 +449,9 @@ async def test_create_command_formats_not_found_error():
         description=None,
     )
 
-    response_text = interaction.edit_original_response.call_args.kwargs["content"]
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    assert isinstance(kwargs["view"], PostToChannelView)
+    response_text = kwargs["content"]
     assert "not found" in response_text.lower()
 
 
@@ -440,6 +459,7 @@ async def test_create_command_formats_not_found_error():
 async def test_create_command_formats_rate_limit_error():
     """The create command returns a user-friendly message on 429 TooManyRequests."""
     from googleapiclient.errors import HttpError
+    from src.views import PostToChannelView
 
     interaction = MagicMock()
     interaction.response = MagicMock()
@@ -462,7 +482,9 @@ async def test_create_command_formats_rate_limit_error():
         description=None,
     )
 
-    response_text = interaction.edit_original_response.call_args.kwargs["content"]
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    assert isinstance(kwargs["view"], PostToChannelView)
+    response_text = kwargs["content"]
     assert "rate" in response_text.lower()
 
 
@@ -470,6 +492,7 @@ async def test_create_command_formats_rate_limit_error():
 async def test_create_command_formats_generic_error():
     """The create command returns a generic error message for unexpected errors."""
     from googleapiclient.errors import HttpError
+    from src.views import PostToChannelView
 
     interaction = MagicMock()
     interaction.response = MagicMock()
@@ -492,7 +515,9 @@ async def test_create_command_formats_generic_error():
         description=None,
     )
 
-    response_text = interaction.edit_original_response.call_args.kwargs["content"]
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    assert isinstance(kwargs["view"], PostToChannelView)
+    response_text = kwargs["content"]
     assert "failed" in response_text.lower() or "unexpected" in response_text.lower()
 
 
@@ -505,6 +530,8 @@ async def test_create_command_formats_generic_error():
 async def test_create_with_invite_resolves_mention_and_adds_attendees():
     """invite with a Discord mention resolves the user's email and calls
     add_attendees with the resolved email."""
+    from src.views import PostToChannelView
+
     interaction = MagicMock()
     interaction.user.id = 999
     interaction.response = MagicMock()
@@ -541,8 +568,10 @@ async def test_create_with_invite_resolves_mention_and_adds_attendees():
     mock_calendar.add_attendees.assert_called_once_with(
         "evt_003", ["stew@example.com"]
     )
-    # Response includes success
-    response = interaction.edit_original_response.call_args.kwargs["content"]
+    # Response includes success and PostToChannelView
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    assert isinstance(kwargs["view"], PostToChannelView)
+    response = kwargs["content"]
     assert "Event created" in response
 
 

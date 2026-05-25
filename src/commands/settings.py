@@ -11,6 +11,7 @@ from discord import app_commands
 
 from src.commands.list_events import cal
 from src.utils import validate_email
+from src.views import PostToChannelView
 
 settings_group = app_commands.Group(
     name="settings",
@@ -69,15 +70,18 @@ async def set_settings(
                 "❌ Please provide an email address. "
                 "Usage: `/cal settings set email me@example.com`",
                 ephemeral=True,
+                view=PostToChannelView(),
             )
             return
         error = validate_email(value)
         if error:
-            await interaction.response.send_message(error, ephemeral=True)
+            await interaction.response.send_message(
+                error, ephemeral=True, view=PostToChannelView()
+            )
             return
         interaction.client.settings.set(discord_id, "email", value)
         await interaction.response.send_message(
-            f"✅ Email stored: {value}", ephemeral=True
+            f"✅ Email stored: {value}", ephemeral=True, view=PostToChannelView()
         )
     elif setting == "timezone":
         if not value:
@@ -85,19 +89,26 @@ async def set_settings(
                 "❌ Please provide a timezone. "
                 "Usage: `/cal settings set timezone America/Chicago`",
                 ephemeral=True,
+                view=PostToChannelView(),
             )
             return
         error = _validate_timezone(value)
         if error:
-            await interaction.response.send_message(error, ephemeral=True)
+            await interaction.response.send_message(
+                error, ephemeral=True, view=PostToChannelView()
+            )
             return
         interaction.client.settings.set(discord_id, "timezone", value)
         await interaction.response.send_message(
-            f"✅ Timezone stored: {value}", ephemeral=True
+            f"✅ Timezone stored: {value}",
+            ephemeral=True,
+            view=PostToChannelView(),
         )
     else:
         await interaction.response.send_message(
-            _UNKNOWN_SETTING_MSG.format(setting=setting), ephemeral=True
+            _UNKNOWN_SETTING_MSG.format(setting=setting),
+            ephemeral=True,
+            view=PostToChannelView(),
         )
 
 
@@ -120,25 +131,33 @@ async def show_settings(
         email = interaction.client.settings.get(discord_id, "email")
         if email:
             await interaction.response.send_message(
-                f"📧 Your stored email: {email}", ephemeral=True
+                f"📧 Your stored email: {email}",
+                ephemeral=True,
+                view=PostToChannelView(),
             )
         else:
             await interaction.response.send_message(
                 "📧 No email set. Use `/cal settings set email` to store one.",
                 ephemeral=True,
+                view=PostToChannelView(),
             )
     elif setting == "timezone":
         timezone = interaction.client.settings.get(discord_id, "timezone")
         if timezone:
             await interaction.response.send_message(
-                f"🕐 Your timezone: {timezone}", ephemeral=True
+                f"🕐 Your timezone: {timezone}",
+                ephemeral=True,
+                view=PostToChannelView(),
             )
         else:
             await interaction.response.send_message(
                 "🕐 No timezone set. Defaulting to US Eastern.",
                 ephemeral=True,
+                view=PostToChannelView(),
             )
     else:
         await interaction.response.send_message(
-            _UNKNOWN_SETTING_MSG.format(setting=setting), ephemeral=True
+            _UNKNOWN_SETTING_MSG.format(setting=setting),
+            ephemeral=True,
+            view=PostToChannelView(),
         )

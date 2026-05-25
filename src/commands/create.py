@@ -19,6 +19,7 @@ from src.utils import (
     resolve_mentions,
     validate_email,
 )
+from src.views import PostToChannelView
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,7 @@ async def create(
             "❌ Calendar is not configured. Set GOOGLE_SERVICE_ACCOUNT_FILE "
             "and GOOGLE_CALENDAR_ID in `.env`.",
             ephemeral=True,
+            view=PostToChannelView(),
         )
         return
 
@@ -80,7 +82,8 @@ async def create(
         parsed = parse_when(when, tz=user_tz)
     except ValueError as exc:
         await interaction.edit_original_response(
-            content=f"❌ Cannot parse '{when}': {exc}"
+            content=f"❌ Cannot parse '{when}': {exc}",
+            view=PostToChannelView(),
         )
         return
 
@@ -104,7 +107,9 @@ async def create(
     except HttpError as exc:
         logger.error("Failed to create event: %s", exc)
         error_msg = format_create_error(exc)
-        await interaction.edit_original_response(content=error_msg)
+        await interaction.edit_original_response(
+            content=error_msg, view=PostToChannelView()
+        )
         return
 
     # ── DM unresolvable mentions ──────────────────────────────────────
@@ -160,5 +165,6 @@ async def create(
         response += "\n" + "\n".join(invite_warnings)
 
     await interaction.edit_original_response(
-        content=response, view=RsvpView(event_id=result["id"])
+        content=response,
+        view=PostToChannelView(posted_view=RsvpView(event_id=result["id"])),
     )

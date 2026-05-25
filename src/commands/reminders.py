@@ -9,6 +9,7 @@ from googleapiclient.errors import HttpError
 from src.commands.autocomplete import event_autocomplete
 from src.commands.list_events import cal
 from src.utils import format_edit_error, parse_minutes
+from src.views import PostToChannelView
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,7 @@ async def reminders_set(
             "❌ Calendar is not configured. Ask an admin to set "
             "GOOGLE_SERVICE_ACCOUNT_FILE and GOOGLE_CALENDAR_ID.",
             ephemeral=True,
+            view=PostToChannelView(),
         )
         return
 
@@ -73,7 +75,7 @@ async def reminders_set(
         parsed = parse_minutes(minutes)
     except ValueError as exc:
         await interaction.response.send_message(
-            f"❌ {exc}", ephemeral=True
+            f"❌ {exc}", ephemeral=True, view=PostToChannelView()
         )
         return
 
@@ -82,12 +84,16 @@ async def reminders_set(
     except HttpError as exc:
         logger.error("Failed to set reminders on %s: %s", event_id, exc)
         error_msg = format_edit_error(exc)
-        await interaction.response.send_message(error_msg, ephemeral=True)
+        await interaction.response.send_message(
+            error_msg, ephemeral=True, view=PostToChannelView()
+        )
         return
 
     display = _format_reminders_list(parsed)
     await interaction.response.send_message(
-        f"✅ Reminders set: {display}"
+        f"✅ Reminders set: {display}",
+        ephemeral=True,
+        view=PostToChannelView(),
     )
 
 
@@ -109,6 +115,7 @@ async def reminders_show(
             "❌ Calendar is not configured. Ask an admin to set "
             "GOOGLE_SERVICE_ACCOUNT_FILE and GOOGLE_CALENDAR_ID.",
             ephemeral=True,
+            view=PostToChannelView(),
         )
         return
 
@@ -117,27 +124,29 @@ async def reminders_show(
     except HttpError as exc:
         logger.error("Failed to get event %s: %s", event_id, exc)
         error_msg = format_edit_error(exc)
-        await interaction.response.send_message(error_msg, ephemeral=True)
+        await interaction.response.send_message(
+            error_msg, ephemeral=True, view=PostToChannelView()
+        )
         return
 
     reminders = event.get("reminders", {})
     if reminders.get("useDefault", True):
         await interaction.response.send_message(
-            "📋 No reminders set", ephemeral=True
+            "📋 No reminders set", ephemeral=True, view=PostToChannelView()
         )
         return
 
     overrides = reminders.get("overrides", [])
     if not overrides:
         await interaction.response.send_message(
-            "📋 No reminders set", ephemeral=True
+            "📋 No reminders set", ephemeral=True, view=PostToChannelView()
         )
         return
 
     minutes_list = [o["minutes"] for o in overrides]
     display = _format_reminders_list(minutes_list)
     await interaction.response.send_message(
-        f"📋 Reminders: {display}", ephemeral=True
+        f"📋 Reminders: {display}", ephemeral=True, view=PostToChannelView()
     )
 
 
@@ -166,7 +175,7 @@ async def reminders_defaults_set(
         parsed = parse_minutes(minutes)
     except ValueError as exc:
         await interaction.response.send_message(
-            f"❌ {exc}", ephemeral=True
+            f"❌ {exc}", ephemeral=True, view=PostToChannelView()
         )
         return
 
@@ -175,7 +184,9 @@ async def reminders_defaults_set(
 
     display = _format_reminders_list(parsed)
     await interaction.response.send_message(
-        f"✅ Default reminders: {display}", ephemeral=True
+        f"✅ Default reminders: {display}",
+        ephemeral=True,
+        view=PostToChannelView(),
     )
 
 
@@ -194,7 +205,9 @@ async def reminders_defaults_show(
             parsed = parse_minutes(default)
             display = _format_reminders_list(parsed)
             await interaction.response.send_message(
-                f"📋 Default reminders: {display}", ephemeral=True
+                f"📋 Default reminders: {display}",
+                ephemeral=True,
+                view=PostToChannelView(),
             )
         except ValueError:
             # Stored value is somehow invalid — show raw and let the
@@ -203,10 +216,12 @@ async def reminders_defaults_show(
                 f"📋 Default reminders: {default} "
                 "(invalid format — use `/cal reminders-defaults set` to update)",
                 ephemeral=True,
+                view=PostToChannelView(),
             )
     else:
         await interaction.response.send_message(
             "📋 No default reminders. "
             "Use `/cal reminders-defaults set` to configure one.",
             ephemeral=True,
+            view=PostToChannelView(),
         )

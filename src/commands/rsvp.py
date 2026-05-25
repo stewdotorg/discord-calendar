@@ -14,6 +14,7 @@ from src.commands.autocomplete import event_autocomplete
 from src.commands.list_events import cal
 from src.dm_handler import send_pending_invites_to_unresolvable
 from src.utils import _MENTION_PATTERN, format_invite_error, validate_email
+from src.views import PostToChannelView
 
 logger = logging.getLogger(__name__)
 
@@ -151,6 +152,7 @@ async def _require_calendar(interaction: discord.Interaction) -> bool:
             "❌ Calendar is not configured. Ask an admin to set "
             "GOOGLE_SERVICE_ACCOUNT_FILE and GOOGLE_CALENDAR_ID.",
             ephemeral=True,
+            view=PostToChannelView(),
         )
         return False
     return True
@@ -188,7 +190,7 @@ async def invite(
     items = [p.strip() for p in people.split(",") if p.strip()]
     if not items:
         await interaction.edit_original_response(
-            content="❌ No people specified."
+            content="❌ No people specified.", view=PostToChannelView()
         )
         return
 
@@ -248,7 +250,8 @@ async def invite(
 
     if not resolved:
         await interaction.edit_original_response(
-            content="❌ No valid recipients.\n" + "\n".join(warnings)
+            content="❌ No valid recipients.\n" + "\n".join(warnings),
+            view=PostToChannelView(),
         )
         return
 
@@ -257,7 +260,9 @@ async def invite(
     except HttpError as exc:
         logger.error("Failed to invite to event %s: %s", event_id, exc)
         error_msg = format_invite_error(exc)
-        await interaction.edit_original_response(content=error_msg)
+        await interaction.edit_original_response(
+            content=error_msg, view=PostToChannelView()
+        )
         return
 
     count = len(resolved)
@@ -269,4 +274,6 @@ async def invite(
     if warnings:
         lines.extend(warnings)
 
-    await interaction.edit_original_response(content="\n".join(lines))
+    await interaction.edit_original_response(
+        content="\n".join(lines), view=PostToChannelView()
+    )

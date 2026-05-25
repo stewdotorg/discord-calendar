@@ -10,16 +10,19 @@ from src.commands.ping import ping
 
 @pytest.mark.asyncio
 async def test_ping_responds_pong_ephemerally():
-    """The /cal ping command responds with 'pong' as an ephemeral message."""
+    """The /cal ping command responds with 'pong' as an ephemeral message
+    with a PostToChannelView."""
+    from src.views import PostToChannelView
+
     interaction = MagicMock()
     interaction.response = MagicMock()
     interaction.response.send_message = AsyncMock()
 
     await ping.callback(interaction)
 
-    interaction.response.send_message.assert_called_once_with(
-        "pong", ephemeral=True
-    )
+    call_args = interaction.response.send_message.call_args
+    assert call_args.kwargs["ephemeral"] is True
+    assert isinstance(call_args.kwargs["view"], PostToChannelView)
 
 
 @pytest.mark.asyncio
@@ -34,7 +37,8 @@ async def test_ping_command_has_correct_metadata():
 
 @pytest.mark.asyncio
 async def test_today_command_lists_events():
-    """The /cal today command responds with an embed listing today's events."""
+    """The /cal today command responds with an ephemeral embed listing today's events."""
+    from src.views import PostToChannelView
     from src.commands.list_events import today
 
     interaction = MagicMock()
@@ -68,14 +72,15 @@ async def test_today_command_lists_events():
                 time_min=tmin, time_max=tmax, q=None
             )
 
-            interaction.response.send_message.assert_called_once_with(
-                embed=mock_embed
-            )
+            call_args = interaction.response.send_message.call_args
+            assert call_args.kwargs["ephemeral"] is True
+            assert isinstance(call_args.kwargs["view"], PostToChannelView)
 
 
 @pytest.mark.asyncio
 async def test_today_command_calendar_not_configured():
     """The /cal today command responds with an error when calendar is not configured."""
+    from src.views import PostToChannelView
     from src.commands.list_events import today
 
     interaction = MagicMock()
@@ -89,6 +94,7 @@ async def test_today_command_calendar_not_configured():
     call_args = interaction.response.send_message.call_args
     assert "not configured" in call_args[0][0]
     assert call_args[1]["ephemeral"] is True
+    assert isinstance(call_args[1]["view"], PostToChannelView)
 
 
 @pytest.mark.asyncio
@@ -104,8 +110,8 @@ async def test_today_command_has_correct_metadata():
 
 
 @pytest.mark.asyncio
-async def test_help_command_responds_ephemeral_embed():
-    """The /cal help command responds with an ephemeral embed listing commands."""
+async def test_help_command_responds_public_embed():
+    """The /cal help command responds with a public embed (no ephemeral, no Post button)."""
     from src.commands.help import help_cmd
 
     interaction = MagicMock()
@@ -117,7 +123,8 @@ async def test_help_command_responds_ephemeral_embed():
     interaction.response.send_message.assert_called_once()
     call_args = interaction.response.send_message.call_args
     _, kwargs = call_args
-    assert kwargs["ephemeral"] is True
+    # Help should be PUBLIC — no ephemeral flag
+    assert "ephemeral" not in kwargs or kwargs["ephemeral"] is not True
     assert kwargs["embed"] is not None
 
 
@@ -190,6 +197,7 @@ async def test_help_command_has_correct_metadata():
 @pytest.mark.asyncio
 async def test_week_command_lists_events_for_next_7_days():
     """The /cal week command lists events from today through the next 7 days."""
+    from src.views import PostToChannelView
     from src.commands.list_events import week
 
     interaction = MagicMock()
@@ -223,14 +231,15 @@ async def test_week_command_lists_events_for_next_7_days():
                 time_min=tmin, time_max=tmax, q=None
             )
 
-            interaction.response.send_message.assert_called_once_with(
-                embed=mock_embed
-            )
+            call_args = interaction.response.send_message.call_args
+            assert call_args.kwargs["ephemeral"] is True
+            assert isinstance(call_args.kwargs["view"], PostToChannelView)
 
 
 @pytest.mark.asyncio
 async def test_week_command_calendar_not_configured():
     """The /cal week command responds with an error when calendar is not configured."""
+    from src.views import PostToChannelView
     from src.commands.list_events import week
 
     interaction = MagicMock()
@@ -244,6 +253,7 @@ async def test_week_command_calendar_not_configured():
     call_args = interaction.response.send_message.call_args
     assert "not configured" in call_args[0][0]
     assert call_args[1]["ephemeral"] is True
+    assert isinstance(call_args[1]["view"], PostToChannelView)
 
 
 @pytest.mark.asyncio
@@ -261,6 +271,7 @@ async def test_week_command_has_correct_metadata():
 @pytest.mark.asyncio
 async def test_list_command_lists_events_for_date_range():
     """The /cal list command lists events in the given date range."""
+    from src.views import PostToChannelView
     from src.commands.list_events import list_events
 
     interaction = MagicMock()
@@ -294,14 +305,15 @@ async def test_list_command_lists_events_for_date_range():
                 time_min=tmin, time_max=tmax, q=None
             )
 
-            interaction.response.send_message.assert_called_once_with(
-                embed=mock_embed
-            )
+            call_args = interaction.response.send_message.call_args
+            assert call_args.kwargs["ephemeral"] is True
+            assert isinstance(call_args.kwargs["view"], PostToChannelView)
 
 
 @pytest.mark.asyncio
 async def test_list_command_with_search_keyword():
     """The /cal list command passes the search keyword to list_events."""
+    from src.views import PostToChannelView
     from src.commands.list_events import list_events
 
     interaction = MagicMock()
@@ -329,11 +341,16 @@ async def test_list_command_with_search_keyword():
             mock_calendar.list_events.assert_called_once_with(
                 time_min=tmin, time_max=tmax, q="standup"
             )
+            assert isinstance(
+                interaction.response.send_message.call_args.kwargs["view"],
+                PostToChannelView,
+            )
 
 
 @pytest.mark.asyncio
 async def test_list_command_calendar_not_configured():
     """The /cal list command responds with an error when calendar is not configured."""
+    from src.views import PostToChannelView
     from src.commands.list_events import list_events
 
     interaction = MagicMock()
@@ -347,11 +364,13 @@ async def test_list_command_calendar_not_configured():
     call_args = interaction.response.send_message.call_args
     assert "not configured" in call_args[0][0]
     assert call_args[1]["ephemeral"] is True
+    assert isinstance(call_args[1]["view"], PostToChannelView)
 
 
 @pytest.mark.asyncio
 async def test_list_command_invalid_date_returns_error():
     """The /cal list command returns a clear error for invalid date formats."""
+    from src.views import PostToChannelView
     from src.commands.list_events import list_events
 
     interaction = MagicMock()
@@ -370,6 +389,7 @@ async def test_list_command_invalid_date_returns_error():
     call_args = interaction.response.send_message.call_args
     assert "Invalid date" in call_args[0][0]
     assert call_args[1]["ephemeral"] is True
+    assert isinstance(call_args[1]["view"], PostToChannelView)
 
 
 @pytest.mark.asyncio
@@ -384,6 +404,7 @@ async def test_list_command_has_correct_metadata():
 @pytest.mark.asyncio
 async def test_list_command_no_search_passes_none():
     """The /cal list command doesn't pass search when not provided."""
+    from src.views import PostToChannelView
     from src.commands.list_events import list_events
 
     interaction = MagicMock()
@@ -407,6 +428,10 @@ async def test_list_command_no_search_passes_none():
 
             call_kwargs = mock_calendar.list_events.call_args.kwargs
             assert call_kwargs["q"] is None
+            assert isinstance(
+                interaction.response.send_message.call_args.kwargs["view"],
+                PostToChannelView,
+            )
 
 
 # ── /cal settings set ─────────────────────────────────────────────────
@@ -415,6 +440,7 @@ async def test_list_command_no_search_passes_none():
 @pytest.mark.asyncio
 async def test_set_email_stores_and_confirms():
     """The /cal settings set email command stores the email and confirms."""
+    from src.views import PostToChannelView
     from src.commands.settings import set_settings
 
     interaction = MagicMock()
@@ -432,11 +458,13 @@ async def test_set_email_stores_and_confirms():
     call_args = interaction.response.send_message.call_args
     assert "me@example.com" in call_args[0][0]
     assert call_args[1]["ephemeral"] is True
+    assert isinstance(call_args[1]["view"], PostToChannelView)
 
 
 @pytest.mark.asyncio
 async def test_set_email_invalid_email_returns_error():
     """The /cal settings set email command rejects invalid email formats."""
+    from src.views import PostToChannelView
     from src.commands.settings import set_settings
 
     interaction = MagicMock()
@@ -454,11 +482,13 @@ async def test_set_email_invalid_email_returns_error():
     call_args = interaction.response.send_message.call_args
     assert "Invalid email" in call_args[0][0] or "invalid" in call_args[0][0].lower()
     assert call_args[1]["ephemeral"] is True
+    assert isinstance(call_args[1]["view"], PostToChannelView)
 
 
 @pytest.mark.asyncio
 async def test_set_email_rejects_email_without_at():
     """The /cal settings set email rejects emails missing @."""
+    from src.views import PostToChannelView
     from src.commands.settings import set_settings
 
     interaction = MagicMock()
@@ -475,11 +505,13 @@ async def test_set_email_rejects_email_without_at():
     call_args = interaction.response.send_message.call_args
     assert "Invalid" in call_args[0][0] or "invalid" in call_args[0][0].lower()
     assert call_args[1]["ephemeral"] is True
+    assert isinstance(call_args[1]["view"], PostToChannelView)
 
 
 @pytest.mark.asyncio
 async def test_set_email_rejects_email_without_dot():
     """The /cal settings set email rejects emails missing a dot in the domain."""
+    from src.views import PostToChannelView
     from src.commands.settings import set_settings
 
     interaction = MagicMock()
@@ -496,11 +528,13 @@ async def test_set_email_rejects_email_without_dot():
     call_args = interaction.response.send_message.call_args
     assert "Invalid" in call_args[0][0] or "invalid" in call_args[0][0].lower()
     assert call_args[1]["ephemeral"] is True
+    assert isinstance(call_args[1]["view"], PostToChannelView)
 
 
 @pytest.mark.asyncio
 async def test_set_email_missing_value_returns_error():
     """The /cal settings set email returns error when value is missing."""
+    from src.views import PostToChannelView
     from src.commands.settings import set_settings
 
     interaction = MagicMock()
@@ -519,11 +553,13 @@ async def test_set_email_missing_value_returns_error():
     call_args = interaction.response.send_message.call_args
     assert "email address" in call_args[0][0].lower()
     assert call_args[1]["ephemeral"] is True
+    assert isinstance(call_args[1]["view"], PostToChannelView)
 
 
 @pytest.mark.asyncio
 async def test_show_email_displays_stored_email():
     """The /cal settings show email command displays the stored email."""
+    from src.views import PostToChannelView
     from src.commands.settings import show_settings
 
     interaction = MagicMock()
@@ -542,11 +578,13 @@ async def test_show_email_displays_stored_email():
     call_args = interaction.response.send_message.call_args
     assert "me@example.com" in call_args[0][0]
     assert call_args[1]["ephemeral"] is True
+    assert isinstance(call_args[1]["view"], PostToChannelView)
 
 
 @pytest.mark.asyncio
 async def test_show_email_no_email():
     """The /cal settings show email command shows a message when no email is set."""
+    from src.views import PostToChannelView
     from src.commands.settings import show_settings
 
     interaction = MagicMock()
@@ -564,11 +602,13 @@ async def test_show_email_no_email():
     call_args = interaction.response.send_message.call_args
     assert "No email" in call_args[0][0] or "not set" in call_args[0][0].lower()
     assert call_args[1]["ephemeral"] is True
+    assert isinstance(call_args[1]["view"], PostToChannelView)
 
 
 @pytest.mark.asyncio
 async def test_set_unknown_setting_returns_error():
     """The /cal settings set returns error for unknown setting."""
+    from src.views import PostToChannelView
     from src.commands.settings import set_settings
 
     interaction = MagicMock()
@@ -586,6 +626,7 @@ async def test_set_unknown_setting_returns_error():
     call_args = interaction.response.send_message.call_args
     assert "Unknown setting" in call_args[0][0]
     assert call_args[1]["ephemeral"] is True
+    assert isinstance(call_args[1]["view"], PostToChannelView)
 
 
 # ── /cal settings set timezone ──────────────────────────────────────────
@@ -594,6 +635,7 @@ async def test_set_unknown_setting_returns_error():
 @pytest.mark.asyncio
 async def test_set_timezone_stores_and_confirms():
     """The /cal settings set timezone command stores the timezone and confirms."""
+    from src.views import PostToChannelView
     from src.commands.settings import set_settings
 
     interaction = MagicMock()
@@ -611,11 +653,13 @@ async def test_set_timezone_stores_and_confirms():
     call_args = interaction.response.send_message.call_args
     assert "America/Chicago" in call_args[0][0]
     assert call_args[1]["ephemeral"] is True
+    assert isinstance(call_args[1]["view"], PostToChannelView)
 
 
 @pytest.mark.asyncio
 async def test_set_timezone_rejects_invalid_timezone():
     """The /cal settings set timezone command rejects invalid timezone strings."""
+    from src.views import PostToChannelView
     from src.commands.settings import set_settings
 
     interaction = MagicMock()
@@ -633,11 +677,13 @@ async def test_set_timezone_rejects_invalid_timezone():
     call_args = interaction.response.send_message.call_args
     assert "Invalid timezone" in call_args[0][0] or "invalid" in call_args[0][0].lower()
     assert call_args[1]["ephemeral"] is True
+    assert isinstance(call_args[1]["view"], PostToChannelView)
 
 
 @pytest.mark.asyncio
 async def test_set_timezone_missing_value_returns_error():
     """The /cal settings set timezone returns error when value is missing."""
+    from src.views import PostToChannelView
     from src.commands.settings import set_settings
 
     interaction = MagicMock()
@@ -655,11 +701,13 @@ async def test_set_timezone_missing_value_returns_error():
     call_args = interaction.response.send_message.call_args
     assert "timezone" in call_args[0][0].lower()
     assert call_args[1]["ephemeral"] is True
+    assert isinstance(call_args[1]["view"], PostToChannelView)
 
 
 @pytest.mark.asyncio
 async def test_show_timezone_displays_stored_timezone():
     """The /cal settings show timezone command displays the stored timezone."""
+    from src.views import PostToChannelView
     from src.commands.settings import show_settings
 
     interaction = MagicMock()
@@ -678,11 +726,13 @@ async def test_show_timezone_displays_stored_timezone():
     call_args = interaction.response.send_message.call_args
     assert "America/Chicago" in call_args[0][0]
     assert call_args[1]["ephemeral"] is True
+    assert isinstance(call_args[1]["view"], PostToChannelView)
 
 
 @pytest.mark.asyncio
 async def test_show_timezone_default():
     """The /cal settings show timezone command shows default when none is set."""
+    from src.views import PostToChannelView
     from src.commands.settings import show_settings
 
     interaction = MagicMock()
@@ -700,11 +750,13 @@ async def test_show_timezone_default():
     call_args = interaction.response.send_message.call_args
     assert "US Eastern" in call_args[0][0] or "default" in call_args[0][0].lower()
     assert call_args[1]["ephemeral"] is True
+    assert isinstance(call_args[1]["view"], PostToChannelView)
 
 
 @pytest.mark.asyncio
 async def test_show_unknown_setting_returns_error():
     """The /cal settings show returns error for unknown setting."""
+    from src.views import PostToChannelView
     from src.commands.settings import show_settings
 
     interaction = MagicMock()
@@ -722,6 +774,7 @@ async def test_show_unknown_setting_returns_error():
     call_args = interaction.response.send_message.call_args
     assert "Unknown setting" in call_args[0][0]
     assert call_args[1]["ephemeral"] is True
+    assert isinstance(call_args[1]["view"], PostToChannelView)
 
 
 # ── metadata for set/show commands ──────────────────────────────────────

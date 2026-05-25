@@ -104,7 +104,9 @@ async def test_delete_command_metadata():
 @pytest.mark.asyncio
 async def test_delete_command_calls_service_and_confirms():
     """The delete command calls delete_event and responds with a confirmation
-    that includes the event title and date."""
+    that includes the event title, date, and PostToChannelView."""
+    from src.views import PostToChannelView
+
     interaction = MagicMock()
     interaction.response = MagicMock()
     interaction.response.send_message = AsyncMock()
@@ -120,6 +122,9 @@ async def test_delete_command_calls_service_and_confirms():
 
     mock_calendar.delete_event.assert_called_once_with("abc123")
     interaction.response.send_message.assert_called_once()
+    kwargs = interaction.response.send_message.call_args.kwargs
+    assert kwargs["ephemeral"] is True
+    assert isinstance(kwargs["view"], PostToChannelView)
     response_text = interaction.response.send_message.call_args.args[0]
     assert "Team Standup" in response_text
     assert "deleted" in response_text.lower()
@@ -130,6 +135,8 @@ async def test_delete_command_calls_service_and_confirms():
 @pytest.mark.asyncio
 async def test_delete_command_calendar_not_configured():
     """The delete command responds with an error when calendar is not configured."""
+    from src.views import PostToChannelView
+
     interaction = MagicMock()
     interaction.response = MagicMock()
     interaction.response.send_message = AsyncMock()
@@ -138,6 +145,9 @@ async def test_delete_command_calendar_not_configured():
     await delete.callback(interaction, event_id="abc123")
 
     interaction.response.send_message.assert_called_once()
+    kwargs = interaction.response.send_message.call_args.kwargs
+    assert kwargs["ephemeral"] is True
+    assert isinstance(kwargs["view"], PostToChannelView)
     msg = interaction.response.send_message.call_args.args[0]
     assert "not configured" in msg.lower()
 
@@ -145,6 +155,8 @@ async def test_delete_command_calendar_not_configured():
 @pytest.mark.asyncio
 async def test_delete_command_formats_event_not_found_error():
     """The delete command returns a user-friendly message on 404 Not Found."""
+    from src.views import PostToChannelView
+
     interaction = MagicMock()
     interaction.response = MagicMock()
     interaction.response.send_message = AsyncMock()
@@ -159,6 +171,9 @@ async def test_delete_command_formats_event_not_found_error():
 
     await delete.callback(interaction, event_id="evt")
 
+    kwargs = interaction.response.send_message.call_args.kwargs
+    assert kwargs["ephemeral"] is True
+    assert isinstance(kwargs["view"], PostToChannelView)
     response_text = interaction.response.send_message.call_args.args[0]
     assert "event" in response_text.lower()
 
@@ -166,6 +181,8 @@ async def test_delete_command_formats_event_not_found_error():
 @pytest.mark.asyncio
 async def test_delete_command_formats_permission_denied_error():
     """The delete command returns a user-friendly message on 403 Forbidden."""
+    from src.views import PostToChannelView
+
     interaction = MagicMock()
     interaction.response = MagicMock()
     interaction.response.send_message = AsyncMock()
@@ -180,6 +197,9 @@ async def test_delete_command_formats_permission_denied_error():
 
     await delete.callback(interaction, event_id="evt")
 
+    kwargs = interaction.response.send_message.call_args.kwargs
+    assert kwargs["ephemeral"] is True
+    assert isinstance(kwargs["view"], PostToChannelView)
     response_text = interaction.response.send_message.call_args.args[0]
     assert "permission" in response_text.lower()
 
@@ -187,6 +207,8 @@ async def test_delete_command_formats_permission_denied_error():
 @pytest.mark.asyncio
 async def test_delete_command_formats_generic_error():
     """The delete command returns a generic error for unexpected failures."""
+    from src.views import PostToChannelView
+
     interaction = MagicMock()
     interaction.response = MagicMock()
     interaction.response.send_message = AsyncMock()
@@ -201,5 +223,8 @@ async def test_delete_command_formats_generic_error():
 
     await delete.callback(interaction, event_id="evt")
 
+    kwargs = interaction.response.send_message.call_args.kwargs
+    assert kwargs["ephemeral"] is True
+    assert isinstance(kwargs["view"], PostToChannelView)
     response_text = interaction.response.send_message.call_args.args[0]
     assert "failed" in response_text.lower()
