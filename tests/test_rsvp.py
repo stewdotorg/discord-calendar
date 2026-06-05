@@ -351,6 +351,104 @@ async def test_invite_deduplicates_duplicate_entries():
 
 
 @pytest.mark.asyncio
+async def test_invite_at_prefixed_typoed_handle_warns_not_email():
+    """invite treats @-prefixed non-mention as failed handle, not email error."""
+    from src.views import PostToChannelView
+    from src.commands.rsvp import invite
+
+    interaction = MagicMock()
+    interaction.response = MagicMock()
+    interaction.response.defer = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
+    interaction.user.id = 12345
+
+    mock_calendar = MagicMock()
+    mock_calendar.add_attendees.return_value = [
+        {"email": "alice@example.com", "responseStatus": "needsAction"},
+    ]
+    interaction.client.calendar = mock_calendar
+
+    mock_settings = MagicMock()
+    interaction.client.settings = mock_settings
+
+    await invite.callback(
+        interaction,
+        event_id="evt1",
+        people="alice@example.com, @someonerong",
+    )
+
+    # Only the valid email is added
+    mock_calendar.add_attendees.assert_called_once_with(
+        "evt1", ["alice@example.com"]
+    )
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    assert isinstance(kwargs["view"], PostToChannelView)
+    content = kwargs["content"]
+    assert "Invited 1" in content
+    assert "user not found" in content.lower()
+    assert "@someonerong" in content
+    # Should NOT show an email validation error
+    assert "invalid email" not in content.lower()
+
+
+@pytest.mark.asyncio
+async def test_invite_at_alone_warns_user_not_found():
+    """invite treats bare '@' as a failed mention, not email validation."""
+    from src.views import PostToChannelView
+    from src.commands.rsvp import invite
+
+    interaction = MagicMock()
+    interaction.response = MagicMock()
+    interaction.response.defer = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
+
+    mock_calendar = MagicMock()
+    interaction.client.calendar = mock_calendar
+
+    mock_settings = MagicMock()
+    interaction.client.settings = mock_settings
+
+    await invite.callback(interaction, event_id="evt1", people="@")
+
+    mock_calendar.add_attendees.assert_not_called()
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    assert isinstance(kwargs["view"], PostToChannelView)
+    content = kwargs["content"]
+    assert "No valid recipients" in content
+    assert "user not found" in content.lower()
+    assert "invalid email" not in content.lower()
+
+
+@pytest.mark.asyncio
+async def test_invite_bad_email_still_shows_email_error():
+    """invite still shows email validation error for strings that look like
+    email attempts (e.g. 'foo@barcom' — domain missing dot, not @-prefixed)."""
+    from src.views import PostToChannelView
+    from src.commands.rsvp import invite
+
+    interaction = MagicMock()
+    interaction.response = MagicMock()
+    interaction.response.defer = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
+
+    mock_calendar = MagicMock()
+    interaction.client.calendar = mock_calendar
+
+    mock_settings = MagicMock()
+    interaction.client.settings = mock_settings
+
+    await invite.callback(interaction, event_id="evt1", people="foo@barcom")
+
+    mock_calendar.add_attendees.assert_not_called()
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    assert isinstance(kwargs["view"], PostToChannelView)
+    content = kwargs["content"]
+    assert "No valid recipients" in content
+    assert "invalid" in content.lower()
+    assert "domain" in content.lower()
+
+
+@pytest.mark.asyncio
 async def test_invite_empty_people():
     """invite returns an error when people string is empty."""
     from src.views import PostToChannelView

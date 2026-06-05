@@ -75,8 +75,15 @@ def resolve_mentions(
                 )
                 unresolvable_ids.add(discord_id)
         else:
-            # Treat as raw email/text — validation happens upstream.
-            resolved.append(item)
+            # If it starts with @ but isn't a valid mention, it's a typoed handle.
+            if item.startswith("@"):
+                warnings.append(
+                    f"⚠️ {item}: user not found. "
+                    "Check the spelling or use their email address instead."
+                )
+            else:
+                # Treat as raw email/text — validation happens upstream.
+                resolved.append(item)
 
     return resolved, warnings, unresolvable_ids
 

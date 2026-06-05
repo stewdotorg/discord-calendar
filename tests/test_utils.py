@@ -610,6 +610,80 @@ class TestResolveMentions:
         assert warnings == []
         assert unresolvable == set()
 
+    def test_at_prefixed_typoed_handle_warns_not_email(self):
+        """resolve_mentions treats @-prefixed non-mention as a failed handle,
+        not an email validation error."""
+        from unittest.mock import MagicMock
+
+        settings = MagicMock()
+
+        resolved, warnings, unresolvable = resolve_mentions(["@someonerong"], settings)
+
+        assert resolved == []
+        assert len(warnings) == 1
+        assert "user not found" in warnings[0].lower()
+        assert "@someonerong" in warnings[0]
+        assert "invalid email" not in warnings[0].lower()
+        assert unresolvable == set()
+
+    def test_at_alone_warns_user_not_found(self):
+        """resolve_mentions treats bare '@' as a failed mention, not email."""
+        from unittest.mock import MagicMock
+
+        settings = MagicMock()
+
+        resolved, warnings, unresolvable = resolve_mentions(["@"], settings)
+
+        assert resolved == []
+        assert len(warnings) == 1
+        assert "user not found" in warnings[0].lower()
+        assert unresolvable == set()
+
+    def test_bad_email_still_passes_through(self):
+        """resolve_mentions passes through strings without @ prefix for
+        upstream email validation (e.g. 'foo@barcom')."""
+        from unittest.mock import MagicMock
+
+        settings = MagicMock()
+
+        resolved, warnings, unresolvable = resolve_mentions(["foo@barcom"], settings)
+
+        assert resolved == ["foo@barcom"]
+        assert warnings == []
+        assert unresolvable == set()
+
+    def test_no_at_still_passes_through(self):
+        """resolve_mentions passes through strings without @ prefix for
+        upstream email validation (e.g. 'not-an-email')."""
+        from unittest.mock import MagicMock
+
+        settings = MagicMock()
+
+        resolved, warnings, unresolvable = resolve_mentions(["not-an-email"], settings)
+
+        assert resolved == ["not-an-email"]
+        assert warnings == []
+        assert unresolvable == set()
+
+    def test_mixed_at_prefixed_and_emails(self):
+        """resolve_mentions handles mix of @-prefixed handles and real emails."""
+        from unittest.mock import MagicMock
+
+        settings = MagicMock()
+        settings.get.return_value = None  # <@111111> has no stored email
+
+        resolved, warnings, unresolvable = resolve_mentions(
+            ["@typo", "alice@example.com", "@badhandle", "<@111111>"],
+            settings,
+        )
+
+        # <@111111> has no stored email → prompted warning + unresolvable
+        assert resolved == ["alice@example.com"]
+        assert len(warnings) == 3
+        assert any("user not found" in w.lower() for w in warnings)
+        assert any("prompted" in w.lower() for w in warnings)
+        assert unresolvable == {"111111"}
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  Timezone-aware function refactor — Issue #32

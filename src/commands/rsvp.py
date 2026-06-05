@@ -222,11 +222,18 @@ async def invite(
                 )
                 unresolvable_ids.add(mentioned_id)
         else:
-            error = validate_email(item)
-            if error:
-                warnings.append(f"⚠️ {item}: {error}")
-            elif item not in resolved:
-                resolved.append(item)
+            # If it starts with @ but isn't a valid mention, it's a typoed handle.
+            if item.startswith("@"):
+                warnings.append(
+                    f"⚠️ {item}: user not found. "
+                    "Check the spelling or use their email address instead."
+                )
+            else:
+                error = validate_email(item)
+                if error:
+                    warnings.append(f"⚠️ {item}: {error}")
+                elif item not in resolved:
+                    resolved.append(item)
 
     # ── DM unresolvable mentions ──────────────────────────────────────
     if unresolvable_ids:
