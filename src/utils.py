@@ -32,6 +32,11 @@ def validate_email(email: str) -> str | None:
 
 _MENTION_PATTERN = re.compile(r"^<@!?(\d+)>$")
 
+_TYPOED_HANDLE_MSG = (
+    "⚠️ {item}: user not found. "
+    "Check the spelling or use their email address instead."
+)
+
 
 def resolve_mentions(
     items: list[str],
@@ -75,12 +80,8 @@ def resolve_mentions(
                 )
                 unresolvable_ids.add(discord_id)
         else:
-            # If it starts with @ but isn't a valid mention, it's a typoed handle.
             if item.startswith("@"):
-                warnings.append(
-                    f"⚠️ {item}: user not found. "
-                    "Check the spelling or use their email address instead."
-                )
+                warnings.append(_TYPOED_HANDLE_MSG.format(item=item))
             else:
                 # Treat as raw email/text — validation happens upstream.
                 resolved.append(item)

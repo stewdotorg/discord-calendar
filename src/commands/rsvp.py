@@ -13,7 +13,7 @@ from googleapiclient.errors import HttpError
 from src.commands.autocomplete import event_autocomplete
 from src.commands.list_events import cal
 from src.dm_handler import send_pending_invites_to_unresolvable
-from src.utils import _MENTION_PATTERN, format_invite_error, validate_email
+from src.utils import _MENTION_PATTERN, _TYPOED_HANDLE_MSG, format_invite_error, validate_email
 from src.views import PostToChannelView
 
 logger = logging.getLogger(__name__)
@@ -222,12 +222,8 @@ async def invite(
                 )
                 unresolvable_ids.add(mentioned_id)
         else:
-            # If it starts with @ but isn't a valid mention, it's a typoed handle.
             if item.startswith("@"):
-                warnings.append(
-                    f"⚠️ {item}: user not found. "
-                    "Check the spelling or use their email address instead."
-                )
+                warnings.append(_TYPOED_HANDLE_MSG.format(item=item))
             else:
                 error = validate_email(item)
                 if error:
