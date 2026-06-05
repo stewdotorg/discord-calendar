@@ -663,7 +663,7 @@ async def test_create_with_mention_no_stored_email_shows_warning():
     response = interaction.edit_original_response.call_args.kwargs["content"]
     assert "⚠️" in response
     assert "987654321" in response
-    assert "no email stored" in response.lower()
+    assert "prompted" in response.lower()
 
 
 @pytest.mark.asyncio
@@ -1004,3 +1004,230 @@ async def test_create_with_invite_strips_whitespace():
     mock_calendar.add_attendees.assert_called_once_with(
         "evt_strip", ["alice@example.com", "bob@example.com"]
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Issue #43 — Invite warnings do not leak into public (posted) view
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.asyncio
+async def test_create_warnings_not_in_post_content():
+    """Invite warnings appear in ephemeral response but NOT in the public
+    post_content sent to the channel."""
+    interaction = MagicMock()
+    interaction.user.id = 999
+    interaction.response = MagicMock()
+    interaction.response.defer = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
+
+    mock_calendar = MagicMock()
+    mock_calendar.create_event.return_value = {
+        "id": "evt_warn",
+        "htmlLink": "https://calendar.google.com/event?eid=evt_warn",
+    }
+    interaction.client.calendar = mock_calendar
+
+    # No email stored for the @mentioned user
+    mock_settings = MagicMock()
+    mock_settings.get.return_value = None
+    interaction.client.settings = mock_settings
+
+    await create.callback(
+        interaction,
+        title="Team Sync",
+        when="2026-05-01 14:00",
+        duration=30,
+        description=None,
+        invite="<@987654321>",
+    )
+
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    # Ephemeral response has the warning
+    assert "⚠️" in kwargs["content"]
+    assert "prompted" in kwargs["content"].lower()
+    # post_content does NOT contain the warning
+    from src.views import PostToChannelView
+    assert isinstance(kwargs["view"], PostToChannelView)
+    post_content = kwargs["view"]._post_content
+    assert "⚠️" not in post_content
+    assert "prompted" not in post_content.lower()
+    # post_content has the event details
+    assert "**Team Sync**" in post_content
+    # post_content does NOT have the action line
+    assert "Event created" not in post_content
+
+
+@pytest.mark.asyncio
+async def test_create_unresolvable_hint_in_ephemeral_not_posted():
+    """The /cal invite hint appears in ephemeral response when there are
+    unresolvable mentions, but does NOT leak into post_content."""
+    interaction = MagicMock()
+    interaction.user.id = 999
+    interaction.response = MagicMock()
+    interaction.response.defer = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
+
+    mock_calendar = MagicMock()
+    mock_calendar.create_event.return_value = {
+        "id": "evt_hint",
+        "htmlLink": "https://calendar.google.com/event?eid=evt_hint",
+    }
+    interaction.client.calendar = mock_calendar
+
+    mock_settings = MagicMock()
+    mock_settings.get.return_value = None
+    interaction.client.settings = mock_settings
+
+    await create.callback(
+        interaction,
+        title="Team Sync",
+        when="2026-05-01 14:00",
+        duration=30,
+        description=None,
+        invite="<@987654321>",
+    )
+
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    # Ephemeral response has the hint
+    assert "💡" in kwargs["content"]
+    assert "/cal invite event:" in kwargs["content"]
+    # post_content does NOT have the hint
+    from src.views import PostToChannelView
+    assert isinstance(kwargs["view"], PostToChannelView)
+    post_content = kwargs["view"]._post_content
+    assert "💡" not in post_content
+    assert "/cal invite" not in post_content
+
+
+@pytest.mark.asyncio
+async def test_create_all_resolved_no_hint():
+    """When all invitees are resolved successfully, no hint about /cal invite
+    appears (it's only for unresolvable mentions)."""
+    interaction = MagicMock()
+    interaction.user.id = 999
+    interaction.response = MagicMock()
+    interaction.response.defer = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
+
+    mock_calendar = MagicMock()
+    mock_calendar.create_event.return_value = {
+        "id": "evt_resolved",
+        "htmlLink": "https://calendar.google.com/event?eid=evt_resolved",
+    }
+    mock_calendar.add_attendees.return_value = []
+    interaction.client.calendar = mock_calendar
+
+    # All mentions have stored emails
+    mock_settings = MagicMock()
+    mock_settings.get.return_value = "user@example.com"
+    interaction.client.settings = mock_settings
+
+    await create.callback(
+        interaction,
+        title="Team Sync",
+        when="2026-05-01 14:00",
+        duration=30,
+        description=None,
+        invite="<@111>, <@222>",
+    )
+
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    # No hint when all are resolved
+    assert "💡" not in kwargs["content"]
+    assert "/cal invite" not in kwargs["content"]
+    # No warnings either
+    assert "⚠️" not in kwargs["content"]
+
+
+@pytest.mark.asyncio
+async def test_create_mixed_resolved_unresolvable():
+    """When some mentions resolve and some don't: warnings + hint in ephemeral,
+    neither in post_content."""
+    interaction = MagicMock()
+    interaction.user.id = 999
+    interaction.response = MagicMock()
+    interaction.response.defer = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
+
+    mock_calendar = MagicMock()
+    mock_calendar.create_event.return_value = {
+        "id": "evt_mixed",
+        "htmlLink": "https://calendar.google.com/event?eid=evt_mixed",
+    }
+    mock_calendar.add_attendees.return_value = []
+    interaction.client.calendar = mock_calendar
+
+    def _lookup(uid, key):
+        if key == "email" and uid == "111111":
+            return "resolved@example.com"
+        return None
+
+    mock_settings = MagicMock()
+    mock_settings.get.side_effect = _lookup
+    interaction.client.settings = mock_settings
+
+    await create.callback(
+        interaction,
+        title="Team Sync",
+        when="2026-05-01 14:00",
+        duration=30,
+        description=None,
+        invite="<@111111>, <@222222>",
+    )
+
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    # Ephemeral: warning for the unresolvable one
+    assert "⚠️" in kwargs["content"]
+    assert "222222" in kwargs["content"]
+    assert "prompted" in kwargs["content"].lower()
+    # Ephemeral: hint
+    assert "💡" in kwargs["content"]
+    # post_content: clean — no warnings, no hint
+    from src.views import PostToChannelView
+    assert isinstance(kwargs["view"], PostToChannelView)
+    post_content = kwargs["view"]._post_content
+    assert "⚠️" not in post_content
+    assert "💡" not in post_content
+    assert "/cal invite" not in post_content
+
+
+@pytest.mark.asyncio
+async def test_create_invalid_email_warning_not_in_post_content():
+    """Invalid raw email warnings appear in ephemeral response but not
+    in the public post_content."""
+    interaction = MagicMock()
+    interaction.user.id = 999
+    interaction.response = MagicMock()
+    interaction.response.defer = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
+
+    mock_calendar = MagicMock()
+    mock_calendar.create_event.return_value = {
+        "id": "evt_invalid",
+        "htmlLink": "https://calendar.google.com/event?eid=evt_invalid",
+    }
+    interaction.client.calendar = mock_calendar
+
+    mock_settings = MagicMock()
+    mock_settings.get.return_value = None
+    interaction.client.settings = mock_settings
+
+    await create.callback(
+        interaction,
+        title="Team Sync",
+        when="2026-05-01 14:00",
+        duration=30,
+        description=None,
+        invite="not-an-email",
+    )
+
+    kwargs = interaction.edit_original_response.call_args.kwargs
+    # Ephemeral has the error
+    assert "❌" in kwargs["content"]
+    # post_content is clean
+    from src.views import PostToChannelView
+    assert isinstance(kwargs["view"], PostToChannelView)
+    post_content = kwargs["view"]._post_content
+    assert "❌" not in post_content
+    assert "not-an-email" not in post_content

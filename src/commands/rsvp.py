@@ -218,8 +218,7 @@ async def invite(
                     resolved.append(email)
             else:
                 warnings.append(
-                    f"⚠️ Could not invite {item}: no email stored. "
-                    "Ask them to run `/cal settings set email`."
+                    f"⚠️ Could not invite {item} — they have been prompted to set up their email."
                 )
                 unresolvable_ids.add(mentioned_id)
         else:
