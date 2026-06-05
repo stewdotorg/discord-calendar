@@ -300,6 +300,22 @@ class TestOnInteractionRSVP:
     """Tests for RSVP on_interaction handling with message_content feature flag."""
 
     @pytest.mark.asyncio
+    async def test_non_rsvp_interactions_ignored(self, monkeypatch):
+        """on_interaction ignores non-component and non-RSVP interactions."""
+        monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
+        monkeypatch.setenv("DISCORD_ENABLE_MESSAGE_CONTENT", "true")
+        client = DiscalClient()
+
+        # Non-component interaction
+        interaction = MagicMock()
+        interaction.type = discord.InteractionType.ping
+        interaction.data = {"custom_id": "rsvp:abc123"}
+
+        with patch("src.bot._handle_rsvp_interaction", new_callable=AsyncMock) as mock_rsvp:
+            await client.on_interaction(interaction)
+            mock_rsvp.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_rsvp_interaction_handled_when_message_content_enabled(self, monkeypatch):
         """on_interaction forwards RSVP button clicks when message_content is enabled."""
         monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
@@ -315,8 +331,12 @@ class TestOnInteractionRSVP:
             mock_rsvp.assert_called_once_with(interaction, "abc123")
 
     @pytest.mark.asyncio
-    async def test_rsvp_interaction_skipped_when_message_content_disabled(self, monkeypatch):
-        """on_interaction returns early when message_content is disabled."""
+    async def test_rsvp_interaction_handled_when_message_content_disabled(self, monkeypatch):
+        """on_interaction handles RSVP button clicks even when message_content is disabled.
+
+        RSVP interactions are component interactions that don't need the
+        message_content privileged intent — the custom_id is always available.
+        """
         monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
         # message_content defaults to disabled
         client = DiscalClient()
@@ -327,7 +347,7 @@ class TestOnInteractionRSVP:
 
         with patch("src.bot._handle_rsvp_interaction", new_callable=AsyncMock) as mock_rsvp:
             await client.on_interaction(interaction)
-            mock_rsvp.assert_not_called()
+            mock_rsvp.assert_called_once_with(interaction, "abc123")
 
 
 @pytest.mark.asyncio

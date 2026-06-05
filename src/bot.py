@@ -131,10 +131,10 @@ class DiscalClient(discord.Client):
         Catches RSVP button clicks (custom_id starts with ``rsvp:``) after
         bot restarts when the in-memory View is no longer present.
 
-        Skipped when ``DISCORD_ENABLE_MESSAGE_CONTENT`` is not ``"true"``.
+        RSVP interactions do not require the message_content privileged
+        intent — they are component interactions whose custom_id is always
+        available regardless of DISCORD_ENABLE_MESSAGE_CONTENT.
         """
-        if not self._message_content_enabled:
-            return
         if interaction.type != discord.InteractionType.component:
             return
         custom_id = interaction.data.get("custom_id", "")  # type: ignore[union-attr]
