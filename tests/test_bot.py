@@ -297,16 +297,18 @@ class TestOnMessage:
 
 
 class TestOnInteractionRSVP:
-    """Tests for RSVP on_interaction handling with message_content feature flag."""
+    """Tests for RSVP button click handling via on_interaction.
+
+    RSVP interactions are component interactions whose custom_id is always
+    available — they do not require the message_content privileged intent.
+    """
 
     @pytest.mark.asyncio
-    async def test_non_rsvp_interactions_ignored(self, monkeypatch):
-        """on_interaction ignores non-component and non-RSVP interactions."""
+    async def test_non_component_interactions_ignored(self, monkeypatch):
+        """on_interaction ignores interactions that are not component type."""
         monkeypatch.setenv("DISCORD_APPLICATION_ID", "111111111111111111")
-        monkeypatch.setenv("DISCORD_ENABLE_MESSAGE_CONTENT", "true")
         client = DiscalClient()
 
-        # Non-component interaction
         interaction = MagicMock()
         interaction.type = discord.InteractionType.ping
         interaction.data = {"custom_id": "rsvp:abc123"}
