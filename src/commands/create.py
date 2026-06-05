@@ -151,21 +151,28 @@ async def create(
     # Display confirmation in user's timezone
     start_fmt = format_datetime_eastern(start, tz=user_tz)
 
-    response = (
-        f"✅ Event created!\n"
+    event_details = (
         f"**{title}**\n"
         f"📅 {start_fmt} ET  "
         f"({duration} min)\n"
         f"[Open in Google Calendar]({result['htmlLink']})"
     )
     if description:
-        response += f"\n📝 {description}"
+        event_details += f"\n📝 {description}"
 
+    # Invoker-only (ephemeral): action line + event details + warnings + hint
+    response = f"✅ Event created!\n{event_details}"
     if invite_warnings:
         response += "\n" + "\n".join(invite_warnings)
+    if unresolvable_ids:
+        escaped_title = title.replace('"', '\\"')
+        response += (
+            f"\n💡 You can also invite them by email: "
+            f"/cal invite event:\"{escaped_title}\" people:their@email.com"
+        )
 
-    # Posted message omits the action line (✅ Event created!)
-    post_content = "\n".join(response.split("\n")[1:])
+    # Public (posted): event details only — no action line, no warnings
+    post_content = event_details
 
     await interaction.edit_original_response(
         content=response,

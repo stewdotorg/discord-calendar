@@ -173,7 +173,7 @@ async def test_invite_mention_no_stored_email():
     assert isinstance(kwargs["view"], PostToChannelView)
     content = kwargs["content"]
     assert "No valid recipients" in content
-    assert "no email stored" in content.lower()
+    assert "prompted" in content.lower()
 
 
 @pytest.mark.asyncio
@@ -219,7 +219,7 @@ async def test_invite_mixed_with_partial_success():
     assert "me@example.com" in content
     assert "alice@example.com" in content
     # Warnings for the bad entries
-    assert "no email stored" in content.lower()
+    assert "prompted" in content.lower()
     assert "invalid-email" in content
 
 

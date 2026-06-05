@@ -515,7 +515,7 @@ class TestResolveMentions:
 
         assert resolved == []
         assert len(warnings) == 1
-        assert "no email stored" in warnings[0].lower()
+        assert "prompted" in warnings[0].lower()
         assert "<@999999>" in warnings[0]
         assert unresolvable == {"999999"}
 
