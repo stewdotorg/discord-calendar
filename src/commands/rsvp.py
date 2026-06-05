@@ -208,7 +208,7 @@ async def invite(
             else:
                 warnings.append(
                     "⚠️ 'me': no email stored. "
-                    "Store one with `/cal settings set email`."
+                    "Store one with `\u200b/cal settings set email`."
                 )
         elif (m := _MENTION_PATTERN.match(item)):
             mentioned_id = m.group(1)

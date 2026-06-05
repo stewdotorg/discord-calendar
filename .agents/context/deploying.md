@@ -83,3 +83,37 @@ These run on the droplet (add via `crontab -e`):
 | Profile | (none) | `dev` |
 
 Dev uses `profiles: [dev]` — bare `docker compose up` ignores it.
+
+## Gotchas
+
+### `.env` changes require recreate, not restart
+`docker compose restart` reuses the existing container's environment variables. After changing `.env`, use `docker compose up -d --force-recreate` (or `up -d --build` for code changes).
+
+### `client-secret.json` is baked into the Docker image
+The Dockerfile `COPY`s it at build time — it is NOT volume-mounted (unlike `service-account.json`). If `client-secret.json` changes, rebuild with `--build`.
+
+### OAuth refresh token expires every 7 days (Testing status)
+Google OAuth refresh tokens for apps in **Testing** publishing status expire after 7 days.
+To fix permanently, set the OAuth consent screen to **Production** (no verification needed
+for ≤100 users), then re-run setup_oauth.py.
+
+When the bot logs `invalid_grant`, the refresh token expired. Fix:
+```bash
+cd ~/dev/discal && source .venv/bin/activate && python scripts/setup_oauth.py
+scp .env discord-calendar-bot:/opt/discal/
+ssh discord-calendar-bot "cd /opt/discal && docker compose up -d --force-recreate"
+```
+
+### Droplet unreachable but still running
+If SSH times out but `doctl compute droplet list` shows the droplet as `active`,
+it may be a transient network issue. Retry SSH. `doctl` can also power-cycle:
+```bash
+doctl compute droplet-action power-cycle 567799719
+```
+
+### Orphan dev container warning on prod up
+Bare `docker compose up` shows `Found orphan containers ([discal-bot-dev-1])` —
+harmless. The dev container uses a separate compose file (`docker-compose.dev.yml`).
+
+### Commands not appearing in Discord
+Discord desktop aggressively caches slash command schemas. Workaround: kick the bot from the guild and re-invite. Invite URL uses the app ID from `.env` — the bot can only be in one guild at a time (guild-only mode).

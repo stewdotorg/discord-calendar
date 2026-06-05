@@ -16,6 +16,18 @@ Project-local skills in `.pi/skills/`:
 
 Both follow interview guidelines: numbered questions, multiple choice with recommendations.
 
+## Gotchas
+
+### GH_TOKEN must be in `.sandcastle/.env`
+Sandcastle reads `GH_TOKEN` from `.sandcastle/.env`, NOT from `gh auth login`. If you get 401 errors from `gh issue list` during planner startup, check `.sandcastle/.env`:
+```bash
+grep GH_TOKEN .sandcastle/.env
+```
+Update with `gh auth token` from the GitHub CLI if needed.
+
+### Docker must be running
+Sandcastle needs Docker for agent sandboxes. If you get `WorktreeError: Provider 'docker' create failed`, start Docker Desktop.
+
 ## Running only the reviewer phase
 
 If a sandcastle run crashes after implement but before review, you can run just the reviewer on the existing branch:

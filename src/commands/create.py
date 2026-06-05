@@ -168,7 +168,7 @@ async def create(
         escaped_title = title.replace('"', '\\"')
         response += (
             f"\n💡 You can also invite them by email: "
-            f"/cal invite event:\"{escaped_title}\" people:their@email.com"
+            f"`/cal invite event:\"{escaped_title}\" people:their@email.com`"
         )
 
     # Public (posted): event details only — no action line, no warnings

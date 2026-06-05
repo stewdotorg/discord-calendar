@@ -14,12 +14,13 @@
 | Tests | `tests/` — pytest + VCR cassettes for Google API |
 | GitHub | `stewdotorg/discord-calendar` |
 | Droplet | `ssh discord-calendar-bot` → `/opt/discal/` — two containers: prod (`bot`, :8000) and dev (`bot-dev`, :8001, auto-spindown) |
+| Config | `.env` (see `.env.example` for full docs) — authoritative for app IDs, guild IDs, tokens, calendar ID |
 | Deployment guide | `.ignore/deploying.md` |
 | Beta release guide | `.ignore/beta-release.md` |
 
 ## Key architectural decisions
 
-1. **`copy_global_to(guild=guild)` before `sync`:** Commands are registered globally via side-effect imports. Without `copy_global_to`, `sync(guild=guild)` pushes zero commands. This was a hard-won bug. The test in `test_bot_setup.py` guards against regression. ⚠️ **Superseded by #29:** moving to `add_command(cal, guild=guild)` — commands registered directly on the guild tree, no global dance. Update this entry once #29 lands.
+1. **Commands registered via `add_command(cal, guild=guild)`:** Commands are registered directly on the guild tree (guild-only mode), then an empty global sync purges stale global commands from prior deploys. The test in `test_bot_setup.py` guards against silently syncing zero commands.
 
 2. **OAuth2, not service account:** Service accounts can't manage attendees on `@group.calendar.google.com` calendars. The bot uses OAuth2 user credentials with a stored `GOOGLE_REFRESH_TOKEN`.
 

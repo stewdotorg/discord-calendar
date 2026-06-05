@@ -13,6 +13,13 @@ Discal is a Discord bot that manages a shared Google Calendar. Users create/edit
    tail -f .sandcastle/logs/sandcastle-issue-<N>-<slug>-implementer.log
    ```
 4. **GitHub labels:** `ready-for-agent` = Sandcastle can pick it up. `needs-triage` = human review needed first. Never mark an issue `ready-for-agent` without confirming with the user.
+5. **Detect stale context.** If context files describe issues, features, or deployment state that you cannot confirm exists in the codebase, your local view may be stale. The canonical sources of truth are:
+   - **GitHub Issues** (`gh issue list --state all` — `stewdotorg/discord-calendar`) — authoritative for ALL issue state (open AND closed); parallel sessions may have completed work you're unaware of
+   - **`.env` and `.env.example`** — authoritative for configuration, IDs, tokens; reference these, don't duplicate them in context files
+   - **`git log` and `git diff`** — authoritative for code history and current state
+   - **Droplet** (`ssh discord-calendar-bot`) — authoritative for deployment state
+
+   When context conflicts with a canonical source, trust the canonical source. **Do not add issue state, commit summaries, or ephemeral deployment details to context files** — these belong in `.notes/` handoff files or canonical sources, not in persistent agent context. See user-global AGENTS.md for the full context-content policy.
 
 ## Quick pointers
 
@@ -27,15 +34,14 @@ Discal is a Discord bot that manages a shared Google Calendar. Users create/edit
 | Tests | `tests/` — pytest + VCR cassettes |
 | GitHub | `stewdotorg/discord-calendar` |
 | Droplet | `ssh discord-calendar-bot` → `/opt/discal/` |
-| Prod env | `.env` (current bot; will rename to `.env.prod` in #35) |
-| Dev env | `.env.dev` (separate Discord app + calendar; auto-spindown via #35) |
+| Config | `.env` (see `.env.example` for docs) — authoritative for app IDs, guild IDs, tokens, calendar ID |
 
 ## Index
 
 | Topic | Summary | When to read | File |
 |-------|---------|-------------|------|
-| Architecture | Full orientation table, deep module map, key architectural decisions (1–5) | Understanding codebase structure, making design decisions | [architecture](context/architecture.md) |
-| Sandcastle | AFK workflow config, run, logs, limitations, reviewer-only, infinite-loop guard | Preparing or dispatching AFK issues | [sandcastle](context/sandcastle.md) |
-| Issues | Current issue state, closed/completed, open items | Checking what's done and what's pending | [issues](context/issues.md) |
+| Architecture | Deep module map, key architectural decisions | Understanding codebase structure, making design decisions | [architecture](context/architecture.md) |
+| Sandcastle | AFK workflow, gotchas (GH_TOKEN), reviewer-only, offgassing | Preparing or dispatching AFK issues | [sandcastle](context/sandcastle.md) |
+| Issues | Canonical source reference — never list individual issues here | Checking what's open | [issues](context/issues.md) |
 | Commands | Full command structure and Discord client cache bug | Adding/changing commands, debugging command visibility | [commands](context/commands.md) |
-| Deploying | Deploy steps, dev container, auto-shutdown/update, isolation | Deploying to production, managing dev container | [deploying](context/deploying.md) |
+| Deploying | Deploy commands, gotchas, droplet management | Deploying to production | [deploying](context/deploying.md) |
