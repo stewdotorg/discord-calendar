@@ -13,7 +13,7 @@
 | Utils | `src/utils.py` — parsing, formatting, mention resolution |
 | Tests | `tests/` — pytest + VCR cassettes for Google API |
 | GitHub | `stewdotorg/discord-calendar` |
-| Droplet | `ssh discord-calendar-bot` → `/opt/discal/` — two containers: prod (`bot`, :8000) and dev (`bot-dev`, :8001, auto-spindown) |
+| Droplet | `ssh discord-calendar-bot` → `/opt/discal/` — two containers: prod (`bot`) and dev (`bot-dev`, auto-spindown) |
 | Config | `.env` (see `.env.example` for full docs) — authoritative for app IDs, guild IDs, tokens, calendar ID |
 | Deployment guide | `.ignore/deploying.md` |
 | Beta release guide | `.ignore/beta-release.md` |

@@ -1,3 +1,0 @@
-discal.ztu.fm {
-    reverse_proxy bot:8000
-}

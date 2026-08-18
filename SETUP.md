@@ -2,7 +2,7 @@
 
 A step-by-step guide to deploy your own instance of Discal, a Discord bot that reads and writes to a shared Google Calendar.
 
-**Prerequisites:** A domain name, a server (or Docker-capable machine), a Discord application, and a Google Cloud project.
+**Prerequisites:** A server (or Docker-capable machine), a Discord application, and a Google Cloud project.
 
 ---
 
@@ -104,36 +104,27 @@ GOOGLE_CALENDAR_ID=abc123...@group.calendar.google.com
 ### Option A: DigitalOcean Droplet (recommended)
 
 1. Create a droplet: Ubuntu 24.04, 512MB RAM ($4/mo), add your SSH key
-2. Point your domain's A record to the droplet IP (e.g. `discal.yourdomain.com → 159.89.95.156`)
-3. SSH in and install Docker:
+2. SSH in and install Docker:
 
 ```bash
 curl -fsSL https://get.docker.com | sh
 ```
 
-4. Clone the repo:
+3. Clone the repo:
 
 ```bash
 git clone https://github.com/stewdotorg/discord-calendar.git /opt/discal
 cd /opt/discal
 ```
 
-5. Copy your files to the server:
+4. Copy your files to the server:
 
 ```bash
 # From your local machine:
 scp .env client-secret.json root@YOUR_DROPLET_IP:/opt/discal/
 ```
 
-6. Edit the Caddyfile with your domain:
-
-```
-yourdomain.com {
-    reverse_proxy bot:8000
-}
-```
-
-7. Start:
+5. Start:
 
 ```bash
 docker compose up -d --build
@@ -141,7 +132,7 @@ docker compose up -d --build
 
 ### Option B: Any Docker host
 
-Same as above, but replace Caddy with your own reverse proxy. Bot listens on port 8000 (configurable via `HOST`/`PORT` in `.env`). The `/health` endpoint returns 200 for health checks.
+Same as above, minus the reverse proxy — the bot is a WebSocket client and needs no inbound HTTP.
 
 ### Option C: Local development
 
@@ -189,7 +180,6 @@ The bot uses Discord's gateway (WebSocket) — no inbound HTTP needed. No tunnel
 | Event selection | Discord autocomplete from live Calendar API list |
 | NLP dates | dateparser with timezone-aware UTC context |
 | Tests | pytest + vcrpy for Google Calendar API integration tests |
-| Reverse proxy | Caddy with auto Let's Encrypt TLS |
 
 ---
 

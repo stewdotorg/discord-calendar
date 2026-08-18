@@ -4,10 +4,10 @@ How to deploy Discal to the DigitalOcean droplet and manage the dev container.
 
 ## Environments
 
-| Env | Env file | Compose file | Container | Port |
-|---|---|---|---|---|
-| Prod | `.env` (current bot; will rename to `.env.prod`) | `docker-compose.yml` | `bot` | 8000 |
-| Dev | `.env.dev` | `docker-compose.dev.yml` | `bot-dev` | 8001 |
+| Env | Env file | Compose file | Container |
+|---|---|---|---|
+| Prod | `.env` (current bot; will rename to `.env.prod`) | `docker-compose.yml` | `bot` |
+| Dev | `.env.dev` | `docker-compose.dev.yml` | `bot-dev` |
 
 ## Pre-deploy smoke test
 
@@ -78,7 +78,6 @@ These run on the droplet (add via `crontab -e`):
 |---|---|---|
 | Compose file | `docker-compose.yml` | `docker-compose.dev.yml` |
 | Env file | `.env` | `.env.dev` |
-| Port (host) | 8000 | 8001 |
 | Database volume | `bot_data` | `bot_dev_data` |
 | Profile | (none) | `dev` |
 
