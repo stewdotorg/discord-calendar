@@ -12,6 +12,7 @@ set -euo pipefail
 COMPOSE_FILE="/opt/discal/docker-compose.dev.yml"
 SERVICE="bot-dev"
 LOG_FILE="/var/log/dev-autoupdate.log"
+export COMPOSE_PROFILES=dev
 
 log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S'): $*" >> "$LOG_FILE"

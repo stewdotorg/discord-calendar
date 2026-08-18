@@ -13,6 +13,7 @@ COMPOSE_FILE="/opt/discal/docker-compose.dev.yml"
 SERVICE="bot-dev"
 IDLE_MINUTES=30
 LOG_FILE="/var/log/dev-autoshutdown.log"
+export COMPOSE_PROFILES=dev
 
 log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S'): $*" >> "$LOG_FILE"
