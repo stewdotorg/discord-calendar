@@ -29,3 +29,5 @@
 4. **Partial invite success:** When `/cal invite` or `/cal create invite:` encounters invalid entries (unset email, bad format), valid entries still get added. Warnings are shown for bad entries.
 
 5. **No new deep-module methods for features:** `add_attendees()` and `SettingsStore.get()` already exist. New features are wiring, not deep changes.
+
+6. **WebSocket-only client — no HTTP server:** The bot makes an outbound connection to Discord's gateway and runs no inbound HTTP listener. The `HEALTHCHECK`, `EXPOSE 8000`, `HOST`/`PORT` env vars, and the Caddy reverse proxy (`discal.ztu.fm`) were stale scaffolding from the initial template and were removed (Aug 2026). There is no `/health` endpoint and no inbound port — don't re-add them.

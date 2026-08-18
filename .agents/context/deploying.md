@@ -27,8 +27,9 @@ ssh discord-calendar-bot "cd /opt/discal && docker compose logs bot --tail=50"
 # Quick restart (prod-only)
 ssh discord-calendar-bot "docker restart discal-bot-1"
 
-# Free disk space
-ssh discord-calendar-bot "docker system prune -af --volumes"
+# Free disk space (build cache + unused images)
+# NOTE: do NOT use `--volumes` — it deletes the dev DB (discal_bot_dev_data)
+ssh discord-calendar-bot "docker builder prune -af && docker image prune -af"
 ```
 
 ## Dev Container
@@ -65,12 +66,15 @@ cheap when nothing changed (only `git fetch` + `git diff`). Log: `/var/log/dev-a
 
 ### Cron Entries
 
-These run on the droplet (add via `crontab -e`):
+Installed in root's crontab (verify with `crontab -l`):
 
 ```
 */2 * * * * /opt/discal/scripts/dev-autoupdate.sh
 */5 * * * * /opt/discal/scripts/dev-autoshutdown.sh
 ```
+
+Both scripts `export COMPOSE_PROFILES=dev` — the dev service is profile-gated, so
+without it every `docker compose` call in the script is a silent no-op.
 
 ### Isolation
 
@@ -113,6 +117,33 @@ doctl compute droplet-action power-cycle 567799719
 ### Orphan dev container warning on prod up
 Bare `docker compose up` shows `Found orphan containers ([discal-bot-dev-1])` —
 harmless. The dev container uses a separate compose file (`docker-compose.dev.yml`).
+`docker compose up --remove-orphans` (prod file) will actually **remove** the dev
+container — it's an orphan from the prod compose file's perspective.
 
 ### Commands not appearing in Discord
 Discord desktop aggressively caches slash command schemas. Workaround: kick the bot from the guild and re-invite. Invite URL uses the app ID from `.env` — the bot can only be in one guild at a time (guild-only mode).
+
+### Bot down with "Exited (137)" that won't restart (host OOM wedge)
+If the prod container is `Exited (137)` and won't restart despite `unless-stopped`,
+the host OOM-killer killed PID 1 and Docker's restart got wedged. Confirm in dockerd logs:
+```bash
+sudo journalctl -u docker | grep -i "restartmanger wait error"
+# "failed to create task for container: AlreadyExists: task ... already exists"
+```
+Fix — remove the wedged container record (the data volume is untouched) and recreate:
+```bash
+ssh discord-calendar-bot "docker rm discal-bot-1 && cd /opt/discal && docker compose up -d"
+```
+Root cause is memory pressure — see the mitigations below.
+
+### Memory protections (2026-08, don't undo)
+The 512 MB droplet was chronically OOM. In place now:
+- 1 GiB swapfile at `/swapfile` (persisted in `/etc/fstab`; `vm.swappiness=10` via `/etc/sysctl.d/99-swappiness.conf`).
+- `mem_limit: 256m` on `bot` and `bot-dev` (compose files) — a leak now cgroup-kills and cleanly restarts instead of host-OOM-killing the droplet.
+- journald capped: `/etc/systemd/journald.conf.d/99-discal.conf` (`SystemMaxUse=50M`, `RuntimeMaxUse=16M`).
+- Disabled/masked unneeded services: `multipathd` (+`.socket`), `ModemManager`, `udisks2`, `packagekit` (masked), `fwupd` (masked), `fwupd-refresh.timer`.
+
+### Dev autoshutdown idle math
+`docker compose logs --timestamps` emits `<name>  | <RFC3339-ts> <msg>` — the timestamp
+is awk field **3** (field 2 is the `|`). If the script ever logs "idle for <huge>m"
+it means the field index regressed; check `awk '{print $3}'` in `dev-autoshutdown.sh`.
