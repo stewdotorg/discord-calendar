@@ -41,7 +41,7 @@ if [ -z "$LAST_LOG" ]; then
 fi
 
 # Extract the timestamp (Docker format: 2026-05-23T12:34:56.789012345Z ...)
-TIMESTAMP_STR=$(echo "$LAST_LOG" | awk '{print $2}' | sed 's/\.[0-9]*Z/Z/')
+TIMESTAMP_STR=$(echo "$LAST_LOG" | awk '{print $3}' | sed 's/\.[0-9]*Z/Z/')
 if [ -z "$TIMESTAMP_STR" ]; then
     stop_dev "Could not parse timestamp from $SERVICE"
     exit 0
