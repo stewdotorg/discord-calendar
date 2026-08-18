@@ -2,6 +2,7 @@ services:
   bot-dev:
     build: .
     restart: unless-stopped
+    mem_limit: 256m
     env_file:
       - .env.dev
     volumes:
