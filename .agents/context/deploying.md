@@ -93,7 +93,7 @@ Dev uses `profiles: [dev]` — bare `docker compose up` ignores it.
 `docker compose restart` reuses the existing container's environment variables. After changing `.env`, use `docker compose up -d --force-recreate` (or `up -d --build` for code changes).
 
 ### `client-secret.json` is baked into the Docker image
-The Dockerfile `COPY`s it at build time — it is NOT volume-mounted (unlike `service-account.json`). If `client-secret.json` changes, rebuild with `--build`.
+The Dockerfile `COPY`s it at build time. It is NOT volume-mounted. If `client-secret.json` changes, rebuild with `--build`.
 
 ### OAuth refresh token expires every 7 days (Testing status)
 Google OAuth refresh tokens for apps in **Testing** publishing status expire after 7 days.

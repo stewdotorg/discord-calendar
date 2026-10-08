@@ -1,11 +1,11 @@
 ---
 name: prepare-afk-bugfix
-description: Interview user about a bug, create tracer-bullet GitHub issues, present a fix plan with deep-module impact analysis, and optionally dispatch the Sandcastle AFK factory. Use when user wants to prepare a bugfix for AFK implementation, file a bug for the agent to fix, or says "prepare bugfix", "afk bugfix", "file a bug for sandcastle".
+description: Interview user about a bug, create tracer-bullet GitHub issues, present a fix plan with deep-module impact analysis. Use when user wants to prepare a bugfix for AFK implementation, file a bug for the agent to fix, or says "prepare bugfix", "afk bugfix".
 ---
 
 # Prepare AFK Bugfix
 
-Interview the user about a bug, create issues, and optionally dispatch the AFK factory.
+Interview the user about a bug, create issues, and optionally implement the fix.
 
 ## Process
 
@@ -21,7 +21,7 @@ Interview the user about a bug, create issues, and optionally dispatch the AFK f
 1. **What's the bug?** What command or behavior is broken? What's the observed vs expected output?
 2. **Reproduction steps.** Exact inputs that trigger it. Include Discord command string if applicable.
 3. **Scope.** Is this a crash (exception/stack trace), a wrong result, or a missing behavior?
-4. **When did it break?** Recent deploy? After a specific Sandcastle run? Always been broken?
+4. **When did it break?** Recent deploy? Always been broken?
 5. **Anything else the fixer needs to know?** Edge cases, affected users, urgency.
 
 If the user provides a GitHub issue number, pull it: `gh issue view <number>`.
@@ -35,7 +35,6 @@ Read the files most likely involved based on the bug description. Prioritize in 
 3. Database: `src/db/queries.py` (deep module — all SQLite access)
 4. Utilities: `src/utils.py`
 5. Relevant tests: `tests/test_<module>.py`
-6. Coding standards: `.sandcastle/CODING_STANDARDS.md`
 
 Map the bug to the affected module interfaces. Identify which deep modules need changes vs which shallow modules (command handlers) just need wiring.
 
@@ -90,30 +89,19 @@ Summarize for the user in a numbered list for ease of reference:
 4. **Test strategy:** is a new VCR cassette needed? Can the test be pure mock? Will existing tests break?
 5. **Estimated touches:** how many files, new lines of test vs implementation.
 
-### 5. Offer dispatch
+### 5. Offer to implement
 
-Ask the user:
-
-> Ready to dispatch? This will run `npm run sandcastle` in `~/dev/discal`, which picks up the new `ready-for-agent` issues. The planner will schedule the regression test first, then the fix. Both run in isolated Docker sandboxes with TDD.
-
-If the user says yes:
-
-```bash
-cd ~/dev/discal
-export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"
-npm run sandcastle
-```
-
-If Docker isn't running, warn the user. If the sandcastle image needs rebuilding, run `npx sandcastle docker build-image` first.
+Ask the user whether to implement now. If yes, work test-first in the main
+session: commit the failing regression test, then the fix. Run `pytest` and
+`ruff check src tests` before each commit.
 
 ### 6. Report back
 
-After dispatch, show the user in a numbered list:
+Show the user in a numbered list:
 
-1. The log file paths: `.sandcastle/logs/main-planner.log`, etc.
-2. How to tail: `tail -f .sandcastle/logs/sandcastle-issue-*-implementer.log`
-3. How to check status: `gh issue list --label ready-for-agent`
-4. Reminder: QA the result when the factory finishes. Pull, run tests, test in Discord.
+1. Commits made and test results.
+2. Whether a deploy is needed (see `.agents/context/deploying.md`).
+3. Reminder: QA the fix in Discord after deploying.
 
 ## Deep Modules Reference (Discal)
 

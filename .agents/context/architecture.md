@@ -1,33 +1,38 @@
 # Architecture
 
-## Full orientation
+## Mental model
+
+- **One deployment = one Discord server + one shared Google Calendar.** `DISCORD_GUILD_ID` and `GOOGLE_CALENDAR_ID` in `.env`.
+- **The bot is one Google identity.** `src/calendar/auth.py` loads OAuth user credentials from `GOOGLE_REFRESH_TOKEN` + `client-secret.json`. All calendar operations, for every Discord user, run as that account.
+- **Users are attendees, never calendar owners.** Inviting adds an attendee email to the shared calendar's event (`sendUpdates="all"`), and Google emails them. The bot can't read or write anyone's personal calendar.
+- **Discord identity → email** is the only user mapping, stored in SQLite (`user_settings`, key `email`).
+
+## Module map
 
 | Thing | Location |
 |---|---|
-| Project root | `~/dev/discal/` |
-| Main bot | `src/bot.py` — `DiscalClient` subclass of `discord.Client` |
-| Commands | `src/commands/*.py` — each registers on the `cal` group |
-| Deep module: calendar | `src/calendar/service.py` — `CalendarService` (create/update/delete events, add attendees, reminders) |
-| Deep module: DB | `src/db/queries.py` — `SettingsStore` (SQLite per-user settings) |
-| Deep module: auth | `src/calendar/auth.py` — OAuth2 credential loading |
-| Utils | `src/utils.py` — parsing, formatting, mention resolution |
-| Tests | `tests/` — pytest + VCR cassettes for Google API |
-| GitHub | `stewdotorg/discord-calendar` |
-| Droplet | `ssh discord-calendar-bot` → `/opt/discal/` — two containers: prod (`bot`) and dev (`bot-dev`, auto-spindown) |
-| Config | `.env` (see `.env.example` for full docs) — authoritative for app IDs, guild IDs, tokens, calendar ID |
-| Deployment guide | `.ignore/deploying.md` |
-| Beta release guide | `.ignore/beta-release.md` |
+| Main bot | `src/bot.py`: `DiscalClient` subclass of `discord.Client` |
+| Commands | `src/commands/*.py`, each registers on the `cal` group (see [commands](commands.md)) |
+| Deep module: calendar | `src/calendar/service.py`: `CalendarService` (create/get/update/delete events, attendees, reminders) |
+| Deep module: DB | `src/db/queries.py`: `SettingsStore` (per-user settings, pending invites with 7-day expiry) |
+| Deep module: auth | `src/calendar/auth.py`: credential loading |
+| DM invite flow | `src/dm_handler.py`: send "reply with your email" DMs, process replies |
+| Views | `src/views.py`: `PostToChannelView`; `src/commands/rsvp.py`: `RsvpView` |
+| Utils | `src/utils.py`: date parsing, formatting, mention resolution |
+| Tests | `tests/`: pytest + VCR cassettes for Google API |
 
 ## Key architectural decisions
 
-1. **Commands registered via `add_command(cal, guild=guild)`:** Commands are registered directly on the guild tree (guild-only mode), then an empty global sync purges stale global commands from prior deploys. The test in `test_bot_setup.py` guards against silently syncing zero commands.
+1. **OAuth user credentials.** The bot authenticates as one Google account via `GOOGLE_REFRESH_TOKEN` + `client-secret.json`, which lets it add attendees and send invitations.
 
-2. **OAuth2, not service account:** Service accounts can't manage attendees on `@group.calendar.google.com` calendars. The bot uses OAuth2 user credentials with a stored `GOOGLE_REFRESH_TOKEN`.
+2. **Commands registered via `add_command(cal, guild=guild)`.** Guild-only registration, then an empty global sync purges stale global commands from earlier deploys. `test_bot_setup.py` guards against silently syncing zero commands.
 
-3. **`sendUpdates="all"`:** Google Calendar sends invitation emails when attendees are added. Changed from `"none"` (old service-account workaround) to `"all"` in #26.
+3. **`sendUpdates="all"`.** Google sends invitation emails when attendees are added (changed from `"none"` in #26).
 
-4. **Partial invite success:** When `/cal invite` or `/cal create invite:` encounters invalid entries (unset email, bad format), valid entries still get added. Warnings are shown for bad entries.
+4. **Partial invite success.** `/cal invite` and `/cal create invite:` add the valid entries and warn about the bad ones (unset email, bad format).
 
-5. **No new deep-module methods for features:** `add_attendees()` and `SettingsStore.get()` already exist. New features are wiring, not deep changes.
+5. **Message Content intent is opt-in in code.** `DISCORD_ENABLE_MESSAGE_CONTENT` defaults to off when unset. This is deliberate: keep it off in code, on in every `.env`. When off, `on_message` drops DM replies silently, so users can't complete the "reply with your email" flow.
 
-6. **WebSocket-only client — no HTTP server:** The bot makes an outbound connection to Discord's gateway and runs no inbound HTTP listener. The `HEALTHCHECK`, `EXPOSE 8000`, `HOST`/`PORT` env vars, and the Caddy reverse proxy (`discal.ztu.fm`) were stale scaffolding from the initial template and were removed (Aug 2026). There is no `/health` endpoint and no inbound port — don't re-add them.
+6. **Shared event formatting.** `format_event_details()` renders the public event block for both `/cal create` and `/cal show`, so the two stay identical.
+
+7. **WebSocket-only client, no HTTP server.** The bot connects out to Discord's gateway and runs no inbound listener. The old `HEALTHCHECK`, `EXPOSE 8000`, `HOST`/`PORT` and Caddy reverse proxy (`discal.ztu.fm`) were stale template scaffolding and were removed (Aug 2026). Don't re-add them.

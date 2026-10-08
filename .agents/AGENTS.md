@@ -2,46 +2,42 @@
 
 ## What is this?
 
-Discal is a Discord bot that manages a shared Google Calendar. Users create/edit/delete events, invite people by @mention or email, set reminders, and store per-user settings (email, timezone). Python + discord.py + Google Calendar API. Deployed on a $4/mo DigitalOcean droplet.
+Discal is a Discord bot for a server's **single shared Google Calendar**. The bot acts on that one calendar as **one Google account** (OAuth refresh token). Every command (create, show, edit, delete, list, invite, reminders) goes through those credentials. Users are invited by email as attendees and get normal Google invitation emails. The bot has **no access to users' own calendars**. Per-user settings (email, timezone, reminder defaults) live in SQLite. Python + discord.py + Google Calendar API, deployed with Docker Compose on a $4/mo DigitalOcean droplet.
 
 ## AI session rules (read first)
 
-1. **Ask before touching code.** Do not make edits or run code-changing commands without explicit user approval.
-2. **All code changes go through the Sandcastle AFK workflow.** Prepare a ticket → get approval → dispatch `npm run sandcastle`. Never implement directly.
-3. **Run Sandcastle in the background.** `npm run sandcastle` takes minutes; run it with a long timeout or let it time out after the implementer starts. Give the user the `tail -f` command to watch progress:
-   ```bash
-   tail -f .sandcastle/logs/sandcastle-issue-<N>-<slug>-implementer.log
-   ```
-4. **GitHub labels:** `ready-for-agent` = Sandcastle can pick it up. `needs-triage` = human review needed first. Never mark an issue `ready-for-agent` without confirming with the user.
-5. **Detect stale context.** If context files describe issues, features, or deployment state that you cannot confirm exists in the codebase, your local view may be stale. The canonical sources of truth are:
-   - **GitHub Issues** (`gh issue list --state all` — `stewdotorg/discord-calendar`) — authoritative for ALL issue state (open AND closed); parallel sessions may have completed work you're unaware of
-   - **`.env` and `.env.example`** — authoritative for configuration, IDs, tokens; reference these, don't duplicate them in context files
-   - **`git log` and `git diff`** — authoritative for code history and current state
-   - **Droplet** (`ssh discord-calendar-bot`) — authoritative for deployment state
+1. **Ask before touching code.** Don't edit files or run code-changing commands without explicit user approval.
+2. **Work test-first.** Add or adjust pytest tests alongside every change. Run `pytest` and `ruff check src tests` before committing.
+3. **Detect stale context.** If context files describe features or deployment state you can't confirm in the codebase, trust the canonical sources:
+   - **GitHub Issues** (`gh issue list --state all`, repo `stewdotorg/discord-calendar`). Authoritative for issue state.
+   - **`.env` and `.env.example`**. Authoritative for configuration, IDs, tokens. Reference them; don't duplicate values into context files.
+   - **`git log` / `git diff`**. Authoritative for code history.
+   - **Droplet** (`ssh discord-calendar-bot`). Authoritative for deployment state.
 
-   When context conflicts with a canonical source, trust the canonical source. **Do not add issue state, commit summaries, or ephemeral deployment details to context files** — these belong in `.notes/` handoff files or canonical sources, not in persistent agent context. See user-global AGENTS.md for the full context-content policy.
+   Don't add issue state, commit summaries, or ephemeral deployment details to context files. Those belong in `.notes/` or the canonical sources. See the user-global AGENTS.md for the full policy.
 
 ## Quick pointers
 
 | Thing | Key file |
 |---|---|
-| Main bot | `src/bot.py` — `DiscalClient` |
-| Commands | `src/commands/*.py` |
-| Calendar (deep) | `src/calendar/service.py` |
-| DB (deep) | `src/db/queries.py` |
-| Auth (deep) | `src/calendar/auth.py` |
-| Utils | `src/utils.py` |
-| Tests | `tests/` — pytest + VCR cassettes |
+| Main bot | `src/bot.py`: `DiscalClient` (intents, `on_message` DM replies, `on_interaction` RSVP buttons) |
+| Commands | `src/commands/*.py` (see [commands](context/commands.md)) |
+| Calendar (deep) | `src/calendar/service.py`: `CalendarService` |
+| Auth (deep) | `src/calendar/auth.py`: OAuth user credentials |
+| DB (deep) | `src/db/queries.py`: `SettingsStore` (user settings + pending invites) |
+| DM invite flow | `src/dm_handler.py` |
+| Utils | `src/utils.py`: parsing, formatting, mention resolution, `split_invitees`, `format_event_details` |
+| Tests | `tests/`: pytest + VCR cassettes |
 | GitHub | `stewdotorg/discord-calendar` |
 | Droplet | `ssh discord-calendar-bot` → `/opt/discal/` |
-| Config | `.env` (see `.env.example` for docs) — authoritative for app IDs, guild IDs, tokens, calendar ID |
+| Config | `.env` (template and docs: `.env.example`) |
+| Human docs | `README.md` (overview, commands), `SETUP.md` (self-hosting) |
 
 ## Index
 
 | Topic | Summary | When to read | File |
 |-------|---------|-------------|------|
-| Architecture | Deep module map, key architectural decisions | Understanding codebase structure, making design decisions | [architecture](context/architecture.md) |
-| Sandcastle | AFK workflow, gotchas (GH_TOKEN), reviewer-only, offgassing | Preparing or dispatching AFK issues | [sandcastle](context/sandcastle.md) |
-| Issues | Canonical source reference — never list individual issues here | Checking what's open | [issues](context/issues.md) |
-| Commands | Full command structure and Discord client cache bug | Adding/changing commands, debugging command visibility | [commands](context/commands.md) |
-| Deploying | Deploy commands, gotchas, droplet management | Deploying to production | [deploying](context/deploying.md) |
+| Architecture | Module map, auth model, key decisions | Understanding structure, design decisions | [architecture](context/architecture.md) |
+| Commands | Command → file map, invite/RSVP/DM flows, gotchas | Adding or changing commands | [commands](context/commands.md) |
+| Issues | Where issue state lives, labels | Checking or filing work | [issues](context/issues.md) |
+| Deploying | Deploy commands, dev container, droplet gotchas | Deploying or debugging prod | [deploying](context/deploying.md) |

@@ -1,11 +1,11 @@
 ---
 name: prepare-afk-feature
-description: Interview user about a new feature, design vertical tracer-bullet issues with dependency DAG, create them on GitHub, present a plan with deep-module impact analysis, and optionally dispatch the Sandcastle AFK factory. Use when user wants to design a feature for AFK implementation, says "prepare feature", "afk feature", "plan a feature for sandcastle", or "new feature".
+description: Interview user about a new feature, design vertical tracer-bullet issues with dependency DAG, create them on GitHub, present a plan with deep-module impact analysis. Use when user wants to design a feature for AFK implementation, says "prepare feature", "afk feature", or "new feature".
 ---
 
 # Prepare AFK Feature
 
-Interview the user about a new feature, break it into vertical tracer-bullet issues, and optionally dispatch the AFK factory.
+Interview the user about a new feature, break it into vertical tracer-bullet issues, and optionally implement it.
 
 ## Process
 
@@ -33,8 +33,7 @@ Read the relevant existing code to understand what's already there. Prioritize i
 1. Existing command handlers in `src/commands/` — the new feature may parallel an existing one
 2. Deep module interfaces in `src/calendar/service.py` and `src/db/queries.py` — what methods already exist that the feature can compose?
 3. Existing tests in `tests/` — the test patterns to follow
-4. Coding standards in `.sandcastle/CODING_STANDARDS.md`
-5. Grilling decisions in `grilling.md` — don't violate existing design decisions
+4. Design decisions in `README.md` and `.agents/context/architecture.md` — don't violate them
 
 ### 3. Design vertical tracer-bullet issues
 
@@ -91,8 +90,7 @@ Summarize for the user in a numbered list for ease of reference:
 3. **Deep module impact:** what new methods are needed on `CalendarService` or `db/queries.py`? Are existing method signatures changing? This is the highest-risk part — new deep module methods are fine, rewriting existing ones is dangerous. The agent should ADD methods, not refactor the module's interface.
 4. **Shallow module impact:** which new command handler files? Which command groups get new subcommands?
 5. **Test strategy:** is a new VCR cassette needed? Can early slices be pure mock while later slices hit VCR? Which tests need `.env` secrets?
-6. **Estimated Sandcastle cycles:** how many planner→implement→review→merge cycles this will take. (Planner picks unblocked issues each cycle — issues with dependencies wait for the next cycle.)
-7. **Post-AFK steps:** what needs human QA? Any VCR re-recording on the droplet? Any `.env` changes?
+6. **Post-implementation steps:** what needs human QA? Any VCR re-recording on the droplet? Any `.env` changes?
 
 ### 5. Create the issues
 
@@ -103,29 +101,19 @@ gh issue create --title "/cal search — find events by keyword" \
   --body "..." --label ready-for-agent
 ```
 
-### 6. Offer dispatch
+### 6. Offer to implement
 
-Ask the user:
+Ask the user whether to implement now. If yes, work the issues in dependency
+order, test-first, one small commit per logical change. Run `pytest` and
+`ruff check src tests` before each commit.
 
-> Ready to dispatch? This will run `npm run sandcastle` in `~/dev/discal`. The planner will schedule unblocked issues first, then pick up dependents in subsequent cycles. Expect [N] cycles. Issues run in parallel within each cycle.
-
-If the user says yes:
-
-```bash
-cd ~/dev/discal
-export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"
-npm run sandcastle
-```
-
-If Docker isn't running, warn. If the image needs rebuilding (e.g., new system deps), run `npx sandcastle docker build-image` first.
-
-### 7. Report back after dispatch
+### 7. Report back
 
 Show the user in a numbered list:
 
-1. Log file paths: `.sandcastle/logs/main-planner.log`, `.sandcastle/logs/sandcastle-issue-*-implementer.log`
-2. Tail command: `tail -f .sandcastle/logs/main-planner.log`
-3. Reminder: when the factory finishes, QA the feature in Discord. File follow-up `ready-for-agent` issues for anything off. Re-record VCR cassettes on the droplet if Calendar API calls changed.
+1. Commits made and test results.
+2. Whether a deploy or `.env` change is needed (see `.agents/context/deploying.md`).
+3. Reminder: QA the feature in Discord after deploying. Re-record VCR cassettes if Calendar API calls changed.
 
 ## Deep Modules Reference (Discal)
 
