@@ -11,7 +11,7 @@ from src.commands.rsvp import RsvpView
 from src.dm_handler import send_pending_invites_to_unresolvable
 from src.utils import (
     format_create_error,
-    format_datetime_eastern,
+    format_event_details,
     format_invite_error,
     get_user_timezone,
     parse_minutes,
@@ -150,16 +150,9 @@ async def create(
             )
 
     # Display confirmation in user's timezone
-    start_fmt = format_datetime_eastern(start, tz=user_tz)
-
-    event_details = (
-        f"**{title}**\n"
-        f"📅 {start_fmt} ET  "
-        f"({duration} min)\n"
-        f"[Open in Google Calendar]({result['htmlLink']})"
+    event_details = format_event_details(
+        title, start, result["htmlLink"], duration, description, tz=user_tz
     )
-    if description:
-        event_details += f"\n📝 {description}"
 
     # Invoker-only (ephemeral): action line + event details + warnings + hint
     response = f"✅ Event created!\n{event_details}"

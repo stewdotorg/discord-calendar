@@ -434,6 +434,30 @@ def _parse_duration(
     return (start_dt, end_dt)
 
 
+def format_event_details(
+    title: str,
+    start: datetime.datetime | datetime.date,
+    html_link: str,
+    duration_min: int | None = None,
+    description: str | None = None,
+    tz: ZoneInfo = EASTERN,
+) -> str:
+    """Format the public event block posted by /cal create and /cal show.
+
+    A ``datetime.date`` *start* (all-day event) renders as
+    "(all day)" with no time or duration.
+    """
+    if isinstance(start, datetime.datetime):
+        when_line = f"📅 {format_datetime_eastern(start, tz=tz)} ET  ({duration_min} min)"
+    else:
+        when_line = f"📅 {start.strftime('%B')} {start.day}, {start.year} (all day)"
+
+    details = f"**{title}**\n{when_line}\n[Open in Google Calendar]({html_link})"
+    if description:
+        details += f"\n📝 {description}"
+    return details
+
+
 def format_create_error(exc: HttpError) -> str:
     """Return a user-friendly error message for a Google Calendar API error.
 
