@@ -17,6 +17,7 @@ from src.utils import (
     parse_minutes,
     parse_when,
     resolve_mentions,
+    split_invitees,
     validate_email,
 )
 from src.views import PostToChannelView
@@ -31,7 +32,7 @@ logger = logging.getLogger(__name__)
          '"tomorrow 2pm", "2026-05-01 14:00"',
     duration="Duration in minutes (default: 60)",
     description="Optional event description",
-    invite="Comma-separated list of @mentions and/or email addresses to invite",
+    invite="Space- or comma-separated @mentions and/or email addresses to invite",
 )
 async def create(
     interaction: discord.Interaction,
@@ -64,7 +65,7 @@ async def create(
 
     if invite:
         settings = interaction.client.settings  # type: ignore[attr-defined]
-        items = [item.strip() for item in invite.split(",") if item.strip()]
+        items = split_invitees(invite)
         invite_emails, invite_warnings, unresolvable_ids = resolve_mentions(items, settings)
         # Validate raw emails that were not @mentions
         validated_emails: list[str] = []

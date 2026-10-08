@@ -43,7 +43,7 @@ _COMMANDS = [
     {
         "name": "/cal invite",
         "description": "Invite yourself or others to an event",
-        "example": "Invite people: /cal invite event:<pick> people:me, @chaz, alice@example.com",
+        "example": "Invite people: /cal invite event:<pick> people:me @chaz alice@example.com",
     },
     {
         "name": "/cal reminders set",

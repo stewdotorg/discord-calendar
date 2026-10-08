@@ -32,10 +32,21 @@ def validate_email(email: str) -> str | None:
 
 _MENTION_PATTERN = re.compile(r"^<@!?(\d+)>$")
 
+_INVITEE_SEPARATOR = re.compile(r"[,\s]+")
+
 _TYPOED_HANDLE_MSG = (
     "⚠️ {item}: user not found. "
     "Check the spelling or use their email address instead."
 )
+
+
+def split_invitees(raw: str) -> list[str]:
+    """Split an invitee list on commas and/or whitespace.
+
+    ``"@a @b"``, ``"@a, @b"`` and ``"@a,@b"`` all yield two items.
+    Empty items are dropped.
+    """
+    return [item for item in _INVITEE_SEPARATOR.split(raw) if item]
 
 
 def resolve_mentions(

@@ -1231,3 +1231,37 @@ async def test_create_invalid_email_warning_not_in_post_content():
     post_content = kwargs["view"]._post_content
     assert "❌" not in post_content
     assert "not-an-email" not in post_content
+
+
+@pytest.mark.asyncio
+async def test_create_with_invite_space_separated():
+    """/cal create with invite: accepts space-separated entries with no commas."""
+    interaction = MagicMock()
+    interaction.response = MagicMock()
+    interaction.response.defer = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
+
+    mock_calendar = MagicMock()
+    mock_calendar.create_event.return_value = {
+        "id": "evt_inv_sp",
+        "htmlLink": "https://calendar.google.com/event?eid=evt_inv_sp",
+    }
+    interaction.client.calendar = mock_calendar
+
+    mock_settings = MagicMock()
+    mock_settings.get.side_effect = lambda uid, key: (
+        "chaz@example.com" if uid == "111" else None
+    )
+    interaction.client.settings = mock_settings
+
+    await create.callback(
+        interaction,
+        title="Team Sync",
+        when="2026-05-01 14:00",
+        duration=30,
+        invite="<@111> alice@example.com bob@example.com",
+    )
+
+    mock_calendar.add_attendees.assert_called_once_with(
+        "evt_inv_sp", ["chaz@example.com", "alice@example.com", "bob@example.com"]
+    )

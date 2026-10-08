@@ -748,3 +748,35 @@ async def test_invite_has_autocomplete():
     ][0]
     assert param.autocomplete is not None
     assert param.autocomplete is event_autocomplete
+
+
+@pytest.mark.asyncio
+async def test_invite_space_separated_people():
+    """invite accepts space-separated people with no commas."""
+    from src.commands.rsvp import invite
+
+    interaction = MagicMock()
+    interaction.response = MagicMock()
+    interaction.response.defer = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
+    interaction.user.id = 12345
+
+    mock_calendar = MagicMock()
+    interaction.client.calendar = mock_calendar
+
+    mock_settings = MagicMock()
+    mock_settings.get.side_effect = lambda uid, key: {
+        "111": "chaz@example.com",
+        "222": "dana@example.com",
+    }.get(uid)
+    interaction.client.settings = mock_settings
+
+    await invite.callback(
+        interaction,
+        event_id="evt1",
+        people="<@111> <@222> alice@example.com",
+    )
+
+    mock_calendar.add_attendees.assert_called_once_with(
+        "evt1", ["chaz@example.com", "dana@example.com", "alice@example.com"]
+    )

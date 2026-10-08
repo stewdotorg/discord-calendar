@@ -16,6 +16,7 @@ from src.utils import (
     parse_date_eastern,
     parse_when,
     resolve_mentions,
+    split_invitees,
 )
 
 
@@ -470,6 +471,36 @@ class TestParseDateEastern:
 # ═══════════════════════════════════════════════════════════════════════════════
 #  resolve_mentions — Issue #22
 # ═══════════════════════════════════════════════════════════════════════════════
+
+
+class TestSplitInvitees:
+    """Tests for split_invitees."""
+
+    @pytest.mark.parametrize(
+        "raw",
+        [
+            "<@1> <@2>",
+            "<@1>, <@2>",
+            "<@1>,<@2>",
+            "<@1> ,  <@2>",
+            " <@1>\t<@2> ",
+            "<@1>,, <@2>,",
+        ],
+    )
+    def test_splits_on_commas_and_whitespace(self, raw):
+        """Commas, whitespace, or any mix of them separate invitees."""
+        assert split_invitees(raw) == ["<@1>", "<@2>"]
+
+    def test_mixed_item_types(self):
+        """'me', emails, and mentions all split cleanly without commas."""
+        assert split_invitees("me alice@example.com <@!3>") == [
+            "me", "alice@example.com", "<@!3>",
+        ]
+
+    def test_empty_and_separator_only_input(self):
+        """Empty or separator-only input yields no items."""
+        assert split_invitees("") == []
+        assert split_invitees(" , ,  ") == []
 
 
 class TestResolveMentions:

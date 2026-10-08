@@ -13,7 +13,13 @@ from googleapiclient.errors import HttpError
 from src.commands.autocomplete import event_autocomplete
 from src.commands.list_events import cal
 from src.dm_handler import send_pending_invites_to_unresolvable
-from src.utils import _MENTION_PATTERN, _TYPOED_HANDLE_MSG, format_invite_error, validate_email
+from src.utils import (
+    _MENTION_PATTERN,
+    _TYPOED_HANDLE_MSG,
+    format_invite_error,
+    split_invitees,
+    validate_email,
+)
 from src.views import PostToChannelView
 
 logger = logging.getLogger(__name__)
@@ -162,7 +168,7 @@ async def _require_calendar(interaction: discord.Interaction) -> bool:
 @app_commands.rename(event_id="event")
 @app_commands.describe(
     event_id="Event to invite people to",
-    people="Comma-separated: 'me', @mentions, or emails (e.g. me, @chaz, alice@example.com)",
+    people="Space- or comma-separated: 'me', @mentions, or emails (e.g. me @chaz alice@example.com)",
 )
 @app_commands.autocomplete(event_id=event_autocomplete)
 async def invite(
@@ -172,7 +178,7 @@ async def invite(
 ) -> None:
     """Handle invite — mixed-resolution invite to an event.
 
-    The *people* string is comma-separated and accepts:
+    The *people* string is space- and/or comma-separated and accepts:
 
     * ``me`` — resolved to the caller's stored email.
     * ``<@discord_id>`` — resolved to that user's stored email via SettingsStore.
@@ -187,7 +193,7 @@ async def invite(
     calendar = interaction.client.calendar  # type: ignore[attr-defined]
     await interaction.response.defer(ephemeral=True)
 
-    items = [p.strip() for p in people.split(",") if p.strip()]
+    items = split_invitees(people)
     if not items:
         await interaction.edit_original_response(
             content="❌ No people specified.", view=PostToChannelView()
