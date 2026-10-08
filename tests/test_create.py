@@ -203,8 +203,9 @@ class TestParseWhen:
         assert result.month == now_eastern.month
         assert result.day == now_eastern.day
         assert result.year == now_eastern.year
-        # 9am EDT → 13:00 UTC
-        assert result.hour == 13
+        # 9am Eastern → 13:00 UTC (EDT) or 14:00 UTC (EST)
+        expected = now_eastern.replace(hour=9, minute=0, second=0, microsecond=0)
+        assert result.hour == expected.astimezone(datetime.timezone.utc).hour
         assert result.minute == 0
 
     def test_parses_tomorrow(self):
@@ -214,8 +215,11 @@ class TestParseWhen:
         result = parse_when("tomorrow 9am")
         assert result.month == tomorrow.month
         assert result.day == tomorrow.day
-        # 9am EDT → 13:00 UTC
-        assert result.hour == 13
+        # 9am Eastern → 13:00 UTC (EDT) or 14:00 UTC (EST)
+        expected = datetime.datetime(
+            tomorrow.year, tomorrow.month, tomorrow.day, 9, tzinfo=EASTERN
+        )
+        assert result.hour == expected.astimezone(datetime.timezone.utc).hour
         assert result.minute == 0
 
     def test_parses_month_abbreviation(self):

@@ -9,6 +9,7 @@ import pytest
 
 from src.utils import (
     DEFAULT_TIMEZONE,
+    EASTERN,
     _format_time_range_eastern,
     format_datetime_eastern,
     format_events_embed,
@@ -292,8 +293,13 @@ class TestParseWhenDateparser:
 
     def test_dateparser_june_5th_4pm(self):
         """Parses month-name date with ordinal suffix and AM/PM."""
+        # A year-less date resolves to its next occurrence, so the expected
+        # year rolls forward once June 5th 4pm has passed.
+        now_eastern = datetime.datetime.now(EASTERN)
+        this_year = datetime.datetime(now_eastern.year, 6, 5, 16, tzinfo=EASTERN)
+        expected_year = now_eastern.year if now_eastern < this_year else now_eastern.year + 1
         result = parse_when("June 5th 4pm")
-        assert result.year == 2026
+        assert result.year == expected_year
         assert result.month == 6
         assert result.day == 5
         assert result.hour == 20  # 4pm EDT → 8pm UTC
