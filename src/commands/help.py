@@ -41,6 +41,11 @@ _COMMANDS = [
         "example": 'Change an event title: /cal edit event:<pick> title:"New Title"',
     },
     {
+        "name": "/cal show",
+        "description": "Show an event, with an option to post it to the channel",
+        "example": "Re-advertise an event: /cal show event:<pick>",
+    },
+    {
         "name": "/cal invite",
         "description": "Invite yourself or others to an event",
         "example": "Invite people: /cal invite event:<pick> people:me @chaz alice@example.com",

@@ -151,6 +151,7 @@ async def test_help_embed_contains_all_commands():
     assert "/cal week" in field_names
     assert "/cal list" in field_names
     assert "/cal edit" in field_names
+    assert "/cal show" in field_names
     assert "/cal invite" in field_names
     assert "/cal help" in field_names
     assert "/cal settings set email" in field_names
