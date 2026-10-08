@@ -703,7 +703,7 @@ async def test_rsvp_view_has_correct_custom_id():
     assert len(view.children) == 1
     button = view.children[0]
     assert button.custom_id == "rsvp:abc123"
-    assert button.label == "Email me a calendar invite"
+    assert button.label == "📅 Email me a calendar invite"
 
 
 @pytest.mark.asyncio

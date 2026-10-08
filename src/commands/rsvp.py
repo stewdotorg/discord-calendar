@@ -136,7 +136,7 @@ class RsvpView(discord.ui.View):
         super().__init__(timeout=None)
         self._event_id = event_id
         button = discord.ui.Button(
-            label="Email me a calendar invite",
+            label="📅 Email me a calendar invite",
             style=discord.ButtonStyle.primary,
             custom_id=f"{RSVP_PREFIX}{event_id}",
         )
