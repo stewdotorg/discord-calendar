@@ -1,95 +1,86 @@
 # Discal — Setup Guide
 
-A step-by-step guide to deploy your own instance of Discal, a Discord bot that reads and writes to a shared Google Calendar.
+How to stand up your own Discal: one Discord server, one shared Google
+Calendar, one bot. See the [README](README.md#how-it-works) for how the pieces
+fit together.
 
-**Prerequisites:** A server (or Docker-capable machine), a Discord application, and a Google Cloud project.
+**You need:** a Discord application, a Google account for the bot, a Google
+Cloud project, and a Docker host (a 512 MB VPS is enough).
 
 ---
 
-## 1. Discord Application
+## 1. Discord application
 
-1. Go to [Discord Developer Portal](https://discord.com/developers/applications) → **New Application** → name it (e.g. "Discal")
-2. **Bot** tab → **Add Bot** → **Reset Token** and copy it (you'll paste into `.env` later)
-3. Under **Privileged Gateway Intents**: nothing needed (slash commands only)
+1. [Discord Developer Portal](https://discord.com/developers/applications) → **New Application** (e.g. "Discal").
+2. **Bot** tab → **Reset Token** → copy it.
+3. **Bot** tab → **Privileged Gateway Intents** → enable **Message Content Intent**.
+   The bot needs it to read users' DM replies when it asks for their email.
+   Without it those replies are silently ignored.
 4. **OAuth2 → URL Generator**:
    - Scopes: `bot`, `applications.commands`
-   - Bot Permissions: `Send Messages`, `Use Slash Commands`
-   - Copy the generated URL, paste in browser, invite to your server
-5. **General Information** → copy the **Application ID** and **Public Key**
-6. `.env` entries:
+   - Bot permissions: `Send Messages`, `Use Slash Commands`
+   - Open the generated URL and invite the bot to your server.
+5. **General Information** → copy the **Application ID** and **Public Key**.
 
 ```
-DISCORD_TOKEN=           # from step 2
-DISCORD_APPLICATION_ID=  # from step 5
-DISCORD_PUBLIC_KEY=      # from step 5
-DISCORD_GUILD_ID=        # right-click your server → Copy Server ID
+DISCORD_TOKEN=                    # step 2
+DISCORD_APPLICATION_ID=           # step 5
+DISCORD_PUBLIC_KEY=               # step 5
+DISCORD_GUILD_ID=                 # right-click your server → Copy Server ID (Developer Mode)
+DISCORD_ENABLE_MESSAGE_CONTENT=true
 ```
+
+The bot serves exactly one server. Commands are registered to that guild only.
 
 ---
 
-## 2. Google Calendar
+## 2. Google: the bot's account and the shared calendar
 
-### 2a. Create OAuth 2.0 Client ID
+The bot acts as **one Google account**. All events live on **one shared
+calendar** that account can edit. Invitees just get Google invitation emails.
+The bot never gets access to their calendars.
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com) → create or select a project
-2. **APIs & Services → Library** → search "Google Calendar API" → **Enable**
-3. **APIs & Services → OAuth consent screen**:
-   - User Type: **External**
-   - App name: "Discal" (or your choice)
-   - User support email: your email
-   - Developer email: your email
-   - Scopes: none needed on this screen (the app requests them at runtime)
-   - **Test users**: Add your Google account email here while in testing mode
-   - **Save and Continue** → back to Dashboard
-4. **APIs & Services → Credentials** → **Create Credentials** → **OAuth Client ID**
-   - Application type: **Desktop app**
-   - Name: "Discal Setup"
-   - Download the JSON → save as `client-secret.json` in the project root
+### 2a. Choose the bot's Google account
+
+Use a dedicated Google account (recommended) or your own. Whatever account
+you authorize in step 2d is the identity the bot uses for every command. It
+will show up as the event organizer.
 
 ### 2b. Create the shared calendar
 
-5. In the same project, **IAM & Admin → Service Accounts** → **Create Service Account**
-   - Name: "discal-calendar-creator"
-   - Skip the role/permission step (not needed for this one-time action)
-6. Create a key for the service account (JSON) → save as `service-account.json` in the project root
-7. Run this to create the shared calendar (run locally with Python 3.12+):
+Signed in as the bot's account, open Google Calendar → **Other calendars → +
+→ Create new calendar**. Then open its **Settings → Integrate calendar** and
+copy the **Calendar ID** (ends in `@group.calendar.google.com`).
 
-```bash
-pip install google-api-python-client google-auth
-python -c "
-import json
-from google.oauth2.service_account import Credentials
-from googleapiclient.discovery import build
-
-creds = Credentials.from_service_account_info(json.load(open('service-account.json')))
-svc = build('calendar', 'v3', credentials=creds)
-cal = svc.calendars().insert(body={'summary': 'Your Calendar Name'}).execute()
-print('CALENDAR_ID=' + cal['id'])
-"
-```
-
-8. Copy the `CALENDAR_ID` into `.env`:
+To use an existing calendar instead, share it with the bot's account using
+**Make changes to events**.
 
 ```
 GOOGLE_CALENDAR_ID=abc123...@group.calendar.google.com
 ```
 
-9. Delete `service-account.json` (no longer needed — the bot uses OAuth)
+### 2c. Create an OAuth client
 
-### 2c. OAuth2 refresh token (enables attendee management)
+1. [Google Cloud Console](https://console.cloud.google.com) → create or select a project.
+2. **APIs & Services → Library** → **Google Calendar API** → **Enable**.
+3. **APIs & Services → OAuth consent screen**: User type **External**, fill in app name and emails.
+   - Add the bot's Google account under **Test users**.
+   - **Publish the app (set it to Production)** once it works. While the app is in
+     *Testing*, Google expires the refresh token after **7 days** and the bot
+     starts logging `invalid_grant`. An unverified app in Production works for
+     up to 100 users. You'll click through an "unverified app" warning when you
+     authorize.
+4. **APIs & Services → Credentials → Create Credentials → OAuth Client ID** → type **Desktop app**.
+   Download the JSON and save it as `client-secret.json` in the project root.
 
-10. Run the one-time setup script:
+### 2d. Authorize the bot's account
 
 ```bash
-pip install google-auth-oauthlib
 python scripts/setup_oauth.py
 ```
 
-11. Your browser opens → authorize with the Google account added in step 3 (test users)
-12. The script writes `GOOGLE_REFRESH_TOKEN` to `.env`
-13. You can now publish the OAuth consent screen (optional — only if you want others to self-host)
-
-### 2d. Verify `.env` is complete
+A browser opens. Sign in as the **bot's account** and approve. The script
+writes `GOOGLE_REFRESH_TOKEN` to `.env`.
 
 ```
 GOOGLE_CLIENT_SECRET_FILE=./client-secret.json
@@ -99,87 +90,59 @@ GOOGLE_CALENDAR_ID=abc123...@group.calendar.google.com
 
 ---
 
-## 3. Server Setup
+## 3. Run it
 
-### Option A: DigitalOcean Droplet (recommended)
-
-1. Create a droplet: Ubuntu 24.04, 512MB RAM ($4/mo), add your SSH key
-2. SSH in and install Docker:
+### Local
 
 ```bash
-curl -fsSL https://get.docker.com | sh
-```
-
-3. Clone the repo:
-
-```bash
-git clone https://github.com/stewdotorg/discord-calendar.git /opt/discal
-cd /opt/discal
-```
-
-4. Copy your files to the server:
-
-```bash
-# From your local machine:
-scp .env client-secret.json root@YOUR_DROPLET_IP:/opt/discal/
-```
-
-5. Start:
-
-```bash
-docker compose up -d --build
-```
-
-### Option B: Any Docker host
-
-Same as above, minus the reverse proxy — the bot is a WebSocket client and needs no inbound HTTP.
-
-### Option C: Local development
-
-```bash
-# Install deps
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-
-# Run
-DISCORD_GUILD_ID=your_server_id python -m src.bot
+cp .env.example .env   # fill in values from steps 1–2
+python -m src.bot
 ```
 
-The bot uses Discord's gateway (WebSocket) — no inbound HTTP needed. No tunnel required for slash commands during local dev.
+The bot connects out to Discord's gateway over WebSocket. It needs no
+inbound port, tunnel or domain.
+
+### VPS (Docker Compose)
+
+```bash
+# On the server (Ubuntu + Docker: curl -fsSL https://get.docker.com | sh)
+git clone https://github.com/stewdotorg/discord-calendar.git /opt/discal
+
+# From your machine: secrets are not in git
+scp .env client-secret.json root@YOUR_SERVER:/opt/discal/
+
+# On the server
+cd /opt/discal && docker compose up -d --build
+```
+
+`client-secret.json` is copied into the image at build time, so rebuild
+(`--build`) if it changes.
+
+On a 512 MB droplet, add swap (e.g. a 1 GiB swapfile). The compose file caps the
+bot at 256 MB, so a leak restarts the container instead of exhausting the host.
 
 ---
 
 ## 4. Verify
 
-1. Check logs: `docker compose logs bot -f`
-2. Look for: `Calendar connected: {name}` (confirms OAuth token works)
-3. In Discord, type `/cal ping` → should respond "pong"
-4. Type `/cal create title:"Test event" when:"tomorrow 3pm"` → check Google Calendar
+1. `docker compose logs bot --tail=50` should show `Calendar connected: <name>`
+   and `Ready`. It should **not** say `message_content intent disabled`.
+2. In Discord: `/cal ping` → "pong".
+3. `/cal create title:"Test" when:"tomorrow 3pm"` → the event appears on the shared calendar.
 
 ---
 
 ## 5. Maintenance
 
-- **Redeploy after code changes:** `git pull && docker compose up -d --build`
-- **Refresh token expiry:** OAuth refresh tokens don't expire unless revoked. If revoked, re-run `scripts/setup_oauth.py`
-- **Database:** stored in Docker volume `bot_data` at `/app/data/discal.db`. Back it up with:
-  ```bash
-  docker compose cp bot:/app/data/discal.db ./backup.db
-  ```
-- **View logs:** `docker compose logs bot --tail=50`
-
----
-
-## Architecture Notes
-
-| Component | What |
+| Task | How |
 |---|---|
-| Discord connection | Gateway WebSocket (not HTTP interactions endpoint) |
-| Google Calendar auth | OAuth2 user credentials with refresh token |
-| Timezone | UTC everywhere internally; displayed in US Eastern |
-| Event selection | Discord autocomplete from live Calendar API list |
-| NLP dates | dateparser with timezone-aware UTC context |
-| Tests | pytest + vcrpy for Google Calendar API integration tests |
+| Deploy code changes | `git pull && docker compose up -d --build` |
+| Apply `.env` changes | `docker compose up -d --force-recreate` (`restart` keeps the old env) |
+| Logs | `docker compose logs bot --tail=50` |
+| Back up the DB | `docker compose cp bot:/app/data/discal.db ./backup.db` (volume `bot_data`) |
+| Free disk | `docker builder prune -af && docker image prune -af`. **Don't** add `--volumes`, which deletes the database volumes. |
 
 ---
 
@@ -187,10 +150,9 @@ The bot uses Discord's gateway (WebSocket) — no inbound HTTP needed. No tunnel
 
 | Symptom | Fix |
 |---|---|
-| `ModuleNotFoundError: google_auth_oauthlib` during setup | `pip install google-auth-oauthlib` |
-| `accessNotConfigured` error in logs | Enable Calendar API in the project where OAuth client lives |
-| `forbiddenForServiceAccounts` | You're using service account auth → switch to OAuth2 (this guide) |
-| Bot doesn't respond to slash commands | Bot must be invited with `applications.commands` scope; wait 1 hour for Discord to sync |
-| "Calendar not configured" | Check `GOOGLE_CALENDAR_ID` and credentials in `.env` |
-| Docker memory exhaustion (OOM) on 512MB droplet | `docker system prune -af --volumes` periodically |
-| Refresh token invalid after Google password reset | Re-run `scripts/setup_oauth.py` |
+| `invalid_grant` in logs | Refresh token expired or was revoked. Publish the consent screen (step 2c), re-run `scripts/setup_oauth.py`, copy the new `.env` to the server, then `docker compose up -d --force-recreate`. |
+| Users reply to the bot's email DM and nothing happens | Message Content intent is off. Enable it in the Developer Portal (step 1.3), set `DISCORD_ENABLE_MESSAGE_CONTENT=true`, recreate the container. |
+| Bot fails to connect after enabling the env var | The intent isn't enabled in the Developer Portal. Enable it there first. |
+| `accessNotConfigured` | Enable the Calendar API in the project that owns the OAuth client. |
+| Slash commands missing or stale | Check the invite included `applications.commands`. Discord desktop caches command definitions, so if they still look stale, kick and re-invite the bot. |
+| "Calendar not configured" | Check `GOOGLE_CALENDAR_ID` and the OAuth values in `.env`. |

@@ -1,152 +1,143 @@
 # Discal — Discord Google Calendar Bot
 
-A Discord slash-command bot that reads and writes to a shared Google Calendar.
+A Discord slash-command bot for a server's **single shared Google Calendar**.
 Discord is the UI; Google Calendar is the source of truth.
 
-## Architecture
+## How it works
+
+- **One bot, one calendar.** Each bot deployment manages exactly one Google
+  Calendar (`GOOGLE_CALENDAR_ID`), and is registered to exactly one Discord
+  server (`DISCORD_GUILD_ID`).
+- **The bot acts as its own Google account.** Every command (create, edit,
+  delete, list, invite, reminders) runs against that shared calendar using
+  the bot's Google credentials (an OAuth refresh token for one Google
+  account, authorized once with `scripts/setup_oauth.py`). Discord users
+  never sign in to Google.
+- **People receive invites; the bot never touches their calendars.** Inviting
+  someone adds their email as an attendee on the shared calendar's event, and
+  Google emails them a normal calendar invitation. Whether it appears on their
+  own calendar is up to them and their Google settings. The bot has no access
+  to anyone's personal calendar.
+- **Discord users are mapped to emails.** To invite someone by @mention, the
+  bot needs their email. Users store it with `/cal settings set`, by clicking
+  the 📅 invite button on an event post, or by replying to the bot's DM when
+  they're @mentioned before their email is on file.
 
 ```
-discord (slash commands) → bot (Python) → Google Calendar API
-                               ↕
-                          SQLite (user settings)
+Discord (slash commands, buttons, DMs)
+        │
+        ▼
+   bot (Python, discord.py) ── SQLite: per-user email, timezone, reminder defaults
+        │
+        ▼  bot's own Google account (OAuth)
+Google Calendar API ── the one shared calendar ── invitation emails → attendees
 ```
 
 ## Commands
 
-All commands are registered under the `/cal` group.
+All commands live under `/cal`. Commands that take `event:` autocomplete from
+upcoming events on the shared calendar.
 
-| Command | Description |
+### Events
+
+| Command | What it does |
 |---|---|
-| `/cal ping` | Bot responds "pong" (connectivity check) |
-| `/cal create title: when: [duration:] [description:] [invite:]` | Create a Google Calendar event — `when` uses the user's timezone (or US Eastern), e.g. "May 1 3pm", "tomorrow 2pm" |
-| `/cal today` | List today's events |
-| `/cal week` | List this week's events |
-| `/cal list [from:] [to:] [search:]` | List events in a date range with optional text search |
-| `/cal edit event_id: [title:] [when:] [duration:] [description:]` | Edit an existing event — autocomplete picks from upcoming events |
-| `/cal delete event_id:` | Delete an event — autocomplete picks from upcoming events |
-| `/cal invite event_id: people:` | Add attendees by `me`, @mention, or email. Accepts mixed input like `me, @user, email@example.com` |
-| `/cal help` | Show all available commands |
-| `/cal settings set email value:` | Store your email for calendar invites |
-| `/cal settings show email` | Show your stored email |
-| `/cal settings set timezone value:` | Set your timezone (e.g. `America/New_York`, `Europe/London`) |
-| `/cal settings show timezone` | Show your stored timezone |
-| `/cal reminders set event_id: minutes:` | Set popup reminders on an event (e.g. `10, 30` for 10min and 30min before) |
-| `/cal reminders show event_id:` | Show current reminders on an event |
-| `/cal reminders-defaults set minutes:` | Set default reminder minutes for new events you create |
-| `/cal reminders-defaults show` | Show your default reminder settings |
+| `/cal create title: when: [duration:] [description:] [invite:]` | Create an event. `when` is natural language in your timezone (default US Eastern), e.g. `tomorrow 2pm`, `May 1 3pm`, `tomorrow 2-4pm`. `duration` defaults to 60 min. |
+| `/cal show event:` | Show an event's current details, with a button to post it to the channel. Use it to re-advertise an event after a lot of scrollback. |
+| `/cal edit event: [title:] [when:] [duration:] [description:]` | Change an event. |
+| `/cal delete event:` | Delete an event. |
+| `/cal today` | List today's events. |
+| `/cal week` | List the next 7 days of events. |
+| `/cal list from: to: [search:]` | List events in a date range (`YYYY-MM-DD`), optionally filtered by keyword. |
 
-## Quick Start
+Responses are only visible to you at first. A **📢 Post to channel** button
+publishes them. When you post an event from `/cal create` or `/cal show`, the
+public post includes a **📅 Email me a calendar invite** button anyone can click.
 
-### Prerequisites
+### Invites
 
-- Python 3.12+
-- Discord bot application ([Developer Portal](https://discord.com/developers/applications))
-- Google Cloud project with Calendar API enabled and an OAuth 2.0 Client ID (Desktop app type)
-- A Google Calendar shared with a Google account the bot will act as
+| Command | What it does |
+|---|---|
+| `/cal invite event: people:` | Add attendees. `people` takes `me`, @mentions, and email addresses, separated by spaces or commas (e.g. `me @chaz alice@example.com`). |
+| `/cal create … invite:` | Same `people` syntax, applied at creation. |
 
-### 1. Clone and configure
+If an @mentioned user has no email on file, the bot DMs them asking for it.
+When they reply with their email, it's saved and they're added to the event.
+This needs the Message Content intent; see [SETUP.md](SETUP.md).
+
+### Settings and reminders
+
+| Command | What it does |
+|---|---|
+| `/cal settings set setting:email value:` | Store your email (used for invites). |
+| `/cal settings set setting:timezone value:` | Store your timezone, e.g. `America/Chicago`. |
+| `/cal settings show setting:` | Show a stored setting. |
+| `/cal reminders set event: minutes:` | Set popup reminders, e.g. `10,30`. |
+| `/cal reminders show event:` | Show an event's reminders. |
+| `/cal reminders-defaults set minutes:` | Default reminders applied to events you create. |
+| `/cal reminders-defaults show` | Show your default reminders. |
+| `/cal help` | List all commands. |
+| `/cal ping` | Connectivity check. |
+
+## Quick start
+
+Full instructions, including the Google and Discord setup: **[SETUP.md](SETUP.md)**.
 
 ```bash
-git clone git@github.com:stewdotorg/discord-calendar.git
+git clone git@github.com:stewdotorg/discord-calendar.git discal
 cd discal
-cp .env.example .env
-# Edit .env with your Discord values
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-```
-
-### 2. Google Calendar OAuth setup
-
-```bash
-# One-time: authorize the bot to access your calendar
-python scripts/setup_oauth.py
-# → opens browser, authorize with your Google account
-# → writes GOOGLE_REFRESH_TOKEN to .env
-```
-
-### 3. Environment variables (`.env`)
-
-| Variable | Source |
-|---|---|
-| `DISCORD_TOKEN` | Developer Portal → Bot → Token |
-| `DISCORD_APPLICATION_ID` | Developer Portal → General Information |
-| `DISCORD_PUBLIC_KEY` | Developer Portal → General Information |
-| `DISCORD_GUILD_ID` | Right-click server → Copy ID (Developer Mode) |
-| `GOOGLE_CALENDAR_ID` | Google Calendar → Settings → Calendar ID (ends with `@group.calendar.google.com`) |
-| `GOOGLE_CLIENT_SECRET_FILE` | Path to downloaded OAuth client JSON (default `./client-secret.json`) |
-| `GOOGLE_REFRESH_TOKEN` | Generated by `scripts/setup_oauth.py` |
-| `AUTOCOMPLETE_LOOKAHEAD_DAYS` | How many days ahead autocomplete should show events (default: `14`) |
-
-### 4. Run locally
-
-```bash
+cp .env.example .env              # fill in Discord + calendar values
+python scripts/setup_oauth.py     # authorize the bot's Google account → writes GOOGLE_REFRESH_TOKEN
 python -m src.bot
 ```
 
-The bot connects to Discord via WebSocket — no tunnel or public URL needed. Slash commands sync instantly to the guild specified by `DISCORD_GUILD_ID`.
+The bot holds an outbound WebSocket connection to Discord. It runs no HTTP
+server, so no tunnel, domain or open port is needed.
 
-### 5. Deploy to a VPS
+## Configuration (`.env`)
 
-See [SETUP.md](SETUP.md) for the full guide.
+`.env.example` is the template and documents each variable.
 
-```bash
-# On the VPS
-git clone git@github.com:stewdotorg/discord-calendar.git /opt/discal
-cd /opt/discal
-# Copy .env and client-secret.json to the server
-
-docker compose up -d --build
-```
+| Variable | Purpose |
+|---|---|
+| `DISCORD_TOKEN` | Bot token (Developer Portal → Bot). |
+| `DISCORD_APPLICATION_ID` | Developer Portal → General Information. |
+| `DISCORD_PUBLIC_KEY` | Developer Portal → General Information. |
+| `DISCORD_GUILD_ID` | The one server the bot serves (right-click server → Copy Server ID). |
+| `DISCORD_ENABLE_MESSAGE_CONTENT` | Keep `true`. Required for DM email replies; off if unset. |
+| `DISCORD_NOTIFY_TARGETS` / `DISCORD_NOTIFY_EVENTS` | Optional restart/shutdown/error/deploy notifications to channels (`c:<id>`) or users (`u:<id>`). |
+| `GOOGLE_CALENDAR_ID` | The shared calendar (ends in `@group.calendar.google.com`). |
+| `GOOGLE_CLIENT_SECRET_FILE` | OAuth client JSON (default `./client-secret.json`). |
+| `GOOGLE_REFRESH_TOKEN` | The bot account's token, written by `scripts/setup_oauth.py`. |
+| `AUTOCOMPLETE_LOOKAHEAD_DAYS` | How far ahead event autocomplete looks (code default 14; template sets 90). |
 
 ## Development
 
-### Running tests
-
 ```bash
-# Run all tests (mock-based unit tests + VCR integration tests with cassettes)
-python -m pytest tests/ -v
-
-# Re-record VCR cassettes against the live Google Calendar API
-# Requires GOOGLE_REFRESH_TOKEN and GOOGLE_CALENDAR_ID env vars
-python -m pytest tests/ -v --record
+python -m pytest tests/            # unit tests + VCR cassette playback (no network)
+python -m pytest tests/ --record   # re-record cassettes against the live API
+ruff check src tests
 ```
 
-**VCR integration tests** (in `tests/test_calendar_vcr.py`) use
-[vcrpy](https://vcrpy.readthedocs.io/) to record and replay real Google
-Calendar API interactions. Cassettes are stored in `tests/cassettes/`
-and committed to the repo.
+VCR integration tests (`tests/test_calendar_vcr.py`) replay recorded Google
+Calendar API traffic from `tests/cassettes/`. Recording needs
+`GOOGLE_REFRESH_TOKEN` and `GOOGLE_CALENDAR_ID`.
 
-- **Default mode** (`pytest`): Plays back cassettes — no network or
-  credentials needed.
-- **Record mode** (`pytest --record`): Hits the live API and overwrites
-  cassettes.
-
-### Sandcastle (AI agent orchestration)
-
-This project uses [Sandcastle](https://github.com/mattpocock/sandcastle) to run AI coding
-agents that implement GitHub issues via TDD in isolated Docker sandboxes.
-
-```bash
-# One-time setup
-cp .sandcastle/.env.example .sandcastle/.env
-# Edit .sandcastle/.env: DEEPSEEK_API_KEY and GH_TOKEN
-
-# Run the night shift
-npm run sandcastle
-```
-
-## Design Decisions
+## Design decisions
 
 | Decision | Choice |
 |---|---|
-| Source of truth | Google Calendar |
-| Calendar auth | OAuth2 user credentials (supports attendee management) |
-| Discord style | Slash commands |
-| Language | Python 3.12+ / discord.py |
-| Local storage | SQLite (Docker volume mount) |
-| Bot scope | Single server, guild-scoped command registration |
-| Model | Open (anyone can edit/delete any event) |
-| Timezone | Per-user configurable, falls back to US Eastern |
-| Deployment | Docker Compose (single bot container) |
+| Source of truth | Google Calendar. The bot stores no events, only per-user settings. |
+| Calendar scope | One shared calendar per bot deployment. |
+| Google identity | One Google account authorized via OAuth (refresh token). |
+| Access to users' calendars | None. Users only receive invitation emails. |
+| Discord scope | One server, guild-registered slash commands. |
+| Permission model | Open: anyone in the server can create, edit or delete any event. |
+| Timezone | Per-user, falling back to US Eastern. |
+| Storage | SQLite on a Docker volume. |
+| Deployment | Docker Compose on a small VPS. See [SETUP.md](SETUP.md). |
 
 ## License
 
